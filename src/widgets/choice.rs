@@ -41,11 +41,12 @@ impl Widget for Segmented<'_> {
         let before = *self.selected;
         let height = ui.spacing().interact_size.y;
         let width = self.width.unwrap_or_else(|| ui.available_width());
-        let (rect, mut response) = ui.allocate_exact_size(egui::vec2(width, height), Sense::hover());
+        let enabled = ui.is_enabled();
+        // The control as a whole takes the focus, and the arrows move the choice inside it.
+        let (rect, mut response) = ui.allocate_exact_size(egui::vec2(width, height), if enabled { Sense::focusable_noninteractive() } else { Sense::hover() });
         let n = self.items.len().max(1);
         let each = rect.width() / n as f32;
-        let id = ui.id().with(("segmented", self.id));
-        let enabled = ui.is_enabled();
+        let id = response.id.with(("segmented", self.id));
         let r = x.m.radius;
         if x.look == Look::Material {
             return material_segments(ui, &x, rect, response, id, self.selected, &self.items, before);
@@ -62,7 +63,7 @@ impl Widget for Segmented<'_> {
         }
         for (i, (label, tip)) in self.items.iter().enumerate() {
             let slot = Rect::from_min_size(egui::pos2(rect.left() + each * i as f32, rect.top()), egui::vec2(each, rect.height()));
-            let segment = ui.interact(slot, id.with(i), if enabled { Sense::click() } else { Sense::hover() });
+            let segment = ui.interact(slot, id.with(i), if enabled { Sense::CLICK } else { Sense::hover() });
             let on = i == *self.selected;
             let colour = if system {
                 if on {
@@ -103,16 +104,20 @@ impl Widget for Segmented<'_> {
                 (false, _) => tip.clone(),
             };
             let segment = if hover.is_empty() { segment } else { segment.on_hover_text(&hover) };
+            segment.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::RadioButton, enabled, on, label));
             if segment.clicked() {
                 *self.selected = i;
             }
-            if segment.has_focus() {
+            if on && response.has_focus() {
                 crate::paint::ring(ui.painter(), &x.paint(), slot.shrink(2.0), CornerRadius::same(r.saturating_sub(1)));
             }
         }
         if !system {
             ui.painter().rect_stroke(rect, CornerRadius::same(r), Stroke::new(1.0, c.border), egui::StrokeKind::Inside);
         }
+        choice_keys(ui, &response, n, self.selected);
+        let label = self.items.get(*self.selected).map(|(label, _)| label.clone()).unwrap_or_default();
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::RadioGroup, enabled, &label));
         if *self.selected != before {
             response.mark_changed();
         }
@@ -131,7 +136,7 @@ fn material_segments(ui: &mut Ui, x: &Ctx, rect: Rect, mut response: Response, i
     let enabled = ui.is_enabled();
     for (i, (label, tip)) in items.iter().enumerate() {
         let slot = Rect::from_min_size(egui::pos2(rect.left() + each * i as f32, rect.top()), egui::vec2(each, rect.height()));
-        let segment = ui.interact(slot, id.with(i), if enabled { Sense::click() } else { Sense::hover() });
+        let segment = ui.interact(slot, id.with(i), if enabled { Sense::CLICK } else { Sense::hover() });
         let round = CornerRadius { nw: if i == 0 { pill } else { 0 }, sw: if i == 0 { pill } else { 0 }, ne: if i + 1 == n { pill } else { 0 }, se: if i + 1 == n { pill } else { 0 } };
         let on = i == *selected;
         if on {
@@ -152,15 +157,56 @@ fn material_segments(ui: &mut Ui, x: &Ctx, rect: Rect, mut response: Response, i
             ui.painter().line_segment([egui::pos2(slot.left(), slot.top()), egui::pos2(slot.left(), slot.bottom())], Stroke::new(1.0, c.control_strong));
         }
         let segment = if tip.is_empty() { segment } else { segment.on_hover_text(tip) };
+        segment.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::RadioButton, enabled, on, label));
         if segment.clicked() {
             *selected = i;
         }
+        if on && response.has_focus() {
+            crate::paint::ring(ui.painter(), &x.paint(), slot, round);
+        }
     }
     ui.painter().rect_stroke(rect, CornerRadius::same(pill), Stroke::new(1.0, c.control_strong), egui::StrokeKind::Inside);
+    choice_keys(ui, &response, n, selected);
+    let label = items.get(*selected).map(|(label, _)| label.clone()).unwrap_or_default();
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::RadioGroup, enabled, &label));
     if *selected != before {
         response.mark_changed();
     }
     response
+}
+
+/// While the row of `n` choices `response` stands for has the focus, Left and Right choose
+/// the one before or after; the arrows stay in the row.
+fn choice_keys(ui: &Ui, response: &Response, n: usize, selected: &mut usize) {
+    if !response.has_focus() || n == 0 {
+        return;
+    }
+    let filter = egui::EventFilter { horizontal_arrows: true, ..Default::default() };
+    ui.memory_mut(|m| m.set_focus_lock_filter(response.id, filter));
+    let (left, right) = ui.input(|input| (input.key_pressed(egui::Key::ArrowLeft), input.key_pressed(egui::Key::ArrowRight)));
+    if right {
+        *selected = (*selected + 1).min(n - 1);
+    } else if left {
+        *selected = selected.saturating_sub(1).min(n - 1);
+    }
+}
+
+/// While the item `focused` of a row of choices has the focus, Left and Right choose the
+/// item before or after it and move the focus there; the arrows stay in the row.
+fn arrow_keys(ui: &Ui, focused: Option<usize>, ids: &[egui::Id], selected: &mut usize) {
+    let Some(i) = focused else { return };
+    let filter = egui::EventFilter { horizontal_arrows: true, ..Default::default() };
+    ui.memory_mut(|m| m.set_focus_lock_filter(ids[i], filter));
+    let (left, right) = ui.input(|input| (input.key_pressed(egui::Key::ArrowLeft), input.key_pressed(egui::Key::ArrowRight)));
+    let next = if right { (i + 1).min(ids.len() - 1) } else if left { i.saturating_sub(1) } else { i };
+    if next != i {
+        *selected = next;
+        ui.memory_mut(|m| {
+            m.request_focus(ids[next]);
+            // The next frame's arrows reach it before it can ask for them itself.
+            m.set_focus_lock_filter(ids[next], filter);
+        });
+    }
 }
 
 /// A pop-up button with its list: the chosen item on the button, the items in a list
@@ -278,7 +324,9 @@ impl PopupButton {
         let width = self.width.unwrap_or_else(|| ui.fonts_mut(|f| f.layout_no_wrap(self.text.clone(), font.clone(), c.fg).size().x) + 44.0);
         let enabled = ui.is_enabled();
         let (rect, response) = ui.allocate_exact_size(egui::vec2(width, height), if enabled { Sense::click() } else { Sense::hover() });
-        let popup = self.id.with("egui_native_look-dropdown");
+        // The button's own id, unique to where it is laid out, tells the list apart from
+        // another button's built with the same `id` (the rows of a loop).
+        let popup = response.id.with((self.id, "egui_native_look-dropdown"));
         let open = egui::Popup::is_id_open(ui.ctx(), popup);
         let arrows = crate::paint::popup_button(ui.painter(), &x.paint(), rect, &response, enabled, open);
         let colour = if enabled { c.fg } else { c.disabled };
@@ -351,6 +399,7 @@ pub struct Slider<'a, T: egui::emath::Numeric> {
     step: Option<f64>,
     clamping: egui::SliderClamping,
     show_value: bool,
+    label: String,
     format: super::entry::Format<'a>,
 }
 
@@ -358,7 +407,7 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
     /// A slider moving `value` across `range`.
     pub fn new(value: &'a mut T, range: std::ops::RangeInclusive<T>) -> Self {
         let range = range.start().to_f64()..=range.end().to_f64();
-        Slider { value, range, width: None, text: String::new(), logarithmic: false, step: None, clamping: egui::SliderClamping::default(), show_value: false, format: super::entry::Format::default() }
+        Slider { value, range, width: None, text: String::new(), logarithmic: false, step: None, clamping: egui::SliderClamping::default(), show_value: false, label: String::new(), format: super::entry::Format::default() }
     }
     /// The rail's width; by default egui's `slider_width`.
     pub fn width(mut self, width: f32) -> Self {
@@ -368,6 +417,12 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
     /// A label after it.
     pub fn text(mut self, text: impl Into<String>) -> Self {
         self.text = text.into();
+        self
+    }
+    /// What it sets, for a screen reader, when no [`Slider::text`] says so: the label of
+    /// its row in a form, say.
+    pub fn accessible_label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
         self
     }
     /// Spreads the range logarithmically, for a range of positive numbers spanning
@@ -402,7 +457,7 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
     /// Where `value` sits along the rail, from 0 to 1.
     fn fraction(&self, value: f64) -> f64 {
         let (lo, hi) = (*self.range.start(), *self.range.end());
-        if hi <= lo {
+        if hi == lo || !(hi - lo).is_finite() {
             0.0
         } else if self.log() {
             ((value.max(lo) / lo).ln() / (hi / lo).ln()).clamp(0.0, 1.0)
@@ -490,6 +545,9 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
             self.set(value, &mut response);
         }
         if response.has_focus() {
+            // The arrows move the knob, not the focus on to the next control.
+            let filter = egui::EventFilter { horizontal_arrows: true, ..Default::default() };
+            ui.memory_mut(|m| m.set_focus_lock_filter(response.id, filter));
             let (left, right) = ui.input(|i| (i.key_pressed(egui::Key::ArrowLeft), i.key_pressed(egui::Key::ArrowRight)));
             let steps = f64::from(u8::from(right)) - f64::from(u8::from(left));
             if steps != 0.0 {
@@ -528,7 +586,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
             crate::paint::ring(painter, &x.paint(), Rect::from_center_size(at, egui::Vec2::splat(knob_r * 2.0)), CornerRadius::same(knob_r as u8));
         }
         let value = self.value.to_f64();
-        let text = self.text.clone();
+        let text = if self.text.is_empty() { self.label.clone() } else { self.text.clone() };
         response.widget_info(|| egui::WidgetInfo::slider(enabled, value, &text));
         response
     }
@@ -560,6 +618,7 @@ impl Widget for Tabs<'_> {
         }
         let before = *self.selected;
         let mut whole: Option<Response> = None;
+        let (mut ids, mut focused) = (Vec::new(), None);
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
             for (i, label) in self.labels.iter().enumerate() {
@@ -567,12 +626,17 @@ impl Widget for Tabs<'_> {
                 if response.clicked() {
                     *self.selected = i;
                 }
+                if response.has_focus() {
+                    focused = Some(i);
+                }
+                ids.push(response.id);
                 whole = Some(match whole.take() {
                     Some(w) => w | response,
                     None => response,
                 });
             }
         });
+        arrow_keys(ui, focused, &ids, self.selected);
         let mut response = whole.unwrap_or_else(|| ui.allocate_response(egui::Vec2::ZERO, Sense::hover()));
         if *self.selected != before {
             response.mark_changed();

@@ -26,6 +26,10 @@ tablet's browser too, and `Metrics::scaled` makes any look larger or smaller.
 egui_native_look = { git = "https://github.com/MojzisekJan/egui_native_look" }
 ```
 
+The default `system` feature reads the system: its accent, its scheme, its fonts and
+whether the screen takes touch. `default-features = false` leaves it out, for an app
+that wants the controls alone; the looks then keep their own accents.
+
 ```rust
 use egui_native_look as look;
 
@@ -67,7 +71,8 @@ up the look's way: right-aligned on macOS, left on Windows, a boxed list in liba
 and on iOS. `Theme` takes the app's
 palette (`Schemes`, each scheme's `Palette` changed from `Palette::of(dark)` where only
 a few colours differ) and sizes (`Metrics`); `install` leaves the rest of egui's style
-(shadows, spacing, the heading) as the app set it; `colors(ctx)` gives the resolved colours for the
+(shadows, spacing, the heading, the text colour) as the app set it, bar the body and
+button text styles, which take `Metrics::body`; `colors(ctx)` gives the resolved colours for the
 app's own drawing; the painting functions (`paint_button`, `focus_ring`, ...) are public.
 
 Text is centred on its capitals rather than on egui's line box, so labels sit in the
@@ -76,12 +81,16 @@ middle of their controls at every size (`text`, `galley_top`, `entry_margin`).
 ## Examples and tests
 
 - `cargo run --example gallery [mac|windows|gtk|ios|material|plain] [light] [toast]`
-- `cargo test` clicks every control in every look and compares each look, dark and
-  light, with the pictures in `tests/snapshots` (`UPDATE_SNAPSHOTS=1` to accept a change).
+- `cargo test` clicks every control in every look, and tries the keyboard, the names a
+  screen reader hears and values out of bounds.
+- `cargo test --test snapshots -- --include-ignored` compares each look, dark and light,
+  with the pictures in `tests/snapshots` (`UPDATE_SNAPSHOTS=1` to accept a change). It
+  renders with wgpu, so it needs a GPU or a software adapter, and a plain `cargo test`
+  leaves it out.
 - `cargo doc --open` documents every control; `CHANGELOG.md` lists what changed.
 - `cargo bench` times a frame of 200 rows of controls in each look against egui's own.
 
-Requires egui 0.36.
+Requires egui 0.36 and Rust 1.95.
 
 ## Licence
 

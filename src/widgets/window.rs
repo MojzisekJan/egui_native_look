@@ -21,12 +21,19 @@ pub struct Dialog {
     id: egui::Id,
     title: String,
     size: egui::Vec2,
+    close_label: String,
 }
 
 impl Dialog {
     /// A dialog titled `title`; `id` keeps its place from frame to frame.
     pub fn new(id: impl std::hash::Hash + std::fmt::Debug, title: impl Into<String>) -> Self {
-        Dialog { id: egui::Id::new(id), title: title.into(), size: egui::vec2(420.0, 240.0) }
+        Dialog { id: egui::Id::new(id), title: title.into(), size: egui::vec2(420.0, 240.0), close_label: "Close".into() }
+    }
+    /// The close button's name, under the pointer and for a screen reader; "Close" by
+    /// default, for an app to translate.
+    pub fn close_label(mut self, label: impl Into<String>) -> Self {
+        self.close_label = label.into();
+        self
     }
     /// Its size when it opens.
     pub fn size(mut self, size: impl Into<egui::Vec2>) -> Self {
@@ -35,7 +42,9 @@ impl Dialog {
     }
 
     /// Shows the dialog while `open`, centred when it opens; the close button and Escape
-    /// clear `open`. `actions` are laid out right to left, the first one rightmost.
+    /// clear `open`. `actions` are laid out right to left, the first one rightmost. Escape
+    /// closes only the dialog on top, and only while nothing had the focus (Escape first
+    /// takes it off a field) and no pop-up is open.
     pub fn show(self, ctx: &egui::Context, open: &mut bool, body: impl FnOnce(&mut Ui), actions: impl FnOnce(&mut Ui)) {
         if !*open {
             return;
@@ -45,7 +54,7 @@ impl Dialog {
             let c = crate::Colors::resolve(&theme, ctx.theme() == egui::Theme::Dark);
             Ctx { look: theme.look, c, m: theme.metrics }
         };
-        let mut close = ctx.input(|i| i.key_pressed(egui::Key::Escape));
+        let mut close = escape_closes(ctx, self.id);
         let frame = window_frame(ctx).inner_margin(0);
         egui::Window::new(&self.title)
             .id(self.id)
@@ -58,13 +67,15 @@ impl Dialog {
             .default_pos(ctx.content_rect().center())
             .show(ctx, |ui| {
                 ui.set_min_width(self.size.x);
-                close |= header(ui, &x, &self.title, false);
+                close |= header(ui, &x, &self.title, &self.close_label, false);
                 egui::Frame::new().inner_margin(16).show(ui, |ui| {
                     body(ui);
                     ui.add_space(12.0);
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), actions);
                 });
             });
+        let focused = ctx.memory(|m| m.focused().is_some());
+        ctx.data_mut(|d| d.insert_temp(self.id.with("egui_native_look-focused"), focused));
         if close {
             *open = false;
         }
@@ -87,12 +98,19 @@ pub struct ToolWindow {
     size: egui::Vec2,
     pos: Option<egui::Pos2>,
     resizable: bool,
+    close_label: String,
 }
 
 impl ToolWindow {
     /// A window titled `title`; `id` keeps its place and size from frame to frame.
     pub fn new(id: impl std::hash::Hash + std::fmt::Debug, title: impl Into<String>) -> Self {
-        ToolWindow { id: egui::Id::new(id), title: title.into(), size: egui::vec2(280.0, 200.0), pos: None, resizable: true }
+        ToolWindow { id: egui::Id::new(id), title: title.into(), size: egui::vec2(280.0, 200.0), pos: None, resizable: true, close_label: "Close".into() }
+    }
+    /// The close button's name, under the pointer and for a screen reader; "Close" by
+    /// default, for an app to translate.
+    pub fn close_label(mut self, label: impl Into<String>) -> Self {
+        self.close_label = label.into();
+        self
     }
     /// Its size when it first opens.
     pub fn default_size(mut self, size: impl Into<egui::Vec2>) -> Self {
@@ -133,7 +151,7 @@ impl ToolWindow {
             window = window.default_pos(pos);
         }
         let shown = window.show(ctx, |ui| {
-            close = header(ui, &x, &self.title, true);
+            close = header(ui, &x, &self.title, &self.close_label, true);
             egui::Frame::new().inner_margin(12).show(ui, add).inner
         });
         if close {
@@ -141,6 +159,26 @@ impl ToolWindow {
         }
         shown
     }
+}
+
+/// The dialogs shown lately, each with the pass it was last shown in.
+#[derive(Clone, Default)]
+struct Shown(Vec<(egui::Id, u64)>);
+
+/// Whether Escape closes the dialog `id` this frame: pressed, the dialog the topmost of
+/// those shown, nothing focused at the end of the last frame, and no pop-up open.
+fn escape_closes(ctx: &egui::Context, id: egui::Id) -> bool {
+    let pass = ctx.cumulative_pass_nr();
+    let registry = egui::Id::new("egui_native_look::Dialogs");
+    let mut shown = ctx.data(|d| d.get_temp::<Shown>(registry)).unwrap_or_default();
+    shown.0.retain(|(other, at)| *other != id && pass.saturating_sub(*at) <= 2);
+    shown.0.push((id, pass));
+    let layer = |id| egui::LayerId::new(egui::Order::Middle, id);
+    let top = ctx.memory(|m| m.layer_ids().filter(|l| shown.0.iter().any(|(d, _)| layer(*d) == *l)).last());
+    ctx.data_mut(|d| d.insert_temp(registry, shown));
+    let topmost = top.is_none_or(|top| top == layer(id));
+    let focused = ctx.data(|d| d.get_temp::<bool>(id.with("egui_native_look-focused"))).unwrap_or(false);
+    topmost && !focused && !egui::Popup::is_any_open(ctx) && ctx.input(|i| i.key_pressed(egui::Key::Escape))
 }
 
 /// The frame of a window in the look installed in `ctx`: the window's background, a
@@ -169,7 +207,7 @@ pub fn window_frame(ctx: &egui::Context) -> egui::Frame {
 /// A dialog's header in the look. Returns whether its close button was clicked.
 /// Material's dialogs have none, closing on their actions; `closable` gives one anyway,
 /// for a window without actions.
-fn header(ui: &mut Ui, x: &Ctx, title: &str, closable: bool) -> bool {
+fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) -> bool {
     let c = &x.c;
     let height = match x.look {
         Look::Material => 56.0,
@@ -185,10 +223,12 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, closable: bool) -> bool {
         _ => x.m.bold.clone(),
     };
     let left_title = matches!(x.look, Look::Windows | Look::Material);
-    if left_title {
-        crate::text(painter, egui::pos2(bar.left() + 20.0, bar.center().y), egui::Align2::LEFT_CENTER, title, font, c.fg);
-    } else {
-        crate::text(painter, bar.center(), egui::Align2::CENTER_CENTER, title, font, c.fg);
+    // The title keeps clear of the close button at either end, cut short if it must be.
+    let (galley, _) = super::truncated(ui, title, font, c.fg, bar.width() - 2.0 * 48.0);
+    let left = if left_title { bar.left() + 20.0 } else { bar.center().x - galley.size().x / 2.0 };
+    let top = crate::galley_top(ui.ctx(), &galley, bar.center().y);
+    painter.galley(egui::pos2(left, top), galley, c.fg);
+    if !left_title {
         painter.hline(bar.x_range(), bar.bottom() - 0.5, Stroke::new(1.0, c.border));
     }
     match x.look {
@@ -197,6 +237,7 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, closable: bool) -> bool {
             // The window's red close button at the start of the bar.
             let dot = Rect::from_center_size(egui::pos2(bar.left() + 20.0, bar.center().y), egui::Vec2::splat(12.0));
             let response = ui.interact(dot.expand(4.0), ui.id().with("close"), Sense::click());
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, close_label));
             ui.painter().circle_filled(dot.center(), 6.0, crate::colors::rgb(0xff5f57));
             if response.hovered() {
                 let m = dot.center();
@@ -204,7 +245,7 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, closable: bool) -> bool {
                 ui.painter().line_segment([m + egui::vec2(-2.5, -2.5), m + egui::vec2(2.5, 2.5)], s);
                 ui.painter().line_segment([m + egui::vec2(2.5, -2.5), m + egui::vec2(-2.5, 2.5)], s);
             }
-            response.clicked()
+            response.on_hover_text(close_label).clicked()
         }
         _ => {
             let side = 28.0;
@@ -227,7 +268,8 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, closable: bool) -> bool {
             if response.has_focus() {
                 crate::paint::ring(ui.painter(), &x.paint(), rect, round);
             }
-            response.on_hover_text("Close").clicked()
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, close_label));
+            response.on_hover_text(close_label).clicked()
         }
     }
 }
@@ -258,12 +300,19 @@ pub enum WindowAction {
 pub struct TitleBar {
     title: String,
     maximized: bool,
+    labels: [String; 3],
 }
 
 impl TitleBar {
     /// A bar showing `title`.
     pub fn new(title: impl Into<String>) -> Self {
-        TitleBar { title: title.into(), maximized: false }
+        TitleBar { title: title.into(), maximized: false, labels: ["Minimize".into(), "Maximize".into(), "Close".into()] }
+    }
+    /// The window buttons' names, for a screen reader and under the pointer: "Minimize",
+    /// "Maximize" and "Close" by default, for an app to translate.
+    pub fn button_labels(mut self, minimize: impl Into<String>, maximize: impl Into<String>, close: impl Into<String>) -> Self {
+        self.labels = [minimize.into(), maximize.into(), close.into()];
+        self
     }
     /// Whether the window is maximised now, for the maximise button's glyph and the
     /// double click.
@@ -286,13 +335,17 @@ impl TitleBar {
         let painter = ui.painter();
         let mut action = None;
         if x.look == Look::Windows {
-            crate::text(painter, egui::pos2(rect.left() + 14.0, rect.center().y), egui::Align2::LEFT_CENTER, &self.title, x.m.body.clone(), c.fg);
             let width = 46.0;
+            let (galley, _) = super::truncated(ui, &self.title, x.m.body.clone(), c.fg, rect.width() - 14.0 - 3.0 * width - 8.0);
+            painter.galley(egui::pos2(rect.left() + 14.0, crate::galley_top(ui.ctx(), &galley, rect.center().y)), galley, c.fg);
             let buttons = [(WindowAction::Close, 0.0), (WindowAction::ToggleMaximize, 1.0), (WindowAction::Minimize, 2.0)];
             for (what, slot) in buttons {
                 let r = Rect::from_min_size(egui::pos2(rect.right() - width * (slot + 1.0), rect.top()), egui::vec2(width, rect.height()));
                 let response = ui.interact(r, ui.id().with(("window-button", slot as i32)), Sense::click());
                 let close = what == WindowAction::Close;
+                let label = &self.labels[2 - slot as usize];
+                response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+                let response = response.on_hover_text(label);
                 let mut colour = c.fg;
                 if response.hovered() {
                     let fill = if close { crate::colors::rgb(0xc42b1c) } else { c.fg.gamma_multiply(0.1) };
@@ -319,11 +372,16 @@ impl TitleBar {
         } else {
             let inset = if x.look == Look::Mac { 72.0 } else { 0.0 };
             let room = Rect::from_min_max(egui::pos2(rect.left() + inset, rect.top()), rect.max);
-            crate::text(painter, room.center(), egui::Align2::CENTER_CENTER, &self.title, x.m.bold.clone(), c.fg);
+            // Centred on the room, kept clear of the close button (or the traffic lights).
+            let (galley, _) = super::truncated(ui, &self.title, x.m.bold.clone(), c.fg, room.width() - 2.0 * 44.0);
+            painter.galley(egui::pos2(room.center().x - galley.size().x / 2.0, crate::galley_top(ui.ctx(), &galley, rect.center().y)), galley, c.fg);
             if x.look != Look::Mac {
                 let side = (rect.height() - 12.0).clamp(20.0, 26.0);
                 let r = Rect::from_center_size(egui::pos2(rect.right() - side / 2.0 - 8.0, rect.center().y), egui::Vec2::splat(side));
                 let response = ui.interact(r, ui.id().with("window-close"), Sense::click());
+                let label = &self.labels[2];
+                response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+                let response = response.on_hover_text(label);
                 ui.painter().rect_filled(r, CornerRadius::same((side / 2.0) as u8), if response.hovered() { c.button_hover } else { c.button });
                 close_cross(ui.painter(), r.center(), c.fg);
                 if response.clicked() {

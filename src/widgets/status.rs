@@ -13,9 +13,11 @@ pub struct ProgressBar {
 }
 
 impl ProgressBar {
-    /// A bar filled to `progress`, from 0 to 1.
+    /// A bar filled to `progress`, from 0 to 1; beyond those it is held to them, and a
+    /// value that is not a number shows an empty bar.
     pub fn new(progress: f32) -> Self {
-        ProgressBar { progress: progress.clamp(0.0, 1.0), width: None }
+        // Not a number counts as nothing done yet.
+        ProgressBar { progress: if progress.is_nan() { 0.0 } else { progress.clamp(0.0, 1.0) }, width: None }
     }
     /// A fixed width; by default the width available.
     pub fn width(mut self, width: f32) -> Self {

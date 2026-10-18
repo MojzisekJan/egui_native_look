@@ -8,7 +8,8 @@ use crate::{Colors, Look, Theme};
 /// the look's fills, edges, rounding and accent, so they sit beside this crate's controls.
 /// [`crate::install`] calls it for both of egui's schemes. What it does not set stays as
 /// the style had it: the app's shadows, spacing (bar the controls' height), heading and
-/// other text styles, so an app may set them before or after.
+/// other text styles, so an app may set them before or after. The body and button text
+/// styles take the theme's [`crate::Metrics::body`].
 pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
     let c = Colors::resolve(theme, dark);
     let look = theme.look;
@@ -17,7 +18,6 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
     visuals.panel_fill = c.bg;
     visuals.window_fill = c.surface;
     visuals.extreme_bg_color = c.entry;
-    visuals.override_text_color = Some(c.fg);
     visuals.weak_text_color = Some(c.dim);
     visuals.hyperlink_color = c.accent;
     visuals.selection.bg_fill = c.accent.gamma_multiply(if dark { 0.55 } else { 0.35 });

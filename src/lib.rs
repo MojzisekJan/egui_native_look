@@ -48,6 +48,10 @@
 //! egui's: `ctx.set_theme`, or eframe following the system's. [`install_fonts`] adds the
 //! system's own font where the look has one.
 //!
+//! All of this is the default `system` feature; without it the looks keep their own
+//! accents, [`follow_system`] does nothing and the system's fonts are not read, for an app
+//! that wants the controls alone.
+//!
 //! On a touch screen, in a browser too, [`Look::touch`] gives finger-sized controls
 //! (iOS's on Apple's devices, Material's elsewhere) and [`touch_screen`] says whether
 //! there is one. [`Metrics::scaled`] makes a look's controls larger or smaller.
@@ -317,9 +321,11 @@ impl Metrics {
 
     /// Everything `factor` times the size: the controls' height, their rounding and their
     /// text. To scale the whole interface instead (the gaps, the marks and the app's own
-    /// widgets with it), set egui's zoom: `ctx.set_zoom_factor`.
+    /// widgets with it), set egui's zoom: `ctx.set_zoom_factor`. The factor is held between
+    /// 0.25 and 8; one that is not a number leaves the sizes as they are.
     pub fn scaled(mut self, factor: f32) -> Metrics {
-        self.control_height = (self.control_height * factor).round();
+        let factor = if factor.is_nan() { 1.0 } else { factor.clamp(0.25, 8.0) };
+        self.control_height = (self.control_height * factor).round().max(1.0);
         self.radius = (f32::from(self.radius) * factor).round().clamp(0.0, 255.0) as u8;
         self.body.size *= factor;
         self.bold.size *= factor;
@@ -400,21 +406,23 @@ fn resolved_id() -> egui::Id {
     egui::Id::new("egui_native_look::Resolved")
 }
 
-/// The theme installed in `ctx` with its colours, or this system's when none was.
+/// The theme installed in `ctx` with its colours; while none is, this system's look with
+/// its own accent, read from nothing (the system's accent comes with [`install`] or
+/// [`follow_system`]).
 pub(crate) fn resolved(ctx: &egui::Context) -> std::sync::Arc<Resolved> {
-    if let Some(found) = ctx.data(|d| d.get_temp::<std::sync::Arc<Resolved>>(resolved_id())) {
-        return found;
-    }
-    let mut theme = Theme::system();
-    theme.accent = system::system_accent(theme.look);
-    let made = std::sync::Arc::new(Resolved::of(theme, true, false));
-    ctx.data_mut(|d| d.insert_temp(resolved_id(), made.clone()));
-    made
+    static FALLBACK: std::sync::OnceLock<std::sync::Arc<Resolved>> = std::sync::OnceLock::new();
+    ctx.data(|d| d.get_temp::<std::sync::Arc<Resolved>>(resolved_id()))
+        .unwrap_or_else(|| FALLBACK.get_or_init(|| std::sync::Arc::new(Resolved::of(Theme::system(), true, false))).clone())
 }
 
 /// Installs `theme` in `ctx`: [`set_theme`], then styles egui's own widgets to match in
 /// both of egui's schemes ([`apply_style`]). The app's own changes to egui's style that
-/// it does not draw with (shadows, spacing, the heading) are kept.
+/// it does not draw with (shadows, spacing, the heading, its other text styles) are kept;
+/// the body and button text styles take the theme's [`Metrics::body`], so an app with a
+/// face of its own puts it in the metrics, or calls [`set_theme`] and styles egui itself.
+///
+/// The theme is kept in `ctx`'s memory, as egui keeps its own state: an app that resets
+/// egui's memory installs it again.
 pub fn install(ctx: &egui::Context, theme: Theme) {
     let theme = keep(ctx, theme, true);
     restyle(ctx, &theme);
@@ -442,13 +450,18 @@ fn keep(ctx: &egui::Context, mut theme: Theme, styled: bool) -> Theme {
     theme
 }
 
-/// Keeps the theme in `ctx` up to date with the system: call it once a frame. Every two
-/// seconds, and as soon as the window comes to the front, it reads the system's accent
-/// and scheme again off the UI thread. A new accent (unless the app set its own)
-/// re-resolves the colours, restyles egui's widgets if [`install`] styled them, and asks
-/// for a repaint. A new scheme becomes egui's fallback, which egui shows while its theme
-/// preference is `System` and the backend does not report the system's theme (eframe on
-/// the desktop does, and wins).
+/// Keeps the theme in `ctx` up to date with the system: call it once a frame. It reads the
+/// system's accent and scheme on the first frame and whenever the window comes to the
+/// front, where the system's settings are changed from; on Windows, and on macOS from the
+/// main thread, where reading is cheap, also every two seconds of frames drawn anyway. It
+/// never asks for frames itself, so an idle app stays asleep. On GNOME reading takes a
+/// process, which runs off the UI thread; what it finds is applied on a later frame.
+///
+/// A new accent (unless the app set its own) re-resolves the colours, restyles egui's
+/// widgets if [`install`] styled them, and asks for a repaint. A new scheme becomes egui's
+/// fallback, which egui shows while its theme preference is `System` and the backend does
+/// not report the system's theme (eframe on the desktop does, and wins). Without the
+/// `system` feature it does nothing.
 pub fn follow_system(ctx: &egui::Context) {
     system::follow(ctx);
 }

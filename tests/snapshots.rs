@@ -1,6 +1,7 @@
 //! Every control in every look and scheme, against the pictures in `tests/snapshots`.
-//! `UPDATE_SNAPSHOTS=1 cargo test --test snapshots` writes new ones after a deliberate
-//! change.
+//! They render with wgpu, which needs a GPU (or a software adapter), so they are left out
+//! of a plain `cargo test`: `cargo test --test snapshots -- --include-ignored` runs them,
+//! and `UPDATE_SNAPSHOTS=1` with it writes new ones after a deliberate change.
 
 use egui_native_look as look;
 
@@ -106,11 +107,13 @@ fn every_look_and_scheme_of(add: fn(&mut egui::Ui, &mut State), height: f32, suf
 }
 
 #[test]
+#[ignore = "renders with wgpu: cargo test --test snapshots -- --include-ignored"]
 fn every_look_and_scheme() {
     every_look_and_scheme_of(controls, 470.0, "");
 }
 
 #[test]
+#[ignore = "renders with wgpu: cargo test --test snapshots -- --include-ignored"]
 fn the_toolbar_and_form_in_every_look_and_scheme() {
     every_look_and_scheme_of(more, 330.0, "-more");
 }

@@ -54,12 +54,19 @@ impl Widget for Button {
 /// An on/off switch. The value has changed when `response.changed()`.
 pub struct Switch<'a> {
     on: &'a mut bool,
+    label: String,
 }
 
 impl<'a> Switch<'a> {
     /// A switch showing and flipping `on`.
     pub fn new(on: &'a mut bool) -> Self {
-        Switch { on }
+        Switch { on, label: String::new() }
+    }
+    /// What it switches, for a screen reader: the label of its row, which a switch does
+    /// not draw itself.
+    pub fn accessible_label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
+        self
     }
 }
 
@@ -94,7 +101,7 @@ impl Widget for Switch<'_> {
         }
         let on = *self.on;
         let enabled = ui.is_enabled();
-        response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, enabled, on, ""));
+        response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, enabled, on, &self.label));
         if !ui.is_rect_visible(rect) {
             return response;
         }
@@ -329,7 +336,8 @@ pub fn check_mark(painter: &egui::Painter, c: egui::Pos2, color: Color32) {
 }
 
 /// The row of a check box or radio button: the mark (14 points, 18 on Windows), then the
-/// label, all of it one click target. Returns the response and the mark's square.
+/// label, all of it one click target. The label wraps as the `Ui` wraps its text, the mark
+/// beside its first line. Returns the response and the mark's square.
 fn mark_row(ui: &mut Ui, x: &Ctx, text: WidgetText, kind: egui::WidgetType, selected: bool) -> (Response, Rect) {
     let (side, gap) = match x.look {
         Look::Windows => (18.0, 8.0),
@@ -337,14 +345,17 @@ fn mark_row(ui: &mut Ui, x: &Ctx, text: WidgetText, kind: egui::WidgetType, sele
         Look::Material => (18.0, 12.0),
         _ => (14.0, 6.0),
     };
-    let galley = text.into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, egui::FontSelection::FontId(x.m.body.clone()));
+    let galley = text.into_galley(ui, None, ui.available_width() - side - gap, egui::FontSelection::FontId(x.m.body.clone()));
     let width = side + gap + galley.size().x;
-    let height = ui.spacing().interact_size.y.max(side);
+    let line = ui.spacing().interact_size.y.max(side);
+    let first_row = galley.rows.first().map_or(galley.size().y, |row| row.height());
+    let height = line.max(galley.size().y + line - first_row);
     let (rect, response) = ui.allocate_exact_size(egui::vec2(width, height), Sense::click());
-    let mark = Rect::from_center_size(egui::pos2(rect.left() + side / 2.0, rect.center().y), egui::vec2(side, side));
+    let middle = rect.top() + line / 2.0;
+    let mark = Rect::from_center_size(egui::pos2(rect.left() + side / 2.0, middle), egui::vec2(side, side));
     let enabled = ui.is_enabled();
     let colour = if enabled { x.c.fg } else { x.c.disabled };
-    let top = crate::galley_top(ui.ctx(), &galley, rect.center().y);
+    let top = crate::galley_top(ui.ctx(), &galley, middle);
     response.widget_info(|| egui::WidgetInfo::selected(kind, enabled, selected, galley.text()));
     ui.painter().galley(egui::pos2(mark.right() + gap, top), galley, colour);
     (response, mark)

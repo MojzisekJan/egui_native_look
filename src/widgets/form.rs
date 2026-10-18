@@ -81,6 +81,15 @@ fn separator(x: &Ctx) -> Color32 {
     if x.look == Look::Ios { x.c.fg.gamma_multiply(0.14) } else { x.c.border }
 }
 
+/// What a label shows under the pointer: the whole label when it was cut short, and its tip.
+fn hover_text(label: &str, cut: bool, tip: Option<&str>) -> Option<String> {
+    match (cut, tip) {
+        (true, Some(tip)) => Some(format!("{label}\n\n{tip}")),
+        (true, None) => Some(label.to_string()),
+        (false, tip) => tip.map(str::to_string),
+    }
+}
+
 /// The rows of a [`Form`] being laid out.
 pub struct FormUi<'a> {
     ui: &'a mut Ui,
@@ -148,15 +157,22 @@ impl FormUi<'_> {
                 let y = rect.top() + 0.5;
                 self.ui.painter().hline(rect.left() + if x.look == Look::Ios { Self::INSET } else { 0.0 }..=rect.right(), y, Stroke::new(1.0, separator(x)));
             }
-            crate::text(self.ui.painter(), egui::pos2(rect.left() + Self::INSET, rect.center().y), egui::Align2::LEFT_CENTER, label, font, x.c.fg);
-            if let Some(tip) = tip {
-                let label_rect = Rect::from_min_size(rect.min, egui::vec2(Self::INSET + text_width, height));
-                self.ui.interact(label_rect, response.id.with("tip"), Sense::hover()).on_hover_text(tip);
-            }
             // The control ends at the row's end: it is laid out left to right from where
             // last frame's width puts it, and laid out again if that width changed.
             let id = self.id.with(("egui_native_look::Form row", self.rows));
             let used = self.ui.ctx().data(|d| d.get_temp::<f32>(id)).unwrap_or(0.0);
+            // A label too long for what the control leaves is cut short, whole under the
+            // pointer.
+            let room = (rect.width() - 2.0 * Self::INSET - Self::GAP - used).max(40.0);
+            let (galley, cut) = super::truncated(self.ui, label, font, x.c.fg, room);
+            let shown_width = galley.size().x;
+            let top = crate::galley_top(self.ui.ctx(), &galley, rect.center().y);
+            self.ui.painter().galley(egui::pos2(rect.left() + Self::INSET, top), galley, x.c.fg);
+            if let Some(hover) = hover_text(label, cut, tip) {
+                let label_rect = Rect::from_min_size(rect.min, egui::vec2(Self::INSET + shown_width, height));
+                self.ui.interact(label_rect, response.id.with("tip"), Sense::hover()).on_hover_text(hover);
+            }
+            let text_width = shown_width;
             let end = rect.right() - Self::INSET;
             // Unmeasured, it has the whole room after the label, which a control that fills
             // its row keeps.
@@ -172,18 +188,23 @@ impl FormUi<'_> {
             }
             return inner;
         }
-        self.widest = self.widest.max(text_width);
-        let label_width = self.label_width.max(text_width);
+        // The label column takes at most two fifths of the form; a longer label is cut short,
+        // whole under the pointer.
+        let most = (self.ui.available_width() * 0.4).max(60.0);
+        self.widest = self.widest.max(text_width.min(most));
+        let label_width = self.label_width.max(text_width).min(most);
         let right = matches!(x.look, Look::Mac | Look::Plain);
         let colour = x.c.fg;
         self.ui
             .horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = Self::GAP;
                 let (rect, response) = ui.allocate_exact_size(egui::vec2(label_width, ui.spacing().interact_size.y), Sense::hover());
-                let (at, align) = if right { (rect.right_center(), egui::Align2::RIGHT_CENTER) } else { (rect.left_center(), egui::Align2::LEFT_CENTER) };
-                crate::text(ui.painter(), at, align, label, font, colour);
-                if let Some(tip) = tip {
-                    response.on_hover_text(tip);
+                let (galley, cut) = super::truncated(ui, label, font, colour, label_width);
+                let left = if right { rect.right() - galley.size().x } else { rect.left() };
+                let top = crate::galley_top(ui.ctx(), &galley, rect.center().y);
+                ui.painter().galley(egui::pos2(left, top), galley, colour);
+                if let Some(hover) = hover_text(label, cut, tip) {
+                    response.on_hover_text(hover);
                 }
                 control(ui)
             })

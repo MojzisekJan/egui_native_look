@@ -120,14 +120,28 @@ impl Colors {
             raised: if dark { rgb(0x5b5e65) } else { Color32::WHITE },
             accent,
             accent_hover,
-            on_accent: match look {
-                Look::Windows if dark => Color32::BLACK,
-                // Material's onPrimary.
-                Look::Material if dark => rgb(0x381e72),
-                _ => Color32::WHITE,
-            },
+            on_accent: on(accent, look),
             row_hover: p.row_hover,
         }
+    }
+}
+
+/// Text on `accent`: white on a dark accent, and on a light one (WinUI's dark-scheme
+/// accent, Material's, a yellow) black, or Material's onPrimary.
+fn on(accent: Color32, look: Look) -> Color32 {
+    let linear = |v: u8| {
+        let v = f32::from(v) / 255.0;
+        if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+    };
+    let luminance = 0.2126 * linear(accent.r()) + 0.7152 * linear(accent.g()) + 0.0722 * linear(accent.b());
+    // Lower than the even-contrast point (0.18), so the systems' blues keep white text as
+    // they do, while a yellow or a pale accent takes dark text.
+    if luminance < 0.28 {
+        Color32::WHITE
+    } else if look == Look::Material {
+        rgb(0x381e72)
+    } else {
+        Color32::BLACK
     }
 }
 

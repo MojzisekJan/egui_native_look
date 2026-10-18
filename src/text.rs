@@ -8,29 +8,16 @@
 use egui::{Color32, FontId, Rect};
 
 /// Where the capitals of a line of `font` are centred, measured down from the line's top.
+/// It is measured on the "H" of the fonts `ctx` has now; egui keeps that layout in its
+/// own cache, which a change of fonts clears, so each context measures its own fonts.
 pub fn cap_middle(ctx: &egui::Context, font: &FontId) -> f32 {
-    thread_local! {
-        static CACHE: std::cell::RefCell<std::collections::HashMap<(u32, u32, u64), f32>> = Default::default();
-    }
-    let family = {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        font.family.hash(&mut hasher);
-        hasher.finish()
-    };
-    let key = (font.size.to_bits(), ctx.pixels_per_point().to_bits(), family);
-    if let Some(found) = CACHE.with(|cache| cache.borrow().get(&key).copied()) {
-        return found;
-    }
     let galley = ctx.fonts_mut(|fonts| fonts.layout_no_wrap("H".into(), font.clone(), Color32::WHITE));
     let middle = galley.rows.first().and_then(|placed| {
         let glyph = placed.row.glyphs.first()?;
         let top = placed.pos.y + glyph.pos.y + glyph.uv_rect.offset.y;
         Some(top + glyph.uv_rect.size.y / 2.0)
     });
-    let middle = middle.filter(|m| m.is_finite()).unwrap_or(galley.size().y / 2.0);
-    CACHE.with(|cache| cache.borrow_mut().insert(key, middle));
-    middle
+    middle.filter(|m| m.is_finite()).unwrap_or(galley.size().y / 2.0)
 }
 
 /// The top at which to paint `galley` so that its first line's capitals centre on `y`.

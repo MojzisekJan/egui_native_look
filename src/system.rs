@@ -15,66 +15,115 @@ pub struct SystemFonts {
     pub mono: Option<FontData>,
 }
 
-/// When the system was last asked, per context, and whether a read is under way.
-#[derive(Clone, Copy, Default)]
+/// What one read of the system found, for the look it was read for.
+struct Found {
+    look: Look,
+    accent: Option<[u32; 2]>,
+    scheme: Option<egui::Theme>,
+}
+
+/// When the system was last asked, per context, and the read under way, if any. A read
+/// off the UI thread sends what it found back; one that died drops its sender, which ends
+/// the wait as well.
+#[derive(Clone, Default)]
 struct Follow {
-    last: f64,
-    reading: bool,
+    last: Option<f64>,
+    pending: Option<std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Receiver<Found>>>>,
 }
 
 /// See [`crate::follow_system`].
 pub(crate) fn follow(ctx: &egui::Context) {
+    /// How often a cheap read (no process) is repeated while frames are drawn anyway.
     const EVERY: f64 = 2.0;
-    if cfg!(target_arch = "wasm32") {
+    if cfg!(any(target_arch = "wasm32", not(feature = "system"))) {
         return;
     }
     let id = egui::Id::new("egui_native_look::Follow");
     let (now, focused) = ctx.input(|i| (i.time, i.events.iter().any(|e| matches!(e, egui::Event::WindowFocused(true)))));
-    let state = ctx.data(|d| d.get_temp::<Follow>(id)).unwrap_or_default();
-    ctx.request_repaint_after(std::time::Duration::from_secs_f64(EVERY));
-    let due = state.last == 0.0 || now - state.last >= EVERY || focused;
-    if state.reading || !due {
+    let mut state = ctx.data(|d| d.get_temp::<Follow>(id)).unwrap_or_default();
+    if let Some(pending) = state.pending.clone() {
+        let received = pending.lock().map(|r| r.try_recv());
+        match received {
+            Ok(Ok(found)) => {
+                apply(ctx, found);
+                state.pending = None;
+            }
+            Ok(Err(std::sync::mpsc::TryRecvError::Empty)) => {}
+            _ => state.pending = None,
+        }
+    }
+    let cheap = cheap_read();
+    let due = match state.last {
+        None => true,
+        Some(last) => focused || (cheap && now - last >= EVERY),
+    };
+    if due && state.pending.is_none() {
+        state.last = Some(now);
+        let look = crate::look(ctx);
+        if cheap {
+            apply(ctx, Found { look, accent: system_accent(look), scheme: system_scheme() });
+        } else {
+            // Reading takes a process on GNOME, so it is done off the UI thread, and what it
+            // finds is applied here, on a later frame.
+            let (send, receive) = std::sync::mpsc::channel();
+            state.pending = Some(std::sync::Arc::new(std::sync::Mutex::new(receive)));
+            let repaint = ctx.clone();
+            std::thread::spawn(move || {
+                let _ = send.send(Found { look, accent: system_accent(look), scheme: system_scheme() });
+                repaint.request_repaint();
+            });
+        }
+    }
+    ctx.data_mut(|d| d.insert_temp(id, state));
+}
+
+/// Whether the system can be read on the UI thread without a process: on Windows from the
+/// registry, on macOS from the application's appearance on the main thread.
+fn cheap_read() -> bool {
+    #[cfg(all(target_os = "macos", feature = "system"))]
+    let cheap = objc2::MainThreadMarker::new().is_some();
+    #[cfg(not(all(target_os = "macos", feature = "system")))]
+    let cheap = cfg!(target_os = "windows");
+    cheap
+}
+
+/// Takes what a read found, unless the theme's look changed while it was read.
+fn apply(ctx: &egui::Context, found: Found) {
+    if crate::look(ctx) != found.look {
         return;
     }
-    ctx.data_mut(|d| d.insert_temp(id, Follow { last: now, reading: true }));
-    let look = crate::look(ctx);
-    let ctx = ctx.clone();
-    // Reading takes a process on macOS and GNOME, so it is done off the UI thread.
-    std::thread::spawn(move || {
-        let (accent, scheme) = (system_accent(look), system_scheme());
-        crate::take_system_accent(&ctx, accent);
-        if let Some(scheme) = scheme {
-            if ctx.options(|o| o.fallback_theme) != scheme {
-                ctx.options_mut(|o| o.fallback_theme = scheme);
-                ctx.request_repaint();
-            }
+    crate::take_system_accent(ctx, found.accent);
+    if let Some(scheme) = found.scheme {
+        if ctx.options(|o| o.fallback_theme) != scheme {
+            ctx.options_mut(|o| o.fallback_theme = scheme);
+            ctx.request_repaint();
         }
-        let now = ctx.input(|i| i.time);
-        ctx.data_mut(|d| d.insert_temp(id, Follow { last: now, reading: false }));
-    });
+    }
 }
 
 /// The scheme the system is set to, dark or light: System Settings > Appearance on
 /// macOS, the apps' mode on Windows, GNOME's style. `None` where it cannot be read
-/// (another system, the web, where the browser tells eframe). It may take a process, so
-/// call it off the UI thread or seldom.
+/// (another system, the web, where the browser tells eframe, or without the `system`
+/// feature). On GNOME, and on macOS off the main thread, it takes a process, so call it
+/// off the UI thread or seldom.
 pub fn system_scheme() -> Option<egui::Theme> {
-    #[cfg(target_os = "macos")]
+    #[cfg(all(target_os = "macos", feature = "system"))]
     return mac::scheme();
-    #[cfg(target_os = "windows")]
+    #[cfg(all(target_os = "windows", feature = "system"))]
     return windows::scheme();
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "system"))]
     return gnome::scheme();
     #[allow(unreachable_code)]
     None
 }
 
 /// Whether the screen takes touch: in a browser, whether it reports touch points (a
-/// tablet, a phone, a touch laptop); on iOS and Android always; elsewhere not.
+/// tablet, a phone, a touch laptop; not without the `system` feature); on iOS and Android
+/// always; elsewhere not.
 pub fn touch_screen() -> bool {
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", feature = "system"))]
     let touch = web_sys::window().is_some_and(|w| w.navigator().max_touch_points() > 0);
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", feature = "system")))]
     let touch = cfg!(any(target_os = "ios", target_os = "android"));
     touch
 }
@@ -82,11 +131,11 @@ pub fn touch_screen() -> bool {
 /// Whether this runs in a browser on an Apple system: an iPhone, an iPad (which calls
 /// itself a Mac) or a Mac.
 pub(crate) fn apple_browser() -> bool {
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(all(target_arch = "wasm32", feature = "system"))]
     let apple = web_sys::window()
         .and_then(|w| w.navigator().user_agent().ok())
         .is_some_and(|agent| ["iPhone", "iPad", "Macintosh"].iter().any(|name| agent.contains(name)));
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(all(target_arch = "wasm32", feature = "system")))]
     let apple = false;
     apple
 }
@@ -94,44 +143,45 @@ pub(crate) fn apple_browser() -> bool {
 /// The system's accent as 0xRRGGBB, for the dark and the light scheme: on macOS the colour
 /// of System Settings > Appearance (the same for both), on Windows the shades WinUI takes
 /// from Personalization > Colors, on GNOME (46 and later) the accent of Settings >
-/// Appearance. `None` elsewhere, or where the system says nothing.
+/// Appearance. `None` elsewhere, where the system says nothing, or without the `system`
+/// feature.
 pub fn system_accent(look: Look) -> Option<[u32; 2]> {
     match look {
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "system"))]
         Look::Mac => mac::accent().map(|rgb| [rgb, rgb]),
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", feature = "system"))]
         Look::Windows => windows::accent(),
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", feature = "system"))]
         Look::Gtk => gnome::accent().map(|rgb| [rgb, rgb]),
         _ => None,
     }
 }
 
 /// The system's faces for `look`, read from the system's font folder; `None` where they
-/// are not there (another system, an old one).
+/// are not there (another system, an old one) or without the `system` feature.
 pub fn system_fonts(look: Look) -> Option<SystemFonts> {
     match look {
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "system"))]
         Look::Mac => mac::fonts(),
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", feature = "system"))]
         Look::Windows => windows::fonts(),
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", feature = "system"))]
         Look::Gtk => gnome::fonts(),
-        #[cfg(target_os = "android")]
+        #[cfg(all(target_os = "android", feature = "system"))]
         Look::Material => android::fonts(),
         _ => None,
     }
 }
 
 /// One variable font at the weight `weight`.
-#[cfg_attr(not(any(target_os = "macos", target_os = "windows", target_os = "linux", target_os = "android")), allow(dead_code))]
+#[cfg_attr(not(all(feature = "system", any(target_os = "macos", target_os = "windows", target_os = "linux", target_os = "android"))), allow(dead_code))]
 fn weighted(bytes: &[u8], weight: f32) -> FontData {
     let mut data = FontData::from_owned(bytes.to_vec());
     data.tweak = egui::FontTweak { coords: egui::epaint::text::VariationCoords::new([(b"wght", weight)]), ..Default::default() };
     data
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "system"))]
 mod mac {
     use egui::FontData;
 
@@ -143,8 +193,13 @@ mod mac {
         Some(super::SystemFonts { regular: super::weighted(&bytes, 400.0), semibold: super::weighted(&bytes, 590.0), mono })
     }
 
-    /// Dark when System Settings > Appearance is dark (or automatic, and dark now).
+    /// Dark when System Settings > Appearance is dark (or automatic, and dark now): the
+    /// application's appearance on the main thread, `defaults` elsewhere.
     pub fn scheme() -> Option<egui::Theme> {
+        if let Some(main) = objc2::MainThreadMarker::new() {
+            let name = objc2_app_kit::NSApplication::sharedApplication(main).effectiveAppearance().name().to_string();
+            return Some(if name.contains("Dark") { egui::Theme::Dark } else { egui::Theme::Light });
+        }
         let out = std::process::Command::new("defaults").args(["read", "-g", "AppleInterfaceStyle"]).output().ok()?;
         // Light has no value at all, and `defaults` fails for it.
         Some(if String::from_utf8_lossy(&out.stdout).trim() == "Dark" { egui::Theme::Dark } else { egui::Theme::Light })
@@ -159,7 +214,7 @@ mod mac {
     }
 }
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", feature = "system"))]
 mod windows {
     use egui::FontData;
 
@@ -215,7 +270,7 @@ mod windows {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "system"))]
 mod gnome {
     use egui::FontData;
 
@@ -268,7 +323,7 @@ mod gnome {
     }
 }
 
-#[cfg(target_os = "android")]
+#[cfg(all(target_os = "android", feature = "system"))]
 mod android {
     use egui::FontData;
 

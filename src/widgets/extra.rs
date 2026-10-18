@@ -98,12 +98,19 @@ impl Widget for IconButton {
 pub struct ColorWell<'a> {
     color: &'a mut Color32,
     alpha: bool,
+    label: String,
 }
 
 impl<'a> ColorWell<'a> {
     /// A well showing and picking `color`, opaque unless [`ColorWell::alpha`].
     pub fn new(color: &'a mut Color32) -> Self {
-        ColorWell { color, alpha: false }
+        ColorWell { color, alpha: false, label: "Colour".into() }
+    }
+    /// What colour it picks, for a screen reader: "Colour" by default, for an app to name
+    /// or translate.
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
+        self
     }
     /// Lets the picker change the colour's opacity too.
     pub fn alpha(mut self, alpha: bool) -> Self {
@@ -166,7 +173,8 @@ impl Widget for ColorWell<'_> {
         if changed {
             response.mark_changed();
         }
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ColorButton, enabled, "Colour"));
+        let label = self.label;
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ColorButton, enabled, &label));
         response
     }
 }
@@ -180,29 +188,35 @@ fn card_fill(c: &crate::Colors) -> Color32 {
 const TOAST_SECONDS: f64 = 4.0;
 const TOAST_FADE: f64 = 0.2;
 
+/// The toasts asked for: each one's text, when it was asked for, and the viewport it shows
+/// in.
 #[derive(Clone, Default)]
-struct Toasts(Vec<(String, f64)>);
+struct Toasts(Vec<(String, f64, egui::ViewportId)>);
 
 fn toasts_id() -> egui::Id {
     egui::Id::new("egui_native_look::Toasts")
 }
 
 /// Shows `text` in a toast at the bottom of the window for a few seconds; see
-/// [`show_toasts`].
+/// [`show_toasts`]. It shows in the viewport (the window) it was asked for in.
 pub fn toast(ctx: &egui::Context, text: impl Into<String>) {
     let now = ctx.input(|i| i.time);
-    ctx.data_mut(|d| d.get_temp_mut_or_default::<Toasts>(toasts_id()).0.push((text.into(), now)));
+    let viewport = ctx.viewport_id();
+    ctx.data_mut(|d| d.get_temp_mut_or_default::<Toasts>(toasts_id()).0.push((text.into(), now, viewport)));
     ctx.request_repaint();
 }
 
 /// Draws the toasts [`toast`] asked for, once a frame, over everything else: a dark pill
 /// in libadwaita, a HUD on macOS and iOS, Material's snackbar, a raised card on Windows and
-/// in the plain look. The newest is at the bottom.
+/// in the plain look. The newest is at the bottom; a long text wraps. Each viewport draws
+/// its own toasts.
 pub fn show_toasts(ctx: &egui::Context) {
     let now = ctx.input(|i| i.time);
+    let viewport = ctx.viewport_id();
     let mut toasts = ctx.data(|d| d.get_temp::<Toasts>(toasts_id())).unwrap_or_default();
-    toasts.0.retain(|(_, start)| now - start < TOAST_SECONDS);
+    toasts.0.retain(|(_, start, _)| now - start < TOAST_SECONDS);
     ctx.data_mut(|d| d.insert_temp(toasts_id(), toasts.clone()));
+    toasts.0.retain(|(_, _, shown_in)| *shown_in == viewport);
     if toasts.0.is_empty() {
         return;
     }
@@ -213,7 +227,7 @@ pub fn show_toasts(ctx: &egui::Context) {
     let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, toasts_id()));
     let screen = ctx.content_rect();
     let mut bottom = screen.bottom() - 24.0;
-    for (text, start) in toasts.0.iter().rev() {
+    for (text, start, _) in toasts.0.iter().rev() {
         let age = now - start;
         let shown = ((age / TOAST_FADE).min((TOAST_SECONDS - age) / TOAST_FADE)).clamp(0.0, 1.0) as f32;
         let (fill, colour, height, round, stroke) = match look {
@@ -225,15 +239,18 @@ pub fn show_toasts(ctx: &egui::Context) {
             Look::Windows => (card_fill(&c), c.fg, 44.0, 8, Stroke::new(1.0, c.control_border)),
             Look::Plain => (card_fill(&c), c.fg, 36.0, 4, Stroke::new(1.0, c.border)),
         };
-        let galley = painter.layout_no_wrap(text.clone(), font.clone(), colour);
+        let galley = painter.layout(text.clone(), font.clone(), colour, (screen.width() - 72.0).max(40.0));
         let width = (galley.size().x + 40.0).min(screen.width() - 32.0);
+        let first_row = galley.rows.first().map_or(galley.size().y, |row| row.height());
+        let height: f32 = height + galley.size().y - first_row;
         let lift = (1.0 - shown) * 12.0;
         let rect = Rect::from_min_size(egui::pos2(screen.center().x - width / 2.0, bottom - height + lift), egui::vec2(width, height));
         let round = CornerRadius::same(round);
         let shadow = egui::Shadow { offset: [0, 4], blur: 16, spread: 0, color: Color32::from_black_alpha((60.0 * shown) as u8) };
         painter.add(shadow.as_shape(rect, round));
         painter.add(egui::epaint::RectShape::new(rect, round, fill.gamma_multiply(shown), stroke, egui::StrokeKind::Inside));
-        let top = crate::galley_top(ctx, &galley, rect.center().y);
+        // The first line's capitals centred where a one-line toast has them.
+        let top = crate::galley_top(ctx, &galley, rect.center().y - (galley.size().y - first_row) / 2.0);
         painter.galley(egui::pos2(rect.center().x - galley.size().x / 2.0, top), galley, colour.gamma_multiply(shown));
         bottom = rect.top() - 8.0;
     }

@@ -28,6 +28,16 @@ fn context(chosen: look::Look, dark: bool) -> egui::Context {
     ctx
 }
 
+/// The open pop-up's rect: the topmost foreground area.
+fn popup_rect(ctx: &egui::Context) -> Option<egui::Rect> {
+    let layer = ctx.memory(|m| m.layer_ids().filter(|l| l.order == egui::Order::Foreground).last())?;
+    ctx.memory(|m| m.area_rect(layer.id))
+}
+
+fn key(key: egui::Key) -> Vec<egui::Event> {
+    vec![egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() }]
+}
+
 const LOOKS: [look::Look; 6] = [look::Look::Plain, look::Look::Mac, look::Look::Windows, look::Look::Gtk, look::Look::Ios, look::Look::Material];
 
 #[test]
@@ -194,7 +204,7 @@ fn a_popup_button_shows_the_apps_own_list() {
             }
         });
         assert!(!rows.is_empty(), "{chosen}: the list did not open");
-        let feet = ctx.memory(|m| m.area_rect(egui::Id::new("units").with("egui_native_look-dropdown"))).map(|r| egui::pos2(r.center().x, r.bottom() - 16.0));
+        let feet = popup_rect(&ctx).map(|r| egui::pos2(r.center().x, r.bottom() - 16.0));
         let feet = feet.expect("the list has an area");
         for events in click(feet) {
             frame(&ctx, events, |ui| add(ui, &mut units));
@@ -369,4 +379,170 @@ fn a_palette_changes_a_few_colours_and_install_keeps_the_apps_style() {
     assert_eq!(style.visuals.panel_fill, egui::Color32::from_rgb(10, 20, 30));
     assert_eq!(style.visuals.window_fill, egui::Color32::from_rgb(40, 50, 60));
     assert!(!ctx.style_of(egui::Theme::Light).visuals.dark_mode);
+}
+
+#[test]
+fn pop_up_buttons_of_the_same_id_in_a_loop_open_one_list() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let rows = |ui: &mut egui::Ui| {
+            (0..3)
+                .map(|i| ui.push_id(i, |ui| look::PopupButton::new("units", "Metres").width(160.0).show(ui, |ui| ui.label("Feet")).inner.is_some()).inner)
+                .collect::<Vec<bool>>()
+        };
+        for events in click(egui::pos2(40.0, 10.0)) {
+            frame(&ctx, events, rows);
+        }
+        assert_eq!(frame(&ctx, vec![], rows), [true, false, false], "{chosen}: one click, one list");
+    }
+}
+
+#[test]
+fn the_arrow_keys_move_a_slider_and_a_segmented_choice_more_than_once() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let mut value = 0.0_f64;
+        let add = |ui: &mut egui::Ui, value: &mut f64| ui.add(look::Slider::new(value, 0.0..=10.0).step_by(1.0).width(200.0));
+        frame(&ctx, vec![], |ui| add(ui, &mut value));
+        frame(&ctx, key(egui::Key::Tab), |ui| add(ui, &mut value));
+        frame(&ctx, vec![], |ui| add(ui, &mut value));
+        for _ in 0..3 {
+            frame(&ctx, key(egui::Key::ArrowRight), |ui| add(ui, &mut value));
+        }
+        assert_eq!(value, 3.0, "{chosen}: the slider lost the focus");
+        let mut axis = 0;
+        let add = |ui: &mut egui::Ui, axis: &mut usize| ui.add(look::Segmented::new("axis", axis, &["X", "Y", "Z"]).width(240.0));
+        frame(&ctx, vec![], |ui| add(ui, &mut axis));
+        frame(&ctx, key(egui::Key::Tab), |ui| add(ui, &mut axis));
+        // The key's release: a frame with the focus settled.
+        frame(&ctx, vec![], |ui| add(ui, &mut axis));
+        for _ in 0..2 {
+            frame(&ctx, key(egui::Key::ArrowRight), |ui| add(ui, &mut axis));
+        }
+        assert_eq!(axis, 2, "{chosen}: the segmented choice did not follow the arrows");
+        frame(&ctx, key(egui::Key::ArrowLeft), |ui| add(ui, &mut axis));
+        assert_eq!(axis, 1, "{chosen}");
+    }
+}
+
+#[test]
+fn a_switch_and_a_segment_name_themselves_to_a_screen_reader() {
+    let ctx = context(look::Look::Gtk, true);
+    let mut on = false;
+    frame(&ctx, vec![], |ui| ui.add(look::Switch::new(&mut on).accessible_label("Snap")));
+    let input = egui::RawInput { events: key(egui::Key::Tab), ..Default::default() };
+    let mut output = ctx.run_ui(input, |ui| {
+        ui.add(look::Switch::new(&mut on).accessible_label("Snap"));
+    });
+    output.textures_delta.clear();
+    let named = output.platform_output.events.iter().any(|e| matches!(e, egui::output::OutputEvent::FocusGained(info) if info.label.as_deref() == Some("Snap")));
+    assert!(named, "{:?}", output.platform_output.events);
+}
+
+#[test]
+fn a_number_field_keeps_to_its_type_and_any_step() {
+    let ctx = context(look::Look::Mac, true);
+    let mut full: u8 = 255;
+    // The + button is the last control of the row; a click there must not wrap the value.
+    let plus = frame(&ctx, vec![], |ui| ui.add(look::NumberField::new(&mut full).width(140.0)).rect.right_center() - egui::vec2(8.0, 0.0));
+    for events in click(plus) {
+        frame(&ctx, events, |ui| ui.add(look::NumberField::new(&mut full).width(140.0)));
+    }
+    assert_eq!(full, 255);
+    let mut value = 0.0_f64;
+    for events in click(plus) {
+        frame(&ctx, events, |ui| ui.add(look::NumberField::new(&mut value).step(-2.0).width(140.0)));
+    }
+    assert_eq!(value, 2.0, "a negative step counts as its size");
+    for events in click(plus) {
+        frame(&ctx, events, |ui| ui.add(look::NumberField::new(&mut value).step(0.0).width(140.0)));
+    }
+    assert_eq!(value, 3.0, "a zero step counts as 1");
+}
+
+#[test]
+fn nonsense_sizes_and_values_are_held_in_bounds() {
+    for factor in [0.0, -1.0, f32::NAN, f32::INFINITY] {
+        let metrics = look::Metrics::of(look::Look::Gtk).scaled(factor);
+        assert!(metrics.body.size.is_finite() && metrics.body.size > 0.0 && metrics.control_height >= 1.0, "{factor}: {metrics:?}");
+    }
+    let ctx = context(look::Look::Windows, false);
+    frame(&ctx, vec![], |ui| ui.add(look::ProgressBar::new(f32::NAN).width(100.0)));
+    // A range from high to low runs the other way.
+    let mut value = 0.0_f64;
+    for events in click(egui::pos2(190.0, 10.0)) {
+        frame(&ctx, events, |ui| ui.add(look::Slider::new(&mut value, 100.0..=0.0).width(200.0)));
+    }
+    assert!(value < 10.0, "{value}");
+}
+
+#[test]
+fn text_on_a_light_accent_is_dark() {
+    let mut theme = look::Theme::new(look::Look::Gtk);
+    theme.accent = Some([0xf6d32d, 0xf6d32d]);
+    assert_eq!(look::Colors::resolve(&theme, false).on_accent, egui::Color32::BLACK);
+    theme.accent = Some([0x3584e4, 0x3584e4]);
+    assert_eq!(look::Colors::resolve(&theme, false).on_accent, egui::Color32::WHITE);
+    let mac = look::Theme { accent: None, ..look::Theme::new(look::Look::Mac) };
+    assert_eq!(look::Colors::resolve(&mac, true).on_accent, egui::Color32::WHITE);
+}
+
+#[test]
+fn escape_closes_the_top_dialog_alone_and_not_while_a_field_has_the_focus() {
+    let ctx = context(look::Look::Mac, true);
+    let (mut first, mut second) = (true, true);
+    let mut name = String::new();
+    let run = |events: Vec<egui::Event>, first: &mut bool, second: &mut bool, name: &mut String| {
+        frame(&ctx, events, |_ui| {
+            look::Dialog::new("first", "First").show(&ctx, first, |ui| { ui.label("…"); }, |_| {});
+            look::Dialog::new("second", "Second").show(&ctx, second, |ui| { ui.add(look::TextField::new(name)); }, |_| {});
+        })
+    };
+    run(vec![], &mut first, &mut second, &mut name);
+    run(vec![], &mut first, &mut second, &mut name);
+    run(key(egui::Key::Escape), &mut first, &mut second, &mut name);
+    assert!(first && !second, "Escape closes the one on top: {first} {second}");
+    second = true;
+    run(vec![], &mut first, &mut second, &mut name);
+    // Focus the field, then Escape: it takes the focus off the field and closes nothing.
+    ctx.memory_mut(|m| m.request_focus(egui::Id::NULL));
+    run(key(egui::Key::Tab), &mut first, &mut second, &mut name);
+    let focused = ctx.memory(|m| m.focused().is_some());
+    run(key(egui::Key::Escape), &mut first, &mut second, &mut name);
+    if focused {
+        assert!(first && second, "Escape only took the focus");
+    }
+}
+
+#[test]
+fn following_the_system_never_asks_for_frames() {
+    let ctx = context(look::Look::Mac, true);
+    // egui asks for a few frames as it starts; after those, nothing should.
+    for frame in 0..6 {
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| look::follow_system(ui.ctx()));
+        if frame < 3 {
+            output.textures_delta.clear();
+            continue;
+        }
+        output.textures_delta.clear();
+        let delay = output.viewport_output.get(&egui::ViewportId::ROOT).map(|v| v.repaint_delay);
+        assert!(delay.is_none_or(|d| d > std::time::Duration::from_secs(60)), "{delay:?}");
+    }
+}
+
+#[test]
+fn toasts_show_in_the_viewport_they_were_asked_for_in() {
+    let ctx = context(look::Look::Gtk, true);
+    let shapes = |mut output: egui::FullOutput| {
+        output.textures_delta.clear();
+        output.shapes.len()
+    };
+    let before = shapes(ctx.run_ui(egui::RawInput::default(), |ui| look::show_toasts(ui.ctx())));
+    look::toast(&ctx, "Saved");
+    let shown = shapes(ctx.run_ui(egui::RawInput::default(), |ui| look::show_toasts(ui.ctx())));
+    assert!(shown > before);
+    let tool = egui::ViewportId::from_hash_of("tool");
+    let other = egui::RawInput { viewport_id: tool, viewports: [(tool, Default::default())].into_iter().collect(), ..Default::default() };
+    let elsewhere = shapes(ctx.run_ui(other, |ui| look::show_toasts(ui.ctx())));
+    assert_eq!(elsewhere, before, "another viewport drew the toast");
 }

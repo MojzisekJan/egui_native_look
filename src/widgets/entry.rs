@@ -158,7 +158,7 @@ macro_rules! format_methods {
 }
 pub(crate) use format_methods;
 
-/// A number in a field, with − and + beside it unless [`NumberField::steppers`] leaves
+/// A number in an entry of the look, with − and + beside it unless [`NumberField::steppers`] leaves
 /// them out, stepping by `step` and staying inside the [`NumberField::range`] if it has
 /// one; drag it sideways to scrub, click it to type, which selects the number so typing
 /// replaces it. The number keeps a width for five digits, so the row stays still while a
@@ -196,12 +196,12 @@ pub struct NumberField<'a, T: egui::emath::Numeric> {
 }
 
 impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
-    /// A field editing `value`, any number its type holds until [`NumberField::range`]
-    /// bounds it.
+    /// A field editing `value`, any number its type holds (0 to 255 for a `u8`) until
+    /// [`NumberField::range`] bounds it.
     pub fn new(value: &'a mut T) -> Self {
         NumberField {
             value,
-            range: f64::NEG_INFINITY..=f64::INFINITY,
+            range: T::MIN.to_f64()..=T::MAX.to_f64(),
             step: 1.0,
             speed: None,
             width: None,
@@ -217,7 +217,7 @@ impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
         self
     }
     /// What − and + add, and the drag's speed unless [`NumberField::speed`] sets it; 1 by
-    /// default.
+    /// default. A negative step counts as its size, and one of zero (or not a number) as 1.
     pub fn step(mut self, step: f64) -> Self {
         self.step = step;
         self
@@ -253,6 +253,8 @@ impl<T: egui::emath::Numeric> Widget for NumberField<'_, T> {
         let before = *self.value;
         let (lo, hi) = (*self.range.start(), *self.range.end());
         let NumberField { value, range, step, speed, width, steppers, format, clamp_existing } = self;
+        let step = if step.is_finite() && step != 0.0 { step.abs() } else { 1.0 };
+        let x = Ctx::of(ui);
         let inner = ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
             let side = ui.spacing().interact_size.y;
@@ -264,7 +266,15 @@ impl<T: egui::emath::Numeric> Widget for NumberField<'_, T> {
             let number_width = width.map_or(64.0, |w| (w - buttons).max(40.0));
             let size = egui::vec2(number_width, side);
             let drag = egui::DragValue::new(&mut *value).speed(speed.unwrap_or(step)).range(range).clamp_existing_to_range(clamp_existing);
-            let number = ui.add_sized(size, format.apply(drag));
+            let number = ui.scope(|ui| {
+                entry_visuals(ui, &x);
+                ui.add_sized(size, format.apply(drag))
+            });
+            let number = number.inner;
+            underline(ui.painter(), number.rect, number.has_focus());
+            if number.has_focus() && matches!(x.look, Look::Mac | Look::Gtk | Look::Ios) {
+                crate::paint::ring(ui.painter(), &x.paint(), number.rect, x.radius());
+            }
             let plus = steppers.then(|| step_button(ui, value.to_f64() < hi, true));
             if plus.as_ref().is_some_and(Response::clicked) {
                 *value = T::from_f64((value.to_f64() + step).min(hi));
@@ -276,6 +286,26 @@ impl<T: egui::emath::Numeric> Widget for NumberField<'_, T> {
             response.mark_changed();
         }
         response
+    }
+}
+
+/// egui's widgets in `ui` drawn as an entry of the look rather than a button: the entry's
+/// fill, and the look's thin edge (none in libadwaita, iOS and Material, which fill theirs).
+fn entry_visuals(ui: &mut Ui, x: &Ctx) {
+    let c = &x.c;
+    let edge = match x.look {
+        Look::Gtk | Look::Ios | Look::Material => Stroke::NONE,
+        Look::Mac | Look::Windows => Stroke::new(1.0, c.control_border),
+        Look::Plain => Stroke::new(1.0, c.border),
+    };
+    let w = &mut ui.visuals_mut().widgets;
+    for (state, fill) in [(&mut w.inactive, c.entry), (&mut w.hovered, c.entry), (&mut w.active, c.entry_focused)] {
+        state.bg_fill = fill;
+        state.weak_bg_fill = fill;
+        state.bg_stroke = edge;
+    }
+    if x.look == Look::Plain {
+        w.hovered.bg_stroke = Stroke::new(1.0, c.grid);
     }
 }
 
