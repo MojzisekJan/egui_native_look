@@ -114,3 +114,197 @@ fn shortcuts_read_as_each_system_writes_them() {
     assert_eq!(look::shortcut_text(look::Look::Mac, &save_as), "⇧⌘S");
     assert_eq!(look::shortcut_text(look::Look::Windows, &save_as), "Ctrl+Shift+S");
 }
+
+#[test]
+fn an_icon_button_and_a_colour_well_take_clicks() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let mut pressed = false;
+        for events in click(egui::pos2(10.0, 10.0)) {
+            pressed |= frame(&ctx, events, |ui| ui.add(look::IconButton::new("#").tooltip("Grid")).clicked());
+        }
+        assert!(pressed, "{chosen}: the icon button did not take the click");
+        let mut tint = egui::Color32::RED;
+        let mut opened = false;
+        for events in click(egui::pos2(12.0, 10.0)) {
+            frame(&ctx, events, |ui| ui.add(look::ColorWell::new(&mut tint)));
+            opened |= egui::Popup::is_any_open(&ctx);
+        }
+        frame(&ctx, vec![], |ui| ui.add(look::ColorWell::new(&mut tint)));
+        assert!(opened || egui::Popup::is_any_open(&ctx), "{chosen}: the colour well did not open its picker");
+    }
+}
+
+#[test]
+fn a_form_lines_its_controls_up() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let mut rects = Vec::new();
+        for _ in 0..3 {
+            rects = frame(&ctx, vec![], |ui| {
+                look::Form::new("form")
+                    .show(ui, |form| {
+                        let a = form.row("Radius", |ui| ui.add(look::Button::new("A").width(60.0))).rect;
+                        let b = form.row("A much longer label", |ui| ui.add(look::Button::new("B").width(60.0))).rect;
+                        vec![a, b]
+                    })
+            });
+        }
+        assert!((rects[0].left() - rects[1].left()).abs() < 0.5, "{chosen}: the controls start at different places: {rects:?}");
+        assert!(rects[1].top() > rects[0].bottom(), "{chosen}: the rows overlap");
+    }
+}
+
+#[test]
+fn a_toast_goes_after_a_while() {
+    let ctx = context(look::Look::Gtk, true);
+    let run = |time: f64| {
+        let input = egui::RawInput { time: Some(time), ..Default::default() };
+        let mut output = ctx.run_ui(input, |ui| look::show_toasts(ui.ctx()));
+        output.textures_delta.clear();
+        output.shapes.len()
+    };
+    let before = run(0.0);
+    look::toast(&ctx, "Saved");
+    let shown = run(1.0);
+    assert!(shown > before, "the toast was not drawn");
+    run(10.0);
+    assert_eq!(run(10.1), before, "the toast stayed");
+}
+
+#[test]
+fn a_popup_button_shows_the_apps_own_list() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let mut units = 0;
+        let add = |ui: &mut egui::Ui, units: &mut usize| {
+            look::PopupButton::new("units", "Metres").width(160.0).show(ui, |ui| {
+                look::menu_value(ui, units, 0, "Metres");
+                look::menu_value(ui, units, 1, "Feet");
+            })
+        };
+        let mut rows = Vec::new();
+        for events in click(egui::pos2(40.0, 10.0)) {
+            frame(&ctx, events, |ui| add(ui, &mut units));
+        }
+        // The list is open now; find the second row and click it.
+        frame(&ctx, vec![], |ui| {
+            if let Some(()) = add(ui, &mut units).inner {
+                rows.push(());
+            }
+        });
+        assert!(!rows.is_empty(), "{chosen}: the list did not open");
+        let feet = ctx.memory(|m| m.area_rect(egui::Id::new("units").with("egui_native_look-dropdown"))).map(|r| egui::pos2(r.center().x, r.bottom() - 16.0));
+        let feet = feet.expect("the list has an area");
+        for events in click(feet) {
+            frame(&ctx, events, |ui| add(ui, &mut units));
+        }
+        assert_eq!(units, 1, "{chosen}: the row did not set the value");
+    }
+}
+
+#[test]
+fn a_slider_takes_any_number_logarithmic_and_in_steps() {
+    let ctx = context(look::Look::Mac, true);
+    let mut samples: u32 = 1;
+    for events in click(egui::pos2(100.0, 10.0)) {
+        frame(&ctx, events, |ui| ui.add(look::Slider::new(&mut samples, 0..=64).width(200.0)));
+    }
+    assert!((30..=34).contains(&samples), "the middle of 0 to 64 is not {samples}");
+    let mut exposure: f64 = 1.0;
+    for events in click(egui::pos2(100.0, 10.0)) {
+        frame(&ctx, events, |ui| ui.add(look::Slider::new(&mut exposure, 0.01..=100.0).logarithmic(true).width(200.0)));
+    }
+    assert!((0.8..=1.25).contains(&exposure), "the middle of 0.01 to 100 on a log scale is not {exposure}");
+    let mut stepped: f64 = 0.0;
+    for events in click(egui::pos2(97.0, 10.0)) {
+        frame(&ctx, events, |ui| ui.add(look::Slider::new(&mut stepped, 0.0..=100.0).step_by(25.0).width(200.0)));
+    }
+    assert_eq!(stepped, 50.0);
+}
+
+#[test]
+fn tabs_one_by_one() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let mut shown = 0;
+        let mut rects = Vec::new();
+        for events in click(egui::pos2(110.0, 12.0)) {
+            rects = frame(&ctx, events, |ui| {
+                look::TabBar::new()
+                    .show(ui, |bar| {
+                        ["One", "Two", "Three"]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(i, name)| {
+                                let tab = bar.tab(name, shown == i);
+                                if tab.clicked() {
+                                    shown = i;
+                                }
+                                tab.rect
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .inner
+            });
+        }
+        let picked = rects.iter().position(|r| r.contains(egui::pos2(110.0, 12.0)));
+        assert_eq!(Some(shown), picked, "{chosen}: the click did not pick the tab under it: {rects:?}");
+    }
+}
+
+#[test]
+fn a_menu_item_is_as_wide_as_it_needs() {
+    let ctx = context(look::Look::Mac, true);
+    let width = frame(&ctx, vec![], |ui| ui.add(look::MenuItem::new("Save").shortcut("⌘S")).rect.width());
+    assert!(width < 140.0, "a short item is {width} wide");
+}
+
+#[test]
+fn a_section_answers_and_opens_from_code() {
+    let ctx = context(look::Look::Gtk, true);
+    let shown = frame(&ctx, vec![], |ui| look::Section::new("Layers").open(Some(true)).show(ui, |ui| ui.label("body")));
+    assert!(shown.body_returned.is_some() && shown.header_response.rect.width() > 0.0);
+    // Closed from code, it goes on closing over the next frames.
+    for _ in 0..20 {
+        frame(&ctx, vec![], |ui| look::Section::new("Layers").open(Some(false)).show(ui, |ui| ui.label("body")));
+    }
+    let shown = frame(&ctx, vec![], |ui| look::Section::new("Layers").show(ui, |ui| ui.label("body")));
+    assert!(shown.body_returned.is_none() && shown.openness == 0.0);
+}
+
+#[test]
+fn a_text_field_can_select_all_on_focus() {
+    let ctx = context(look::Look::Windows, true);
+    let mut text = String::from("12.5");
+    let mut id = egui::Id::NULL;
+    for events in click(egui::pos2(40.0, 12.0)) {
+        id = frame(&ctx, events, |ui| ui.add(look::TextField::new(&mut text).select_all_on_focus(true).width(200.0)).id);
+    }
+    let range = egui::TextEdit::load_state(&ctx, id).and_then(|s| s.cursor.char_range()).expect("a cursor");
+    assert_eq!((range.primary.index.min(range.secondary.index), range.primary.index.max(range.secondary.index)), (0.into(), 4.into()));
+    // Without it, a click puts the caret down and selects nothing.
+    let ctx = context(look::Look::Windows, true);
+    for events in click(egui::pos2(40.0, 12.0)) {
+        id = frame(&ctx, events, |ui| ui.add(look::TextField::new(&mut text).width(200.0)).id);
+    }
+    let range = egui::TextEdit::load_state(&ctx, id).and_then(|s| s.cursor.char_range()).expect("a cursor");
+    assert_eq!(range.primary.index, range.secondary.index);
+}
+
+#[test]
+fn metrics_scale_and_a_touch_look_is_finger_sized() {
+    let metrics = look::Metrics::of(look::Look::Mac).scaled(2.0);
+    assert_eq!((metrics.control_height, metrics.radius, metrics.body.size), (44.0, 12, 26.0));
+    assert!(look::Metrics::of(look::Look::touch()).control_height >= 40.0);
+}
+
+#[test]
+fn a_tool_window_shows_its_contents() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let mut open = true;
+        let shown = frame(&ctx, vec![], |_ui| look::ToolWindow::new("tool", "Fillet").show(&ctx, &mut open, |ui| ui.label("Radius")));
+        assert!(shown.is_some_and(|s| s.inner.is_some()), "{chosen}: nothing shown");
+    }
+}

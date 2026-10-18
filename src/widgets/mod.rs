@@ -6,16 +6,20 @@ mod basic;
 mod choice;
 mod containers;
 mod entry;
+mod extra;
+mod form;
 mod status;
 mod window;
 
 pub use basic::{radio_value, switch_width, Button, Checkbox, Radio, Switch};
-pub use choice::{Dropdown, Segmented, Slider, Tabs};
+pub use choice::{combo_icon, menu_value, Dropdown, PopupButton, Segmented, Slider, Tab, TabBar, TabBarUi, Tabs};
 pub use basic::check_mark;
-pub use containers::{picked_text, section, ListRow, MenuItem};
+pub use containers::{picked_text, section, submenu, ListRow, MenuItem, Section};
 pub use entry::{NumberField, TextField};
+pub use extra::{show_toasts, toast, ColorWell, IconButton};
+pub use form::{Form, FormUi};
 pub use status::{ProgressBar, Spinner};
-pub use window::{Dialog, TitleBar, WindowAction};
+pub use window::{window_frame, Dialog, TitleBar, ToolWindow, WindowAction};
 
 use crate::{paint, Colors, Look, Metrics};
 

@@ -20,6 +20,10 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std"
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_System_Registry"] }
 
+# The web: whether the screen takes touch, and whether it is an Apple device's.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3.104", features = ["Window", "Navigator"] }
+
 [dev-dependencies]
 eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
 image = { version = "0.25", default-features = false, features = ["png"] }

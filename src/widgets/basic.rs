@@ -14,6 +14,7 @@ pub struct Button {
 }
 
 impl Button {
+    /// A button reading `label`.
     pub fn new(label: impl Into<String>) -> Self {
         Button { label: label.into(), accent: false, width: None }
     }
@@ -56,6 +57,7 @@ pub struct Switch<'a> {
 }
 
 impl<'a> Switch<'a> {
+    /// A switch showing and flipping `on`.
     pub fn new(on: &'a mut bool) -> Self {
         Switch { on }
     }
@@ -212,6 +214,7 @@ pub struct Checkbox<'a> {
 }
 
 impl<'a> Checkbox<'a> {
+    /// A check box showing and flipping `checked`, with `text` after it.
     pub fn new(checked: &'a mut bool, text: impl Into<WidgetText>) -> Self {
         Checkbox { checked, text: text.into(), indeterminate: false }
     }
@@ -268,6 +271,8 @@ pub struct Radio {
 }
 
 impl Radio {
+    /// A radio button, chosen when `selected`, with `text` after it; see also
+    /// [`radio_value`].
     pub fn new(selected: bool, text: impl Into<WidgetText>) -> Self {
         Radio { selected, text: text.into() }
     }

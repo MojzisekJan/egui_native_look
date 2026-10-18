@@ -1,21 +1,64 @@
-//! egui controls drawn the way macOS, Windows and GNOME draw theirs.
+#![warn(missing_docs)]
+//! egui controls drawn the way macOS, Windows, GNOME, iOS and Android draw theirs.
 //!
-//! An app keeps its own look (its window, panels and palette) and installs a [`Theme`]:
-//! the [`Look`] its controls take, its palette for each scheme ([`Schemes`]) and the
-//! sizes of its controls ([`Metrics`]). The controls are [`egui::Widget`]s:
+//! An app keeps its own window, panels and palette, and installs a [`Theme`]: the
+//! [`Look`] its controls take, its palette for each scheme ([`Schemes`]) and the sizes of
+//! its controls ([`Metrics`]). The theme lives in the [`egui::Context`], so every control
+//! drawn in it takes it, and two contexts can have two themes.
 //!
 //! ```no_run
-//! # fn demo(ctx: &egui::Context, ui: &mut egui::Ui, on: &mut bool) {
+//! # fn setup(ctx: &egui::Context) {
 //! use egui_native_look as look;
+//! let mut fonts = egui::FontDefinitions::default();
+//! look::install_fonts(&mut fonts, look::Look::system());
+//! ctx.set_fonts(fonts);
 //! look::install(ctx, look::Theme::system());
+//! # }
+//! # fn frame(ui: &mut egui::Ui, on: &mut bool, radius: &mut f64) {
+//! # use egui_native_look as look;
+//! // Every frame.
+//! look::follow_system(ui.ctx());
 //! ui.add(look::Switch::new(on));
 //! ui.add(look::Button::new("Save").accent());
+//! look::Form::new("settings").show(ui, |form| {
+//!     form.row("Radius", |ui| ui.add(look::NumberField::new(radius, 0.0..=1024.0)));
+//! });
+//! look::show_toasts(ui.ctx());
 //! # }
 //! ```
 //!
-//! The scheme follows egui's (`ctx.set_theme`), and [`colors`] gives the resolved colours
-//! for an app's own drawing. Text is centred on its capitals ([`text`], [`galley_top`])
-//! rather than on egui's line box, which rounds differently at each size.
+//! # Controls
+//!
+//! | Kind | Controls |
+//! | --- | --- |
+//! | Buttons | [`Button`], [`IconButton`], [`Switch`], [`Checkbox`], [`Radio`] ([`radio_value`]) |
+//! | Choices | [`Segmented`], [`Dropdown`], [`PopupButton`] ([`menu_value`]), [`Tabs`], [`Tab`] and [`TabBar`], [`Slider`], [`ColorWell`] |
+//! | Entries | [`TextField`], [`NumberField`] |
+//! | Layout | [`Form`], [`section`] and [`Section`], [`ListRow`] |
+//! | Menus | [`MenuItem`], [`submenu`], [`combo_icon`] for egui's `ComboBox` |
+//! | Status | [`ProgressBar`], [`Spinner`], [`toast`] and [`show_toasts`] |
+//! | Windows | [`Dialog`], [`ToolWindow`], [`window_frame`], [`TitleBar`] |
+//!
+//! # The system
+//!
+//! [`Theme::system`] takes the look of the system it runs on, and [`install`] reads its
+//! accent (System Settings on macOS, Personalization on Windows, GNOME's accent) unless
+//! the theme sets one. [`follow_system`] keeps the accent and the scheme up to date while
+//! the app runs; [`system_scheme`] reads the scheme. The scheme the controls take is
+//! egui's: `ctx.set_theme`, or eframe following the system's. [`install_fonts`] adds the
+//! system's own font where the look has one.
+//!
+//! On a touch screen, in a browser too, [`Look::touch`] gives finger-sized controls
+//! (iOS's on Apple's devices, Material's elsewhere) and [`touch_screen`] says whether
+//! there is one. [`Metrics::scaled`] makes a look's controls larger or smaller.
+//!
+//! # Drawing your own
+//!
+//! [`colors`] gives the resolved colours for an app's own drawing, and the painters
+//! ([`paint_button`], [`paint_popup_button`], [`focus_ring`], [`underline`], ...) draw a
+//! control's body in the look. Text is centred on its capitals ([`text`],
+//! [`galley_top`], [`entry_margin`]) rather than on egui's line box, which rounds
+//! differently at each size.
 
 mod colors;
 mod paint;
@@ -27,7 +70,7 @@ mod widgets;
 pub use colors::{colors, Colors};
 pub use paint::{focus_ring, paint_button, paint_fluent, paint_popup_button, paint_raised, underline};
 pub use style::apply_style;
-pub use system::{system_accent, system_fonts, SystemFonts};
+pub use system::{system_accent, system_fonts, system_scheme, touch_screen, SystemFonts};
 pub use text::{cap_middle, entry_margin, galley_top, text};
 pub use widgets::*;
 
@@ -71,6 +114,22 @@ impl Look {
             Look::Gtk
         } else {
             Look::Plain
+        }
+    }
+
+    /// The touch look of the system this runs on: iOS on Apple's systems (an iPad's or an
+    /// iPhone's browser too), Material elsewhere. Its controls are a finger tall (40 to 44
+    /// points) where the desktop looks' are 22 to 34. Pair it with [`touch_screen`]:
+    ///
+    /// ```
+    /// use egui_native_look::{touch_screen, Look};
+    /// let look = if touch_screen() { Look::touch() } else { Look::system() };
+    /// ```
+    pub fn touch() -> Look {
+        if cfg!(any(target_os = "macos", target_os = "ios")) || system::apple_browser() {
+            Look::Ios
+        } else {
+            Look::Material
         }
     }
 
@@ -159,7 +218,9 @@ pub struct Palette {
 /// The app's palette for each scheme.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Schemes {
+    /// The dark scheme's palette.
     pub dark: Palette,
+    /// The light scheme's palette.
     pub light: Palette,
 }
 
@@ -239,6 +300,17 @@ impl Metrics {
         self.bold = FontId::new(self.bold.size, bold_family());
         self
     }
+
+    /// Everything `factor` times the size: the controls' height, their rounding and their
+    /// text. To scale the whole interface instead (the gaps, the marks and the app's own
+    /// widgets with it), set egui's zoom: `ctx.set_zoom_factor`.
+    pub fn scaled(mut self, factor: f32) -> Metrics {
+        self.control_height = (self.control_height * factor).round();
+        self.radius = (f32::from(self.radius) * factor).round().clamp(0.0, 255.0) as u8;
+        self.body.size *= factor;
+        self.bold.size *= factor;
+        self
+    }
 }
 
 /// The family [`install_fonts`] registers the system's semibold face under; a body face
@@ -251,8 +323,11 @@ pub fn bold_family() -> egui::FontFamily {
 /// accent once [`install`] has read it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
+    /// How the controls are drawn.
     pub look: Look,
+    /// The app's palette for each scheme.
     pub schemes: Schemes,
+    /// The controls' sizes and fonts.
     pub metrics: Metrics,
     /// The system's accent for the dark and the light scheme, as 0xRRGGBB; `None` keeps
     /// the palette's. [`install`] fills it in unless it was set.
@@ -289,11 +364,16 @@ pub(crate) struct Resolved {
     pub theme: Theme,
     pub dark: Colors,
     pub light: Colors,
+    /// Whether the accent is the system's, read when installed, which [`follow_system`]
+    /// keeps up to date; an app's own accent is left alone.
+    pub system_accent: bool,
+    /// Whether [`install`] styled egui's widgets, which then follow the accent too.
+    pub styled: bool,
 }
 
 impl Resolved {
-    fn of(theme: Theme) -> Resolved {
-        Resolved { dark: Colors::resolve(&theme, true), light: Colors::resolve(&theme, false), theme }
+    fn of(theme: Theme, system_accent: bool, styled: bool) -> Resolved {
+        Resolved { dark: Colors::resolve(&theme, true), light: Colors::resolve(&theme, false), theme, system_accent, styled }
     }
 
     /// The colours for `ctx`'s scheme of the moment.
@@ -311,7 +391,9 @@ pub(crate) fn resolved(ctx: &egui::Context) -> std::sync::Arc<Resolved> {
     if let Some(found) = ctx.data(|d| d.get_temp::<std::sync::Arc<Resolved>>(resolved_id())) {
         return found;
     }
-    let made = std::sync::Arc::new(Resolved::of(Theme::system()));
+    let mut theme = Theme::system();
+    theme.accent = system::system_accent(theme.look);
+    let made = std::sync::Arc::new(Resolved::of(theme, true, false));
     ctx.data_mut(|d| d.insert_temp(resolved_id(), made.clone()));
     made
 }
@@ -319,21 +401,58 @@ pub(crate) fn resolved(ctx: &egui::Context) -> std::sync::Arc<Resolved> {
 /// Installs `theme` in `ctx`: [`set_theme`], then styles egui's own widgets to match in
 /// both of egui's schemes ([`apply_style`]).
 pub fn install(ctx: &egui::Context, theme: Theme) {
-    let theme = set_theme(ctx, theme);
+    let theme = keep(ctx, theme, true);
+    restyle(ctx, &theme);
+}
+
+fn restyle(ctx: &egui::Context, theme: &Theme) {
     for scheme in [egui::Theme::Dark, egui::Theme::Light] {
-        ctx.style_mut_of(scheme, |style| apply_style(style, &theme, scheme == egui::Theme::Dark));
+        ctx.style_mut_of(scheme, |style| apply_style(style, theme, scheme == egui::Theme::Dark));
     }
 }
 
 /// Keeps `theme` in `ctx` for the controls, reading the system's accent unless the theme
 /// sets one, and leaves egui's style alone: for an app that styles egui itself, or that
 /// changes the theme's sizes later. Returns the theme as kept.
-pub fn set_theme(ctx: &egui::Context, mut theme: Theme) -> Theme {
-    if theme.accent.is_none() {
+pub fn set_theme(ctx: &egui::Context, theme: Theme) -> Theme {
+    keep(ctx, theme, false)
+}
+
+fn keep(ctx: &egui::Context, mut theme: Theme, styled: bool) -> Theme {
+    let system_accent = theme.accent.is_none();
+    if system_accent {
         theme.accent = system::system_accent(theme.look);
     }
-    ctx.data_mut(|d| d.insert_temp(resolved_id(), std::sync::Arc::new(Resolved::of(theme.clone()))));
+    ctx.data_mut(|d| d.insert_temp(resolved_id(), std::sync::Arc::new(Resolved::of(theme.clone(), system_accent, styled))));
     theme
+}
+
+/// Keeps the theme in `ctx` up to date with the system: call it once a frame. Every two
+/// seconds, and as soon as the window comes to the front, it reads the system's accent
+/// and scheme again off the UI thread. A new accent (unless the app set its own)
+/// re-resolves the colours, restyles egui's widgets if [`install`] styled them, and asks
+/// for a repaint. A new scheme becomes egui's fallback, which egui shows while its theme
+/// preference is `System` and the backend does not report the system's theme (eframe on
+/// the desktop does, and wins).
+pub fn follow_system(ctx: &egui::Context) {
+    system::follow(ctx);
+}
+
+/// Replaces the accent of the theme in `ctx` with the system's `accent`, as
+/// [`follow_system`] found it.
+pub(crate) fn take_system_accent(ctx: &egui::Context, accent: Option<[u32; 2]>) {
+    let current = resolved(ctx);
+    if !current.system_accent || current.theme.accent == accent {
+        return;
+    }
+    let mut theme = current.theme.clone();
+    theme.accent = accent;
+    let styled = current.styled;
+    ctx.data_mut(|d| d.insert_temp(resolved_id(), std::sync::Arc::new(Resolved::of(theme.clone(), true, styled))));
+    if styled {
+        restyle(ctx, &theme);
+    }
+    ctx.request_repaint();
 }
 
 /// The theme installed in `ctx`, or this system's when none was.
@@ -378,4 +497,31 @@ pub fn lighten(c: Color32, t: f32) -> Color32 {
 pub fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
     let l = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
     Color32::from_rgba_unmultiplied(l(a.r(), b.r()), l(a.g(), b.g()), l(a.b(), b.b()), l(a.a(), b.a()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_new_system_accent_reaches_the_colours_and_the_style() {
+        let ctx = egui::Context::default();
+        install(&ctx, Theme::new(Look::Mac));
+        let before = resolved(&ctx).dark.accent;
+        take_system_accent(&ctx, Some([0xff0000, 0xff0000]));
+        assert_eq!(theme(&ctx).accent, Some([0xff0000, 0xff0000]));
+        let after = resolved(&ctx).dark.accent;
+        assert_ne!(after, before);
+        assert_eq!(ctx.style_of(egui::Theme::Dark).visuals.selection.bg_fill, after.gamma_multiply(0.55));
+    }
+
+    #[test]
+    fn an_accent_the_app_chose_stays() {
+        let ctx = egui::Context::default();
+        let mut chosen = Theme::new(Look::Gtk);
+        chosen.accent = Some([0x00ff00, 0x00ff00]);
+        set_theme(&ctx, chosen);
+        take_system_accent(&ctx, Some([0xff0000, 0xff0000]));
+        assert_eq!(theme(&ctx).accent, Some([0x00ff00, 0x00ff00]));
+    }
 }

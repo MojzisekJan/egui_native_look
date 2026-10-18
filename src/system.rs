@@ -15,6 +15,82 @@ pub struct SystemFonts {
     pub mono: Option<FontData>,
 }
 
+/// When the system was last asked, per context, and whether a read is under way.
+#[derive(Clone, Copy, Default)]
+struct Follow {
+    last: f64,
+    reading: bool,
+}
+
+/// See [`crate::follow_system`].
+pub(crate) fn follow(ctx: &egui::Context) {
+    const EVERY: f64 = 2.0;
+    if cfg!(target_arch = "wasm32") {
+        return;
+    }
+    let id = egui::Id::new("egui_native_look::Follow");
+    let (now, focused) = ctx.input(|i| (i.time, i.events.iter().any(|e| matches!(e, egui::Event::WindowFocused(true)))));
+    let state = ctx.data(|d| d.get_temp::<Follow>(id)).unwrap_or_default();
+    ctx.request_repaint_after(std::time::Duration::from_secs_f64(EVERY));
+    let due = state.last == 0.0 || now - state.last >= EVERY || focused;
+    if state.reading || !due {
+        return;
+    }
+    ctx.data_mut(|d| d.insert_temp(id, Follow { last: now, reading: true }));
+    let look = crate::look(ctx);
+    let ctx = ctx.clone();
+    // Reading takes a process on macOS and GNOME, so it is done off the UI thread.
+    std::thread::spawn(move || {
+        let (accent, scheme) = (system_accent(look), system_scheme());
+        crate::take_system_accent(&ctx, accent);
+        if let Some(scheme) = scheme {
+            if ctx.options(|o| o.fallback_theme) != scheme {
+                ctx.options_mut(|o| o.fallback_theme = scheme);
+                ctx.request_repaint();
+            }
+        }
+        let now = ctx.input(|i| i.time);
+        ctx.data_mut(|d| d.insert_temp(id, Follow { last: now, reading: false }));
+    });
+}
+
+/// The scheme the system is set to, dark or light: System Settings > Appearance on
+/// macOS, the apps' mode on Windows, GNOME's style. `None` where it cannot be read
+/// (another system, the web, where the browser tells eframe). It may take a process, so
+/// call it off the UI thread or seldom.
+pub fn system_scheme() -> Option<egui::Theme> {
+    #[cfg(target_os = "macos")]
+    return mac::scheme();
+    #[cfg(target_os = "windows")]
+    return windows::scheme();
+    #[cfg(target_os = "linux")]
+    return gnome::scheme();
+    #[allow(unreachable_code)]
+    None
+}
+
+/// Whether the screen takes touch: in a browser, whether it reports touch points (a
+/// tablet, a phone, a touch laptop); on iOS and Android always; elsewhere not.
+pub fn touch_screen() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    let touch = web_sys::window().is_some_and(|w| w.navigator().max_touch_points() > 0);
+    #[cfg(not(target_arch = "wasm32"))]
+    let touch = cfg!(any(target_os = "ios", target_os = "android"));
+    touch
+}
+
+/// Whether this runs in a browser on an Apple system: an iPhone, an iPad (which calls
+/// itself a Mac) or a Mac.
+pub(crate) fn apple_browser() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    let apple = web_sys::window()
+        .and_then(|w| w.navigator().user_agent().ok())
+        .is_some_and(|agent| ["iPhone", "iPad", "Macintosh"].iter().any(|name| agent.contains(name)));
+    #[cfg(not(target_arch = "wasm32"))]
+    let apple = false;
+    apple
+}
+
 /// The system's accent as 0xRRGGBB, for the dark and the light scheme: on macOS the colour
 /// of System Settings > Appearance (the same for both), on Windows the shades WinUI takes
 /// from Personalization > Colors, on GNOME (46 and later) the accent of Settings >
@@ -67,6 +143,13 @@ mod mac {
         Some(super::SystemFonts { regular: super::weighted(&bytes, 400.0), semibold: super::weighted(&bytes, 590.0), mono })
     }
 
+    /// Dark when System Settings > Appearance is dark (or automatic, and dark now).
+    pub fn scheme() -> Option<egui::Theme> {
+        let out = std::process::Command::new("defaults").args(["read", "-g", "AppleInterfaceStyle"]).output().ok()?;
+        // Light has no value at all, and `defaults` fails for it.
+        Some(if String::from_utf8_lossy(&out.stdout).trim() == "Dark" { egui::Theme::Dark } else { egui::Theme::Light })
+    }
+
     /// The accent colour of System Settings > Appearance, as 0xRRGGBB in sRGB.
     pub fn accent() -> Option<u32> {
         use objc2_app_kit::{NSColor, NSColorSpace};
@@ -97,6 +180,19 @@ mod windows {
         };
         let mono = ["CascadiaMono.ttf", "consola.ttf"].iter().find_map(|name| std::fs::read(dir.join(name)).ok()).map(FontData::from_owned);
         Some(super::SystemFonts { regular, semibold, mono })
+    }
+
+    /// The apps' mode of Personalization > Colors.
+    pub fn scheme() -> Option<egui::Theme> {
+        use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+        let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
+        let key = wide("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
+        let name = wide("AppsUseLightTheme");
+        let mut light = 0u32;
+        let mut size = 4u32;
+        // SAFETY: the strings are NUL-terminated and the value is a four-byte DWORD.
+        let status = unsafe { RegGetValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr(), RRF_RT_REG_DWORD, std::ptr::null_mut(), (&mut light as *mut u32).cast(), &mut size) };
+        (status == 0).then_some(if light == 0 { egui::Theme::Dark } else { egui::Theme::Light })
     }
 
     /// The accent's light shade (for the dark scheme) and dark shade (for the light), as
@@ -144,6 +240,13 @@ mod gnome {
         .map(FontData::from_owned);
         // Both faces are variable: semibold is weight 600, as libadwaita's headings take.
         Some(super::SystemFonts { regular: super::weighted(&text, 400.0), semibold: super::weighted(&text, 600.0), mono })
+    }
+
+    /// GNOME's style (`org.gnome.desktop.interface color-scheme`): dark when it prefers
+    /// dark.
+    pub fn scheme() -> Option<egui::Theme> {
+        let out = std::process::Command::new("gsettings").args(["get", "org.gnome.desktop.interface", "color-scheme"]).output().ok()?;
+        out.status.success().then(|| if String::from_utf8_lossy(&out.stdout).contains("dark") { egui::Theme::Dark } else { egui::Theme::Light })
     }
 
     /// GNOME's accent (`org.gnome.desktop.interface accent-color`) as libadwaita draws it.

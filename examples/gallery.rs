@@ -1,5 +1,5 @@
 //! Every control in every look: `cargo run --example gallery [mac|windows|gtk|ios|material|plain] [light]`.
-//! The look and the scheme can be switched in the window too; `dialog` opens the dialog. With `GALLERY_SHOT=file.png`
+//! The look and the scheme can be switched in the window too; `dialog` opens the dialog, `toast` shows a toast, `window` the tool window. With `GALLERY_SHOT=file.png`
 //! it saves its window to that file and quits.
 
 use eframe::egui;
@@ -9,9 +9,10 @@ fn main() -> eframe::Result {
     let forced = std::env::args().nth(1).and_then(|name| look::Look::from_name(&name));
     let light = std::env::args().any(|a| a == "light");
     let dialog = std::env::args().any(|a| a == "dialog");
+    let toast = std::env::args().any(|a| a == "toast");
     eframe::run_native(
         "egui_native_look gallery",
-        eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([620.0, 720.0]), ..Default::default() },
+        eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([1040.0, 720.0]), ..Default::default() },
         Box::new(move |cc| {
             let chosen = forced.unwrap_or_else(look::Look::system);
             let mut fonts = egui::FontDefinitions::default();
@@ -19,12 +20,22 @@ fn main() -> eframe::Result {
             cc.egui_ctx.set_fonts(fonts);
             look::install(&cc.egui_ctx, theme(chosen));
             cc.egui_ctx.set_theme(if light { egui::Theme::Light } else { egui::Theme::Dark });
+            if toast {
+                look::toast(&cc.egui_ctx, "Map saved");
+            }
             Ok(Box::new(Gallery {
                 look: LOOKS.iter().position(|l| *l == chosen).unwrap_or(0),
                 light,
                 shot: std::env::var_os("GALLERY_SHOT").map(Into::into),
                 radius: 8.0,
                 volume: 40.0,
+                faces: 4,
+                grid: true,
+                tint: egui::Color32::from_rgb(0xe0, 0x8a, 0x3c),
+                exposure: 1.0,
+                samples: 16,
+                length: 250.0,
+                tool_window: std::env::args().any(|a| a == "window"),
                 dialog,
                 ..Default::default()
             }))
@@ -56,6 +67,18 @@ struct Gallery {
     query: String,
     picked: usize,
     dialog: bool,
+    grid: bool,
+    snap: bool,
+    tool: usize,
+    faces: u32,
+    corners: usize,
+    tint: egui::Color32,
+    units: usize,
+    page: usize,
+    exposure: f32,
+    samples: u32,
+    length: f64,
+    tool_window: bool,
     shot: Option<std::path::PathBuf>,
     frames: u32,
 }
@@ -66,6 +89,12 @@ impl eframe::App for Gallery {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.save_shot(&ctx);
+        look::follow_system(&ctx);
+        egui::Panel::right("more").exact_size(400.0).frame(egui::Frame::central_panel(&ctx.global_style())).show(ui, |ui| {
+            ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
+            self.more(ui);
+        });
+        look::show_toasts(&ctx);
         egui::CentralPanel::default().show(ui, |ui| {
             ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
             ui.horizontal(|ui| {
@@ -138,6 +167,81 @@ impl eframe::App for Gallery {
 }
 
 impl Gallery {
+    /// The toolbar, a form, a colour well and a toast.
+    fn more(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Toolbar");
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 2.0;
+            for (i, (glyph, tip)) in [("↖", "Select"), ("↔", "Move"), ("⟳", "Rotate"), ("↕", "Scale")].into_iter().enumerate() {
+                if ui.add(look::IconButton::new(glyph).selected(self.tool == i).tooltip(tip)).clicked() {
+                    self.tool = i;
+                }
+            }
+            ui.add_space(8.0);
+            if ui.add(look::IconButton::new("#").selected(self.grid).tooltip("Grid")).clicked() {
+                self.grid = !self.grid;
+            }
+        });
+        ui.heading("Form");
+        look::Form::new("form").show(ui, |form| {
+            let width = form.control_width();
+            form.row("Radius", |ui| ui.add(look::NumberField::new(&mut self.radius, 0.0..=1024.0).width(width)));
+            form.row("Faces", |ui| ui.add(look::NumberField::new(&mut self.faces, 1.0..=64.0).width(width)));
+            form.row_with_tip("Corners", "Where rounded edges meet", |ui| {
+                ui.add(look::Dropdown::new("corners", &mut self.corners, &["Mitred", "Chamfered", "Rounded", "Setback"]).width(width))
+            });
+            form.row("Colour", |ui| ui.add(look::ColorWell::new(&mut self.tint)));
+            form.row("Snap to grid", |ui| ui.add(look::Switch::new(&mut self.snap)));
+        });
+        ui.horizontal(|ui| {
+            if ui.add(look::Button::new("Show a toast")).clicked() {
+                look::toast(ui.ctx(), "Map saved");
+            }
+            if ui.add(look::Button::new("Tool window")).clicked() {
+                self.tool_window = !self.tool_window;
+            }
+        });
+        ui.heading("Lists of the app's own");
+        ui.horizontal(|ui| {
+            let names = ["Metres", "Feet", "Inches"];
+            let units = &mut self.units;
+            look::PopupButton::new("units", names[*units]).width(120.0).show(ui, |ui| {
+                for (i, name) in names.into_iter().enumerate() {
+                    look::menu_value(ui, units, i, name);
+                }
+            });
+            look::PopupButton::new("menu", "Menu").show(ui, |ui| {
+                ui.add(look::MenuItem::new("Save").shortcut(look::shortcut_text(look::look(ui.ctx()), &egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::S))));
+                look::submenu(ui, "Export", |ui| {
+                    ui.add(look::MenuItem::new("Godot"));
+                    ui.add(look::MenuItem::new("Unity"));
+                });
+            });
+            egui::ComboBox::from_id_salt("egui-combo").selected_text(names[self.units]).icon(look::combo_icon).show_ui(ui, |ui| {
+                for (i, name) in names.into_iter().enumerate() {
+                    ui.selectable_value(&mut self.units, i, name);
+                }
+            });
+        });
+        look::TabBar::new().show(ui, |bar| {
+            for (i, name) in ["Scene", "Layers", "Materials"].into_iter().enumerate() {
+                if bar.tab(name, self.page == i).clicked() {
+                    self.page = i;
+                }
+            }
+        });
+        ui.add(look::Slider::new(&mut self.exposure, 0.01..=100.0).logarithmic(true).width(160.0).text("Exposure"));
+        ui.add(look::Slider::new(&mut self.samples, 1..=64).width(160.0).show_value(true));
+        ui.add(look::NumberField::new(&mut self.length, 0.0..=10_000.0).step(10.0).suffix(" mm").width(160.0));
+        let ctx = ui.ctx().clone();
+        look::ToolWindow::new("tool", "Fillet").default_pos([660.0, 470.0]).show(&ctx, &mut self.tool_window, |ui| {
+            look::Form::new("tool-form").show(ui, |form| {
+                form.row("Radius", |ui| ui.add(look::NumberField::new(&mut self.radius, 0.0..=1024.0)));
+                form.row("Faces", |ui| ui.add(look::NumberField::new(&mut self.faces, 1.0..=64.0)));
+            });
+        });
+    }
+
     fn save_shot(&mut self, ctx: &egui::Context) {
         let Some(path) = &self.shot else { return };
         self.frames += 1;

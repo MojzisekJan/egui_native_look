@@ -13,18 +13,27 @@ pub(crate) fn rgb(c: u32) -> Color32 {
 pub struct Colors {
     /// Whether these are the dark scheme's.
     pub dark: bool,
+    /// Text.
     pub fg: Color32,
+    /// Secondary text: hints, shortcuts, glyphs at rest.
     pub dim: Color32,
+    /// Text and glyphs of a disabled control.
     pub disabled: Color32,
+    /// The window's background.
     pub bg: Color32,
     /// Hairline borders round cards and the plain look's controls.
     pub border: Color32,
     /// The plain look's hovered edge.
     pub grid: Color32,
+    /// A push button's fill.
     pub button: Color32,
+    /// A push button's fill under the pointer.
     pub button_hover: Color32,
+    /// A push button's fill while pressed.
     pub button_pressed: Color32,
+    /// A disabled push button's fill.
     pub button_disabled: Color32,
+    /// A text entry's fill.
     pub entry: Color32,
     /// An entry's fill while typed in: WinUI's turns solid.
     pub entry_focused: Color32,
@@ -36,10 +45,13 @@ pub struct Colors {
     pub track: Color32,
     /// A segmented control's chosen segment.
     pub raised: Color32,
+    /// The accent: default buttons, checked marks, selection, focus.
     pub accent: Color32,
+    /// The accent under the pointer.
     pub accent_hover: Color32,
     /// Text and glyphs on an accent fill.
     pub on_accent: Color32,
+    /// A list row or menu item under the pointer.
     pub row_hover: Color32,
 }
 

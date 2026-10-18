@@ -15,7 +15,9 @@ layout.
 | `Material` | Material 3 | 40 dp | Roboto if present | baseline primary |
 | `Plain` | the app's own | 28 | the app's | the app's |
 
-`Look::system()` picks by target; the web gets `Plain`.
+`Look::system()` picks by target; the web gets `Plain`. `Look::touch()` gives
+finger-sized controls (iOS or Material) where `touch_screen()` says there is one, a
+tablet's browser too, and `Metrics::scaled` makes any look larger or smaller.
 
 ## Use
 
@@ -33,6 +35,9 @@ look::install_fonts(&mut fonts, look::Look::system());
 ctx.set_fonts(fonts);
 look::install(&ctx, look::Theme::system());
 
+// Once a frame: picks up a change of the system's accent and scheme.
+look::follow_system(&ctx);
+
 // In the UI. The scheme follows egui's (ctx.set_theme).
 ui.add(look::Button::new("Save").accent());
 ui.add(look::Switch::new(&mut wireframe));
@@ -44,11 +49,22 @@ ui.add(look::NumberField::new(&mut radius, 0.0..=1024.0));
 ui.add(look::Slider::new(&mut volume, 0.0..=100.0));
 ui.add(look::TextField::new(&mut name).hint("Name"));
 look::section(ui, "layers", "Layers", true, |ui| { /* … */ });
+ui.add(look::IconButton::new("#").selected(grid).tooltip("Grid"));
+ui.add(look::ColorWell::new(&mut tint));
+look::Form::new("fillet").show(ui, |form| {
+    form.row("Radius", |ui| ui.add(look::NumberField::new(&mut radius, 0.0..=1024.0)));
+    form.row("Snap", |ui| ui.add(look::Switch::new(&mut snap)));
+});
 look::Dialog::new("export", "Export").show(&ctx, &mut open, |ui| { /* body */ }, |ui| { /* buttons */ });
+look::toast(&ctx, "Map saved"); // drawn by look::show_toasts(&ctx), once a frame
 ```
 
-Also: `Tabs`, `ListRow`, `MenuItem`, `ProgressBar`, `Spinner`, `TitleBar` for an
-undecorated window, and `shortcut_text` (⇧⌘S or Ctrl+Shift+S). `Theme` takes the app's
+Also: `PopupButton` with a list of the app's own (`menu_value`, `submenu`), `combo_icon`
+for egui's `ComboBox`, `Tabs` or one `Tab` at a time in a `TabBar`, `Section`,
+`ToolWindow` and `window_frame` for floating windows, `ListRow`, `MenuItem`, `ProgressBar`, `Spinner`, `TitleBar` for an
+undecorated window, and `shortcut_text` (⇧⌘S or Ctrl+Shift+S). A `Form` lines its labels
+up the look's way: right-aligned on macOS, left on Windows, a boxed list in libadwaita
+and on iOS. `Theme` takes the app's
 palette (`Schemes`) and sizes (`Metrics`); `colors(ctx)` gives the resolved colours for the
 app's own drawing; the painting functions (`paint_button`, `focus_ring`, ...) are public.
 
@@ -57,9 +73,10 @@ middle of their controls at every size (`text`, `galley_top`, `entry_margin`).
 
 ## Examples and tests
 
-- `cargo run --example gallery [mac|windows|gtk|ios|material|plain] [light]`
+- `cargo run --example gallery [mac|windows|gtk|ios|material|plain] [light] [toast]`
 - `cargo test` clicks every control in every look and compares each look, dark and
   light, with the pictures in `tests/snapshots` (`UPDATE_SNAPSHOTS=1` to accept a change).
+- `cargo doc --open` documents every control; `CHANGELOG.md` lists what changed.
 - `cargo bench` times a frame of 200 rows of controls in each look against egui's own.
 
 Requires egui 0.36.

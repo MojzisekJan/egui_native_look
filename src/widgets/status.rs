@@ -13,9 +13,11 @@ pub struct ProgressBar {
 }
 
 impl ProgressBar {
+    /// A bar filled to `progress`, from 0 to 1.
     pub fn new(progress: f32) -> Self {
         ProgressBar { progress: progress.clamp(0.0, 1.0), width: None }
     }
+    /// A fixed width; by default the width available.
     pub fn width(mut self, width: f32) -> Self {
         self.width = Some(width);
         self
@@ -45,9 +47,11 @@ pub struct Spinner {
 }
 
 impl Spinner {
+    /// A spinner 16 points across.
     pub fn new() -> Self {
         Spinner { size: 16.0 }
     }
+    /// How far across it is.
     pub fn size(mut self, size: f32) -> Self {
         self.size = size;
         self

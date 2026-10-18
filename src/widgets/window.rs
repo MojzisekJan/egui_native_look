@@ -1,4 +1,5 @@
-//! Windows: dialogs with the look's header, and the title bar of an undecorated window.
+//! Windows: dialogs and tool windows with the look's header, and the title bar of an
+//! undecorated window.
 
 use egui::{Color32, CornerRadius, Rect, Sense, Stroke, Ui};
 
@@ -23,6 +24,7 @@ pub struct Dialog {
 }
 
 impl Dialog {
+    /// A dialog titled `title`; `id` keeps its place from frame to frame.
     pub fn new(id: impl std::hash::Hash + std::fmt::Debug, title: impl Into<String>) -> Self {
         Dialog { id: egui::Id::new(id), title: title.into(), size: egui::vec2(420.0, 240.0) }
     }
@@ -44,7 +46,7 @@ impl Dialog {
             Ctx { look: theme.look, c, m: theme.metrics }
         };
         let mut close = ctx.input(|i| i.key_pressed(egui::Key::Escape));
-        let frame = egui::Frame::window(&ctx.global_style()).fill(x.c.bg).inner_margin(0);
+        let frame = window_frame(ctx).inner_margin(0);
         egui::Window::new(&self.title)
             .id(self.id)
             .title_bar(false)
@@ -56,7 +58,7 @@ impl Dialog {
             .default_pos(ctx.content_rect().center())
             .show(ctx, |ui| {
                 ui.set_min_width(self.size.x);
-                close |= header(ui, &x, &self.title);
+                close |= header(ui, &x, &self.title, false);
                 egui::Frame::new().inner_margin(16).show(ui, |ui| {
                     body(ui);
                     ui.add_space(12.0);
@@ -69,8 +71,105 @@ impl Dialog {
     }
 }
 
+/// A window that floats over the app and stays while the app is used, a tool's settings or
+/// a palette: the look's header with its title and close button, moved by dragging it,
+/// resized at its edges.
+///
+/// ```no_run
+/// # fn demo(ctx: &egui::Context, open: &mut bool) {
+/// use egui_native_look as look;
+/// look::ToolWindow::new("fillet", "Fillet").show(ctx, open, |ui| { ui.label("…"); });
+/// # }
+/// ```
+pub struct ToolWindow {
+    id: egui::Id,
+    title: String,
+    size: egui::Vec2,
+    pos: Option<egui::Pos2>,
+    resizable: bool,
+}
+
+impl ToolWindow {
+    /// A window titled `title`; `id` keeps its place and size from frame to frame.
+    pub fn new(id: impl std::hash::Hash + std::fmt::Debug, title: impl Into<String>) -> Self {
+        ToolWindow { id: egui::Id::new(id), title: title.into(), size: egui::vec2(280.0, 200.0), pos: None, resizable: true }
+    }
+    /// Its size when it first opens.
+    pub fn default_size(mut self, size: impl Into<egui::Vec2>) -> Self {
+        self.size = size.into();
+        self
+    }
+    /// Where its top left corner is when it first opens; by default egui's choice.
+    pub fn default_pos(mut self, pos: impl Into<egui::Pos2>) -> Self {
+        self.pos = Some(pos.into());
+        self
+    }
+    /// Whether its edges resize it; they do by default.
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
+    /// Shows the window while `open`; its close button clears `open`. The inner value is
+    /// what `add` returned, while shown.
+    pub fn show<R>(self, ctx: &egui::Context, open: &mut bool, add: impl FnOnce(&mut Ui) -> R) -> Option<egui::InnerResponse<Option<R>>> {
+        if !*open {
+            return None;
+        }
+        let x = {
+            let theme = crate::theme(ctx);
+            let c = crate::Colors::resolve(&theme, ctx.theme() == egui::Theme::Dark);
+            Ctx { look: theme.look, c, m: theme.metrics }
+        };
+        let mut close = false;
+        let mut window = egui::Window::new(&self.title)
+            .id(self.id)
+            .title_bar(false)
+            .collapsible(false)
+            .resizable(self.resizable)
+            .frame(window_frame(ctx).inner_margin(0))
+            .default_size(self.size);
+        if let Some(pos) = self.pos {
+            window = window.default_pos(pos);
+        }
+        let shown = window.show(ctx, |ui| {
+            close = header(ui, &x, &self.title, true);
+            egui::Frame::new().inner_margin(12).show(ui, add).inner
+        });
+        if close {
+            *open = false;
+        }
+        shown
+    }
+}
+
+/// The frame of a window in the look installed in `ctx`: the window's background, a
+/// hairline edge, the look's rounding (macOS's 10, WinUI's 8, libadwaita's 12, iOS's 14,
+/// Material's 28) and a soft shadow. For an app's own `egui::Window`s, with
+/// `.title_bar(false)` and a header of its own, or as they are.
+pub fn window_frame(ctx: &egui::Context) -> egui::Frame {
+    let resolved = crate::resolved(ctx);
+    let c = resolved.colors(ctx);
+    let round = match resolved.theme.look {
+        Look::Mac => 10,
+        Look::Windows => 8,
+        Look::Gtk => 12,
+        Look::Ios => 14,
+        Look::Material => 28,
+        Look::Plain => return egui::Frame::window(&ctx.global_style()).fill(c.bg),
+    };
+    let alpha = if c.dark { 110 } else { 45 };
+    egui::Frame::window(&ctx.global_style())
+        .fill(c.bg)
+        .stroke(Stroke::new(1.0, c.border))
+        .corner_radius(CornerRadius::same(round))
+        .shadow(egui::Shadow { offset: [0, 8], blur: 28, spread: 0, color: Color32::from_black_alpha(alpha) })
+}
+
 /// A dialog's header in the look. Returns whether its close button was clicked.
-fn header(ui: &mut Ui, x: &Ctx, title: &str) -> bool {
+/// Material's dialogs have none, closing on their actions; `closable` gives one anyway,
+/// for a window without actions.
+fn header(ui: &mut Ui, x: &Ctx, title: &str, closable: bool) -> bool {
     let c = &x.c;
     let height = match x.look {
         Look::Material => 56.0,
@@ -93,7 +192,7 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str) -> bool {
         painter.hline(bar.x_range(), bar.bottom() - 0.5, Stroke::new(1.0, c.border));
     }
     match x.look {
-        Look::Material => false,
+        Look::Material if !closable => false,
         Look::Mac => {
             // The window's red close button at the start of the bar.
             let dot = Rect::from_center_size(egui::pos2(bar.left() + 20.0, bar.center().y), egui::Vec2::splat(12.0));
@@ -143,8 +242,11 @@ fn close_cross(painter: &egui::Painter, m: egui::Pos2, colour: Color32) {
 /// toggled maximised on a double click.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WindowAction {
+    /// Minimise the window.
     Minimize,
+    /// Maximise the window, or restore it when it is maximised.
     ToggleMaximize,
+    /// Close the window.
     Close,
 }
 
@@ -159,6 +261,7 @@ pub struct TitleBar {
 }
 
 impl TitleBar {
+    /// A bar showing `title`.
     pub fn new(title: impl Into<String>) -> Self {
         TitleBar { title: title.into(), maximized: false }
     }
