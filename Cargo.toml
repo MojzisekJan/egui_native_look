@@ -1,0 +1,31 @@
+[package]
+name = "egui_native_look"
+description = "egui controls drawn in the manner of the system they run on: macOS, WinUI, GTK 4 / libadwaita, or a plain look of the app's own"
+version = "0.1.0"
+edition = "2021"
+license = "MIT-0"
+repository = "https://github.com/MojzisekJan/egui_native_look"
+readme = "README.md"
+keywords = ["egui", "theme", "macos", "winui", "gtk"]
+categories = ["gui"]
+
+[dependencies]
+egui = { version = "0.36.2", default-features = false }
+
+# macOS: the accent colour chosen in System Settings.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSColor", "NSColorSpace", "objc2-core-foundation"] }
+
+# Windows: the accent shades chosen in Personalization > Colors.
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61.2", features = ["Win32_System_Registry"] }
+
+[dev-dependencies]
+eframe = { version = "0.36.2", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+criterion = { version = "0.5", default-features = false }
+egui_kittest = { version = "0.36.2", features = ["wgpu", "snapshot"] }
+
+[[bench]]
+name = "frame"
+harness = false
