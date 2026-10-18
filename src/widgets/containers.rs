@@ -160,14 +160,14 @@ pub struct MenuItem {
     shortcut: String,
     icon: Option<(String, egui::FontId)>,
     checked: bool,
-    submenu: bool,
+    arrow: bool,
     open: bool,
 }
 
 impl MenuItem {
     /// An item reading `label`.
     pub fn new(label: impl Into<String>) -> Self {
-        MenuItem { label: label.into(), shortcut: String::new(), icon: None, checked: false, submenu: false, open: false }
+        MenuItem { label: label.into(), shortcut: String::new(), icon: None, checked: false, arrow: false, open: false }
     }
     /// The shortcut, as text (see [`crate::shortcut_text`]).
     pub fn shortcut(mut self, shortcut: impl Into<String>) -> Self {
@@ -184,6 +184,18 @@ impl MenuItem {
         self.checked = checked;
         self
     }
+
+    /// Adds the item as one that opens the submenu `add` fills beside it, with its icon
+    /// or tick kept, a chevron in place of the shortcut. See [`submenu`].
+    pub fn submenu<R>(mut self, ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> egui::InnerResponse<Option<R>> {
+        let id = ui.next_auto_id();
+        let submenu_id = egui::containers::menu::SubMenu::id_from_widget_id(id);
+        self.open = egui::containers::menu::MenuState::from_ui(ui, |state, _| state.open_item == Some(submenu_id));
+        self.arrow = true;
+        let response = ui.add(self);
+        let inner = egui::containers::menu::SubMenu::new().show(ui, &response, add);
+        egui::InnerResponse::new(inner.map(|i| i.inner), response)
+    }
 }
 
 impl Widget for MenuItem {
@@ -193,7 +205,7 @@ impl Widget for MenuItem {
         let height = (ui.spacing().interact_size.y - 4.0).max(22.0);
         let font = x.m.body.clone();
         let label_width = ui.fonts_mut(|f| f.layout_no_wrap(self.label.clone(), font.clone(), c.fg).size().x);
-        let shortcut_width = if self.submenu { 24.0 } else if self.shortcut.is_empty() { 0.0 } else { ui.fonts_mut(|f| f.layout_no_wrap(self.shortcut.clone(), font.clone(), c.fg).size().x) + 24.0 };
+        let shortcut_width = if self.arrow { 24.0 } else if self.shortcut.is_empty() { 0.0 } else { ui.fonts_mut(|f| f.layout_no_wrap(self.shortcut.clone(), font.clone(), c.fg).size().x) + 24.0 };
         let width = menu_width(ui, 28.0 + label_width + shortcut_width + 12.0);
         let enabled = ui.is_enabled();
         let (rect, response) = ui.allocate_exact_size(egui::vec2(width, height), if enabled { Sense::click() } else { Sense::hover() });
@@ -214,7 +226,7 @@ impl Widget for MenuItem {
         if !self.shortcut.is_empty() {
             crate::text(ui.painter(), egui::pos2(rect.right() - 10.0, rect.center().y), egui::Align2::RIGHT_CENTER, &self.shortcut, font, weak);
         }
-        if self.submenu {
+        if self.arrow {
             let m = egui::pos2(rect.right() - 12.0, rect.center().y);
             ui.painter().add(egui::Shape::line(vec![m + egui::vec2(-2.0, -4.0), m + egui::vec2(2.0, 0.0), m + egui::vec2(-2.0, 4.0)], Stroke::new(1.5, weak)));
         }
@@ -235,6 +247,7 @@ fn menu_width(ui: &Ui, needed: f32) -> f32 {
 
 /// An item of a menu that opens a submenu beside it: a [`MenuItem`] with a chevron at its
 /// end, lit while the submenu is open. The inner value is what `add` returned, while open.
+/// For an item with an icon, [`MenuItem::submenu`].
 ///
 /// ```no_run
 /// # fn demo(ui: &mut egui::Ui) {
@@ -246,13 +259,5 @@ fn menu_width(ui: &Ui, needed: f32) -> f32 {
 /// # }
 /// ```
 pub fn submenu<R>(ui: &mut Ui, label: impl Into<String>, add: impl FnOnce(&mut Ui) -> R) -> egui::InnerResponse<Option<R>> {
-    let id = ui.next_auto_id();
-    let submenu_id = egui::containers::menu::SubMenu::id_from_widget_id(id);
-    let open = egui::containers::menu::MenuState::from_ui(ui, |state, _| state.open_item == Some(submenu_id));
-    let mut item = MenuItem::new(label);
-    item.submenu = true;
-    item.open = open;
-    let response = ui.add(item);
-    let inner = egui::containers::menu::SubMenu::new().show(ui, &response, add);
-    egui::InnerResponse::new(inner.map(|i| i.inner), response)
+    MenuItem::new(label).submenu(ui, add)
 }

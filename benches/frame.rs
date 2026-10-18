@@ -46,7 +46,7 @@ fn controls(c: &mut Criterion) {
             ui.add(look::Checkbox::new(on, "Snap"));
             look::radio_value(ui, choice, 1, "Rotate");
             ui.add(look::Segmented::new(("axis", row), segment, &["X", "Y", "Z"]).width(120.0));
-            ui.add(look::NumberField::new(value, 0.0..=100.0));
+            ui.add(look::NumberField::new(value).range(0.0..=100.0));
         })));
     }
     group.finish();

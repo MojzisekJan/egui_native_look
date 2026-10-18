@@ -45,14 +45,14 @@ ui.add(look::Checkbox::new(&mut snap, "Snap to grid"));
 look::radio_value(ui, &mut tool, Tool::Move, "Move");
 ui.add(look::Segmented::new("axis", &mut axis, &["X", "Y", "Z"]));
 ui.add(look::Dropdown::new("shape", &mut shape, &["Cuboid", "Sphere"]));
-ui.add(look::NumberField::new(&mut radius, 0.0..=1024.0));
+ui.add(look::NumberField::new(&mut radius).range(0.0..=1024.0));
 ui.add(look::Slider::new(&mut volume, 0.0..=100.0));
 ui.add(look::TextField::new(&mut name).hint("Name"));
 look::section(ui, "layers", "Layers", true, |ui| { /* … */ });
 ui.add(look::IconButton::new("#").selected(grid).tooltip("Grid"));
 ui.add(look::ColorWell::new(&mut tint));
 look::Form::new("fillet").show(ui, |form| {
-    form.row("Radius", |ui| ui.add(look::NumberField::new(&mut radius, 0.0..=1024.0)));
+    form.row("Radius", |ui| ui.add(look::NumberField::new(&mut radius).range(0.0..=1024.0)));
     form.row("Snap", |ui| ui.add(look::Switch::new(&mut snap)));
 });
 look::Dialog::new("export", "Export").show(&ctx, &mut open, |ui| { /* body */ }, |ui| { /* buttons */ });
@@ -65,7 +65,9 @@ for egui's `ComboBox`, `Tabs` or one `Tab` at a time in a `TabBar`, `Section`,
 undecorated window, and `shortcut_text` (⇧⌘S or Ctrl+Shift+S). A `Form` lines its labels
 up the look's way: right-aligned on macOS, left on Windows, a boxed list in libadwaita
 and on iOS. `Theme` takes the app's
-palette (`Schemes`) and sizes (`Metrics`); `colors(ctx)` gives the resolved colours for the
+palette (`Schemes`, each scheme's `Palette` changed from `Palette::of(dark)` where only
+a few colours differ) and sizes (`Metrics`); `install` leaves the rest of egui's style
+(shadows, spacing, the heading) as the app set it; `colors(ctx)` gives the resolved colours for the
 app's own drawing; the painting functions (`paint_button`, `focus_ring`, ...) are public.
 
 Text is centred on its capitals rather than on egui's line box, so labels sit in the

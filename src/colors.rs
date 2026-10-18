@@ -21,6 +21,8 @@ pub struct Colors {
     pub disabled: Color32,
     /// The window's background.
     pub bg: Color32,
+    /// Floating windows, dialogs, menus and pop-ups.
+    pub surface: Color32,
     /// Hairline borders round cards and the plain look's controls.
     pub border: Color32,
     /// The plain look's hovered edge.
@@ -99,6 +101,7 @@ impl Colors {
             dim: p.dim,
             disabled: p.disabled,
             bg: p.bg,
+            surface: p.surface,
             border: p.border,
             grid: p.grid,
             // libadwaita's buttons and entries are the text colour at 10 % (15 % hovered, 30 %

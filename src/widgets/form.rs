@@ -15,8 +15,8 @@ use crate::Look;
 /// use egui_native_look as look;
 /// look::Form::new("fillet").show(ui, |form| {
 ///     let width = form.control_width();
-///     form.row("Radius", |ui| ui.add(look::NumberField::new(radius, 0.0..=1024.0).width(width)));
-///     form.row("Faces", |ui| ui.add(look::NumberField::new(faces, 1.0..=64.0).width(width)));
+///     form.row("Radius", |ui| ui.add(look::NumberField::new(radius).range(0.0..=1024.0).width(width)));
+///     form.row("Faces", |ui| ui.add(look::NumberField::new(faces).range(1.0..=64.0).width(width)));
 ///     form.row("Snap", |ui| ui.add(look::Switch::new(snap)));
 /// });
 /// # }

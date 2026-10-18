@@ -6,14 +6,16 @@ use crate::{Colors, Look, Theme};
 
 /// Sets `style` for `theme` in the dark scheme or the light one: egui's own widgets take
 /// the look's fills, edges, rounding and accent, so they sit beside this crate's controls.
-/// [`crate::install`] calls it for both of egui's schemes.
+/// [`crate::install`] calls it for both of egui's schemes. What it does not set stays as
+/// the style had it: the app's shadows, spacing (bar the controls' height), heading and
+/// other text styles, so an app may set them before or after.
 pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
     let c = Colors::resolve(theme, dark);
     let look = theme.look;
     let visuals = &mut style.visuals;
-    *visuals = if dark { egui::Visuals::dark() } else { egui::Visuals::light() };
+    visuals.dark_mode = dark;
     visuals.panel_fill = c.bg;
-    visuals.window_fill = c.bg;
+    visuals.window_fill = c.surface;
     visuals.extreme_bg_color = c.entry;
     visuals.override_text_color = Some(c.fg);
     visuals.weak_text_color = Some(c.dim);

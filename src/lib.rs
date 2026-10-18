@@ -21,7 +21,7 @@
 //! ui.add(look::Switch::new(on));
 //! ui.add(look::Button::new("Save").accent());
 //! look::Form::new("settings").show(ui, |form| {
-//!     form.row("Radius", |ui| ui.add(look::NumberField::new(radius, 0.0..=1024.0)));
+//!     form.row("Radius", |ui| ui.add(look::NumberField::new(radius).range(0.0..=1024.0)));
 //! });
 //! look::show_toasts(ui.ctx());
 //! # }
@@ -191,8 +191,11 @@ pub struct Palette {
     pub dim: Color32,
     /// Disabled text.
     pub disabled: Color32,
-    /// The window behind the controls.
+    /// The window behind the controls, and egui's panels.
     pub bg: Color32,
+    /// Floating windows, dialogs, menus and pop-ups; the window's background unless the
+    /// app sets its own.
+    pub surface: Color32,
     /// Hairline borders round controls.
     pub border: Color32,
     /// A stronger line: a hovered control's edge in the plain look.
@@ -224,15 +227,18 @@ pub struct Schemes {
     pub light: Palette,
 }
 
-impl Default for Schemes {
-    fn default() -> Self {
+impl Palette {
+    /// The default palette of the dark or the light scheme, to change a few colours of:
+    /// `Palette { bg, accent, ..Palette::of(true) }`.
+    pub fn of(dark: bool) -> Palette {
         let rgb = colors::rgb;
-        Schemes {
-            dark: Palette {
+        if dark {
+            Palette {
                 fg: rgb(0xe4e6ea),
                 dim: rgb(0x8b9199),
                 disabled: rgb(0x52575e),
                 bg: rgb(0x1b1c1f),
+                surface: rgb(0x1b1c1f),
                 border: rgb(0x2f3237),
                 grid: rgb(0x3a3d43),
                 button: rgb(0x2c2f34),
@@ -243,12 +249,14 @@ impl Default for Schemes {
                 accent: rgb(0x3d8bfd),
                 accent_hover: rgb(0x5a9dff),
                 row_hover: Color32::from_white_alpha(10),
-            },
-            light: Palette {
+            }
+        } else {
+            Palette {
                 fg: rgb(0x1d2025),
                 dim: rgb(0x5e646c),
                 disabled: rgb(0xa3a8af),
                 bg: rgb(0xeceef1),
+                surface: rgb(0xeceef1),
                 border: rgb(0xcdd1d6),
                 grid: rgb(0xbfc3c9),
                 button: rgb(0xe1e4e8),
@@ -259,8 +267,14 @@ impl Default for Schemes {
                 accent: rgb(0x3d8bfd),
                 accent_hover: rgb(0x5a9dff),
                 row_hover: Color32::from_black_alpha(12),
-            },
+            }
         }
+    }
+}
+
+impl Default for Schemes {
+    fn default() -> Self {
+        Schemes { dark: Palette::of(true), light: Palette::of(false) }
     }
 }
 
@@ -399,7 +413,8 @@ pub(crate) fn resolved(ctx: &egui::Context) -> std::sync::Arc<Resolved> {
 }
 
 /// Installs `theme` in `ctx`: [`set_theme`], then styles egui's own widgets to match in
-/// both of egui's schemes ([`apply_style`]).
+/// both of egui's schemes ([`apply_style`]). The app's own changes to egui's style that
+/// it does not draw with (shadows, spacing, the heading) are kept.
 pub fn install(ctx: &egui::Context, theme: Theme) {
     let theme = keep(ctx, theme, true);
     restyle(ctx, &theme);

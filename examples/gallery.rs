@@ -34,6 +34,7 @@ fn main() -> eframe::Result {
                 tint: egui::Color32::from_rgb(0xe0, 0x8a, 0x3c),
                 exposure: 1.0,
                 samples: 16,
+                position: [0.0, 64.0, -32.0],
                 length: 250.0,
                 tool_window: std::env::args().any(|a| a == "window"),
                 dialog,
@@ -77,6 +78,7 @@ struct Gallery {
     page: usize,
     exposure: f32,
     samples: u32,
+    position: [f32; 3],
     length: f64,
     tool_window: bool,
     shot: Option<std::path::PathBuf>,
@@ -132,7 +134,7 @@ impl eframe::App for Gallery {
             ui.add(look::Tabs::new("tabs", &mut self.tab, &["General", "Rendering", "Keyboard"]));
             ui.horizontal(|ui| {
                 ui.add(look::Dropdown::new("shape", &mut self.shape, &["Cuboid", "Cylinder", "Sphere", "Stairs"]).width(180.0));
-                ui.add(look::NumberField::new(&mut self.radius, 0.0..=1024.0));
+                ui.add(look::NumberField::new(&mut self.radius).range(0.0..=1024.0));
             });
             ui.horizontal(|ui| {
                 ui.add(look::Slider::new(&mut self.volume, 0.0..=100.0).width(200.0));
@@ -185,8 +187,8 @@ impl Gallery {
         ui.heading("Form");
         look::Form::new("form").show(ui, |form| {
             let width = form.control_width();
-            form.row("Radius", |ui| ui.add(look::NumberField::new(&mut self.radius, 0.0..=1024.0).width(width)));
-            form.row("Faces", |ui| ui.add(look::NumberField::new(&mut self.faces, 1.0..=64.0).width(width)));
+            form.row("Radius", |ui| ui.add(look::NumberField::new(&mut self.radius).range(0.0..=1024.0).width(width)));
+            form.row("Faces", |ui| ui.add(look::NumberField::new(&mut self.faces).range(1.0..=64.0).width(width)));
             form.row_with_tip("Corners", "Where rounded edges meet", |ui| {
                 ui.add(look::Dropdown::new("corners", &mut self.corners, &["Mitred", "Chamfered", "Rounded", "Setback"]).width(width))
             });
@@ -211,8 +213,9 @@ impl Gallery {
                 }
             });
             look::PopupButton::new("menu", "Menu").show(ui, |ui| {
-                ui.add(look::MenuItem::new("Save").shortcut(look::shortcut_text(look::look(ui.ctx()), &egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::S))));
-                look::submenu(ui, "Export", |ui| {
+                let icons = look::theme(ui.ctx()).metrics.body;
+                ui.add(look::MenuItem::new("Save").icon("↓", icons.clone()).shortcut(look::shortcut_text(look::look(ui.ctx()), &egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::S))));
+                look::MenuItem::new("Export").icon("↗", icons).submenu(ui, |ui| {
                     ui.add(look::MenuItem::new("Godot"));
                     ui.add(look::MenuItem::new("Unity"));
                 });
@@ -231,13 +234,18 @@ impl Gallery {
             }
         });
         ui.add(look::Slider::new(&mut self.exposure, 0.01..=100.0).logarithmic(true).width(160.0).text("Exposure"));
-        ui.add(look::Slider::new(&mut self.samples, 1..=64).width(160.0).show_value(true));
-        ui.add(look::NumberField::new(&mut self.length, 0.0..=10_000.0).step(10.0).suffix(" mm").width(160.0));
+        ui.add(look::Slider::new(&mut self.samples, 1..=64).width(160.0).show_value(true).suffix(" spp"));
+        ui.add(look::NumberField::new(&mut self.length).range(0.0..=10_000.0).step(10.0).suffix(" mm").width(160.0));
+        ui.horizontal(|ui| {
+            for (axis, value) in ["x ", "y ", "z "].into_iter().zip(&mut self.position) {
+                ui.add(look::NumberField::new(value).steppers(false).prefix(axis).width(70.0));
+            }
+        });
         let ctx = ui.ctx().clone();
         look::ToolWindow::new("tool", "Fillet").default_pos([660.0, 470.0]).show(&ctx, &mut self.tool_window, |ui| {
             look::Form::new("tool-form").show(ui, |form| {
-                form.row("Radius", |ui| ui.add(look::NumberField::new(&mut self.radius, 0.0..=1024.0)));
-                form.row("Faces", |ui| ui.add(look::NumberField::new(&mut self.faces, 1.0..=64.0)));
+                form.row("Radius", |ui| ui.add(look::NumberField::new(&mut self.radius).range(0.0..=1024.0)));
+                form.row("Faces", |ui| ui.add(look::NumberField::new(&mut self.faces).range(1.0..=64.0)));
             });
         });
     }

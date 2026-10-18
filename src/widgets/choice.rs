@@ -339,6 +339,7 @@ pub fn combo_icon(ui: &Ui, rect: Rect, visuals: &egui::style::WidgetVisuals, ope
 /// use egui_native_look as look;
 /// ui.add(look::Slider::new(exposure, 0.01..=100.0).logarithmic(true).text("Exposure"));
 /// ui.add(look::Slider::new(samples, 1..=64).show_value(true));
+/// ui.add(look::Slider::new(exposure, 0.0..=1.0).show_value(true).custom_formatter(|v, _| format!("{:.0} %", v * 100.0)));
 /// # }
 /// ```
 pub struct Slider<'a, T: egui::emath::Numeric> {
@@ -350,13 +351,14 @@ pub struct Slider<'a, T: egui::emath::Numeric> {
     step: Option<f64>,
     clamping: egui::SliderClamping,
     show_value: bool,
+    format: super::entry::Format<'a>,
 }
 
 impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
     /// A slider moving `value` across `range`.
     pub fn new(value: &'a mut T, range: std::ops::RangeInclusive<T>) -> Self {
         let range = range.start().to_f64()..=range.end().to_f64();
-        Slider { value, range, width: None, text: String::new(), logarithmic: false, step: None, clamping: egui::SliderClamping::default(), show_value: false }
+        Slider { value, range, width: None, text: String::new(), logarithmic: false, step: None, clamping: egui::SliderClamping::default(), show_value: false, format: super::entry::Format::default() }
     }
     /// The rail's width; by default egui's `slider_width`.
     pub fn width(mut self, width: f32) -> Self {
@@ -385,11 +387,13 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
         self.clamping = clamping;
         self
     }
-    /// The number after the rail, in a field to drag or type in.
+    /// The number after the rail, in a field to drag or type in, written as the
+    /// methods below say: `"1.5×"`, `"90°"`, `"75 %"`.
     pub fn show_value(mut self, show: bool) -> Self {
         self.show_value = show;
         self
     }
+    super::entry::format_methods!();
 
     fn log(&self) -> bool {
         self.logarithmic && *self.range.start() > 0.0 && self.range.end() > self.range.start()
@@ -444,7 +448,14 @@ impl<T: egui::emath::Numeric> Widget for Slider<'_, T> {
                 let before = self.value.to_f64();
                 let speed = self.step.unwrap_or((hi - lo).abs() / 200.0);
                 let range = if self.clamping == egui::SliderClamping::Never { f64::NEG_INFINITY..=f64::INFINITY } else { lo..=hi };
-                let field = ui.add_sized(egui::vec2(56.0, ui.spacing().interact_size.y), egui::DragValue::new(self.value).speed(speed).range(range));
+                let format = std::mem::take(&mut self.format);
+                // At least 56 points wide, wider for a long prefix or suffix.
+                let field = ui
+                    .scope(|ui| {
+                        ui.spacing_mut().interact_size.x = 56.0;
+                        ui.add(format.apply(egui::DragValue::new(&mut *self.value).speed(speed).range(range)))
+                    })
+                    .inner;
                 if self.value.to_f64() != before {
                     response.mark_changed();
                 }

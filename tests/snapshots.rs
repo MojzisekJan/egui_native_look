@@ -49,7 +49,7 @@ fn controls(ui: &mut egui::Ui, s: &mut State) {
     ui.add(look::Tabs::new("tabs", &mut s.tab, &["General", "Keyboard"]));
     ui.horizontal(|ui| {
         ui.add(look::Dropdown::new("shape", &mut s.shape, &["Cuboid", "Sphere"]).width(150.0));
-        ui.add(look::NumberField::new(&mut s.radius, 0.0..=1024.0));
+        ui.add(look::NumberField::new(&mut s.radius).range(0.0..=1024.0));
     });
     ui.horizontal(|ui| {
         ui.add(look::Slider::new(&mut s.volume, 0.0..=100.0).width(160.0));
@@ -73,7 +73,7 @@ fn more(ui: &mut egui::Ui, s: &mut State) {
     });
     look::Form::new("form").show(ui, |form| {
         let width = form.control_width();
-        form.row("Radius", |ui| ui.add(look::NumberField::new(&mut s.radius, 0.0..=1024.0).width(width)));
+        form.row("Radius", |ui| ui.add(look::NumberField::new(&mut s.radius).range(0.0..=1024.0).width(width)));
         form.row("Corners", |ui| ui.add(look::Dropdown::new("corners", &mut s.shape, &["Mitred", "Rounded"]).width(width)));
         let mut tint = egui::Color32::from_rgb(0xe0, 0x8a, 0x3c);
         form.row("Colour", |ui| ui.add(look::ColorWell::new(&mut tint)));

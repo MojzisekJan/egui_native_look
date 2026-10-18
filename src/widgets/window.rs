@@ -156,11 +156,11 @@ pub fn window_frame(ctx: &egui::Context) -> egui::Frame {
         Look::Gtk => 12,
         Look::Ios => 14,
         Look::Material => 28,
-        Look::Plain => return egui::Frame::window(&ctx.global_style()).fill(c.bg),
+        Look::Plain => return egui::Frame::window(&ctx.global_style()).fill(c.surface),
     };
     let alpha = if c.dark { 110 } else { 45 };
     egui::Frame::window(&ctx.global_style())
-        .fill(c.bg)
+        .fill(c.surface)
         .stroke(Stroke::new(1.0, c.border))
         .corner_radius(CornerRadius::same(round))
         .shadow(egui::Shadow { offset: [0, 8], blur: 28, spread: 0, color: Color32::from_black_alpha(alpha) })

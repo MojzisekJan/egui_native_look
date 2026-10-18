@@ -308,3 +308,65 @@ fn a_tool_window_shows_its_contents() {
         assert!(shown.is_some_and(|s| s.inner.is_some()), "{chosen}: nothing shown");
     }
 }
+
+#[test]
+fn a_number_field_without_steppers_is_the_field_alone_and_need_not_have_a_range() {
+    let ctx = context(look::Look::Mac, true);
+    let mut value = 5000.0_f64;
+    let with = frame(&ctx, vec![], |ui| ui.add(look::NumberField::new(&mut value).width(140.0)).rect.width());
+    let without = frame(&ctx, vec![], |ui| ui.add(look::NumberField::new(&mut value).steppers(false).width(140.0)).rect.width());
+    assert!((with - 140.0).abs() < 1.0 && (without - 140.0).abs() < 1.0, "{with} {without}");
+    let alone = frame(&ctx, vec![], |ui| ui.add(look::NumberField::new(&mut value).steppers(false)).rect.width());
+    assert!(alone < 70.0, "{alone}");
+    // No range: a value far beyond any default stays.
+    let mut far = 1.0e9_f64;
+    frame(&ctx, vec![], |ui| ui.add(look::NumberField::new(&mut far)));
+    assert_eq!(far, 1.0e9);
+    let mut bounded = 200_i32;
+    frame(&ctx, vec![], |ui| ui.add(look::NumberField::new(&mut bounded).range(0..=100)));
+    assert_eq!(bounded, 100);
+}
+
+#[test]
+fn a_sliders_number_takes_a_suffix_and_a_formatter() {
+    let ctx = context(look::Look::Gtk, false);
+    let mut angle = 90.0_f32;
+    let plain = frame(&ctx, vec![], |ui| ui.add(look::Slider::new(&mut angle, 0.0..=360.0).show_value(true)).rect.width());
+    let long = frame(&ctx, vec![], |ui| ui.add(look::Slider::new(&mut angle, 0.0..=360.0).show_value(true).suffix(" degrees of turn")).rect.width());
+    assert!(long > plain + 20.0, "the suffix should widen the number: {plain} {long}");
+    let mut scale = 1.5_f64;
+    frame(&ctx, vec![], |ui| ui.add(look::Slider::new(&mut scale, 0.5..=4.0).show_value(true).custom_formatter(|v, _| format!("{v:.1}×")).fixed_decimals(1)));
+}
+
+#[test]
+fn a_submenu_item_keeps_its_icon() {
+    let ctx = context(look::Look::Windows, true);
+    let font = egui::FontId::proportional(14.0);
+    let (with_icon, plain) = frame(&ctx, vec![], |ui| {
+        let a = look::MenuItem::new("Export").icon("E", font.clone()).submenu(ui, |ui| ui.add(look::MenuItem::new("Godot"))).response;
+        let b = look::submenu(ui, "Export", |ui| ui.add(look::MenuItem::new("Godot"))).response;
+        (a.rect.width(), b.rect.width())
+    });
+    assert_eq!(with_icon, plain, "the icon sits in the column the label already leaves");
+}
+
+#[test]
+fn a_palette_changes_a_few_colours_and_install_keeps_the_apps_style() {
+    let dark = look::Palette { bg: egui::Color32::from_rgb(10, 20, 30), surface: egui::Color32::from_rgb(40, 50, 60), ..look::Palette::of(true) };
+    assert_eq!(dark.fg, look::Palette::of(true).fg);
+    let ctx = egui::Context::default();
+    let shadow = egui::Shadow { offset: [0, 2], blur: 3, spread: 0, color: egui::Color32::RED };
+    ctx.all_styles_mut(|style| {
+        style.visuals.window_shadow = shadow;
+        style.spacing.item_spacing = egui::vec2(11.0, 7.0);
+        style.text_styles.insert(egui::TextStyle::Heading, egui::FontId::proportional(31.0));
+    });
+    look::install(&ctx, look::Theme::new(look::Look::Plain).schemes(look::Schemes { dark, light: look::Palette::of(false) }));
+    let style = ctx.style_of(egui::Theme::Dark);
+    assert_eq!(style.visuals.window_shadow, shadow);
+    assert_eq!(style.spacing.item_spacing, egui::vec2(11.0, 7.0));
+    assert_eq!(style.text_styles[&egui::TextStyle::Heading].size, 31.0);
+    assert_eq!(style.visuals.panel_fill, egui::Color32::from_rgb(10, 20, 30));
+    assert_eq!(style.visuals.window_fill, egui::Color32::from_rgb(40, 50, 60));
+    assert!(!ctx.style_of(egui::Theme::Light).visuals.dark_mode);
+}

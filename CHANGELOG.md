@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Breaking: `NumberField::new` takes the value alone and is unbounded; `.range()` bounds
+  it, with any of egui's numbers. `Palette` has `surface`, the fill of floating windows,
+  dialogs, menus and pop-ups.
+- `NumberField::steppers(false)`: the field without − and +.
+- `Slider`'s number takes `prefix`, `suffix`, `custom_formatter`, `custom_parser` and
+  decimals, as `NumberField` does.
+- `MenuItem::submenu`: an item with an icon that opens a submenu.
+- `Palette::of(dark)`, to change a few colours of the default palette.
+- `install` keeps what the app set in egui's style and the crate does not draw with:
+  shadows, spacing, the heading.
 - `follow_system`: the accent and the scheme follow the system's while the app runs,
   read again as the window comes to the front; `system_scheme`.
 - `PopupButton` with a list of the app's own, `menu_value`, `submenu`, and `combo_icon`
