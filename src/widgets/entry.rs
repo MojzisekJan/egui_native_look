@@ -72,15 +72,22 @@ pub struct NumberField<'a, T: egui::emath::Numeric> {
     value: &'a mut T,
     range: std::ops::RangeInclusive<f64>,
     step: f64,
+    width: Option<f32>,
 }
 
 impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
     pub fn new(value: &'a mut T, range: std::ops::RangeInclusive<f64>) -> Self {
-        NumberField { value, range, step: 1.0 }
+        NumberField { value, range, step: 1.0, width: None }
     }
     /// What − and + add, and the drag's speed; 1 by default.
     pub fn step(mut self, step: f64) -> Self {
         self.step = step;
+        self
+    }
+    /// The whole control's width, − and + included, so it lines up with the controls
+    /// above and below; the number takes what the buttons leave.
+    pub fn width(mut self, width: f32) -> Self {
+        self.width = Some(width);
         self
     }
 }
@@ -95,7 +102,9 @@ impl<T: egui::emath::Numeric> Widget for NumberField<'_, T> {
             if minus.clicked() {
                 *self.value = T::from_f64((self.value.to_f64() - self.step).max(lo));
             }
-            let size = egui::vec2(64.0, ui.spacing().interact_size.y);
+            let side = ui.spacing().interact_size.y;
+            let number_width = self.width.map_or(64.0, |w| (w - 2.0 * side - 8.0).max(40.0));
+            let size = egui::vec2(number_width, side);
             let number = ui.add_sized(size, egui::DragValue::new(self.value).speed(self.step).range(self.range.clone()));
             let plus = step_button(ui, self.value.to_f64() < hi, true);
             if plus.clicked() {
