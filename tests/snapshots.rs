@@ -68,9 +68,9 @@ fn more(ui: &mut egui::Ui, s: &mut State) {
     ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
-        ui.add(look::IconButton::new("#").selected(true));
-        ui.add(look::IconButton::new("W"));
-        ui.add(look::IconButton::new("H"));
+        ui.add(look::IconButton::new("↖").selected(true));
+        ui.add(look::IconButton::new("↔"));
+        ui.add(look::IconButton::new("↕"));
     });
     look::Form::new("form").show(ui, |form| {
         let width = form.control_width();

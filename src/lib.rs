@@ -81,7 +81,9 @@ pub use widgets::*;
 use egui::{Color32, FontId};
 
 /// How the controls are drawn, on top of the app's own palette and layout.
+/// More looks may come, so a `match` on it needs a `_` arm.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Look {
     /// The app's own controls in its palette, the same on every system.
     Plain,
@@ -516,13 +518,13 @@ pub fn install_fonts(fonts: &mut egui::FontDefinitions, look: Look) -> bool {
 }
 
 /// `c` a fraction `t` of the way to white.
-pub fn lighten(c: Color32, t: f32) -> Color32 {
+pub(crate) fn lighten(c: Color32, t: f32) -> Color32 {
     let up = |v: u8| (f32::from(v) + (255.0 - f32::from(v)) * t).round() as u8;
     Color32::from_rgb(up(c.r()), up(c.g()), up(c.b()))
 }
 
 /// `a` a fraction `t` of the way to `b`, alpha too.
-pub fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
+pub(crate) fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
     let l = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
     Color32::from_rgba_unmultiplied(l(a.r(), b.r()), l(a.g(), b.g()), l(a.b(), b.b()), l(a.a(), b.a()))
 }

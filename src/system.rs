@@ -6,6 +6,7 @@ use crate::Look;
 
 /// The system's faces for a look: San Francisco on macOS, Segoe UI Variable (or Segoe
 /// UI) on Windows, each with its monospaced face where there is one.
+#[non_exhaustive]
 pub struct SystemFonts {
     /// Body text.
     pub regular: FontData,

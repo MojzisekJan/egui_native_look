@@ -12,7 +12,7 @@ fn main() -> eframe::Result {
     let toast = std::env::args().any(|a| a == "toast");
     eframe::run_native(
         "egui_native_look gallery",
-        eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([1040.0, 720.0]), ..Default::default() },
+        eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([1040.0, 800.0]), ..Default::default() },
         Box::new(move |cc| {
             let chosen = forced.unwrap_or_else(look::Look::system);
             let mut fonts = egui::FontDefinitions::default();

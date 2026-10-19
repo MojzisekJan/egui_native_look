@@ -8,8 +8,10 @@ pub(crate) fn rgb(c: u32) -> Color32 {
     Color32::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8)
 }
 
-/// The colours the controls are drawn in, for one look and scheme.
+/// The colours the controls are drawn in, for one look and scheme. Made by
+/// [`Colors::resolve`] or [`colors`](crate::colors); more may be added.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct Colors {
     /// Whether these are the dark scheme's.
     pub dark: bool,
