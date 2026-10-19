@@ -9,7 +9,7 @@ use crate::Look;
 /// chosen segment raised out of it; in the plain look the chosen segment in the accent.
 /// `response.changed()` when the choice changed.
 pub struct Segmented<'a> {
-    id: egui::Id,
+    id: egui::IdSalt,
     selected: &'a mut usize,
     items: Vec<(String, String)>,
     width: Option<f32>,
@@ -17,8 +17,8 @@ pub struct Segmented<'a> {
 
 impl<'a> Segmented<'a> {
     /// `items` are labels; [`Segmented::tooltips`] adds a tooltip to each.
-    pub fn new(id: impl std::hash::Hash + std::fmt::Debug, selected: &'a mut usize, items: &[&str]) -> Self {
-        Segmented { id: egui::Id::new(id), selected, items: items.iter().map(|s| (s.to_string(), String::new())).collect(), width: None }
+    pub fn new(id: impl egui::AsIdSalt, selected: &'a mut usize, items: &[&str]) -> Self {
+        Segmented { id: egui::IdSalt::new(id), selected, items: items.iter().map(|s| (s.to_string(), String::new())).collect(), width: None }
     }
     /// A tooltip for each item, in order.
     pub fn tooltips(mut self, tips: &[&str]) -> Self {
@@ -104,7 +104,7 @@ impl Widget for Segmented<'_> {
                 (false, _) => tip.clone(),
             };
             let segment = if hover.is_empty() { segment } else { segment.on_hover_text(&hover) };
-            segment.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::RadioButton, enabled, on, label));
+            segment.widget_info(|| egui::WidgetInfo::selected(egui::Role::RadioButton, enabled, on, label));
             if segment.clicked() {
                 *self.selected = i;
             }
@@ -117,7 +117,7 @@ impl Widget for Segmented<'_> {
         }
         choice_keys(ui, &response, n, self.selected);
         let label = self.items.get(*self.selected).map(|(label, _)| label.clone()).unwrap_or_default();
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::RadioGroup, enabled, &label));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::RadioGroup, enabled, &label));
         if *self.selected != before {
             response.mark_changed();
         }
@@ -157,7 +157,7 @@ fn material_segments(ui: &mut Ui, x: &Ctx, rect: Rect, mut response: Response, i
             ui.painter().line_segment([egui::pos2(slot.left(), slot.top()), egui::pos2(slot.left(), slot.bottom())], Stroke::new(1.0, c.control_strong));
         }
         let segment = if tip.is_empty() { segment } else { segment.on_hover_text(tip) };
-        segment.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::RadioButton, enabled, on, label));
+        segment.widget_info(|| egui::WidgetInfo::selected(egui::Role::RadioButton, enabled, on, label));
         if segment.clicked() {
             *selected = i;
         }
@@ -168,7 +168,7 @@ fn material_segments(ui: &mut Ui, x: &Ctx, rect: Rect, mut response: Response, i
     ui.painter().rect_stroke(rect, CornerRadius::same(pill), Stroke::new(1.0, c.control_strong), egui::StrokeKind::Inside);
     choice_keys(ui, &response, n, selected);
     let label = items.get(*selected).map(|(label, _)| label.clone()).unwrap_or_default();
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::RadioGroup, enabled, &label));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::RadioGroup, enabled, &label));
     if *selected != before {
         response.mark_changed();
     }
@@ -213,7 +213,7 @@ fn arrow_keys(ui: &Ui, focused: Option<usize>, ids: &[egui::Id], selected: &mut 
 /// under it (or over it, where there is more room). `response.changed()` when the choice
 /// changed.
 pub struct Dropdown<'a> {
-    id: egui::Id,
+    id: egui::IdSalt,
     selected: &'a mut usize,
     items: Vec<String>,
     width: Option<f32>,
@@ -222,8 +222,8 @@ pub struct Dropdown<'a> {
 impl<'a> Dropdown<'a> {
     /// A pop-up button choosing `selected`, an index into `items`; `id` tells its list
     /// from others'.
-    pub fn new(id: impl std::hash::Hash + std::fmt::Debug, selected: &'a mut usize, items: &[&str]) -> Self {
-        Dropdown { id: egui::Id::new(id), selected, items: items.iter().map(|s| s.to_string()).collect(), width: None }
+    pub fn new(id: impl egui::AsIdSalt, selected: &'a mut usize, items: &[&str]) -> Self {
+        Dropdown { id: egui::IdSalt::new(id), selected, items: items.iter().map(|s| s.to_string()).collect(), width: None }
     }
     /// The button's width; by default its longest item's.
     pub fn width(mut self, width: f32) -> Self {
@@ -297,7 +297,7 @@ impl Widget for Dropdown<'_> {
 /// # }
 /// ```
 pub struct PopupButton {
-    id: egui::Id,
+    id: egui::IdSalt,
     text: String,
     width: Option<f32>,
 }
@@ -305,8 +305,8 @@ pub struct PopupButton {
 impl PopupButton {
     /// A button reading `text`, the choice it stands for; `id` tells its list from
     /// others'.
-    pub fn new(id: impl std::hash::Hash + std::fmt::Debug, text: impl Into<String>) -> Self {
-        PopupButton { id: egui::Id::new(id), text: text.into(), width: None }
+    pub fn new(id: impl egui::AsIdSalt, text: impl Into<String>) -> Self {
+        PopupButton { id: egui::IdSalt::new(id), text: text.into(), width: None }
     }
     /// The button's width; by default its text's and the arrows'.
     pub fn width(mut self, width: f32) -> Self {
@@ -338,7 +338,7 @@ impl PopupButton {
             add(ui)
         });
         let text = self.text;
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, enabled, &text));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::ComboBox, enabled, &text));
         egui::InnerResponse::new(inner.map(|i| i.inner), response)
     }
 }
@@ -419,8 +419,8 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
         self.text = text.into();
         self
     }
-    /// What it sets, for a screen reader, when no [`Slider::text`] says so: the label of
-    /// its row in a form, say.
+    /// What it sets, for a screen reader, when no [`Slider::text`] says so. In a
+    /// [`crate::Form`] row the row's label is used when this is not set.
     pub fn accessible_label(mut self, label: impl Into<String>) -> Self {
         self.label = label.into();
         self
@@ -586,7 +586,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
             crate::paint::ring(painter, &x.paint(), Rect::from_center_size(at, egui::Vec2::splat(knob_r * 2.0)), CornerRadius::same(knob_r as u8));
         }
         let value = self.value.to_f64();
-        let text = if self.text.is_empty() { self.label.clone() } else { self.text.clone() };
+        let text = if self.text.is_empty() { super::form::accessible_name(ui, &self.label) } else { self.text.clone() };
         response.widget_info(|| egui::WidgetInfo::slider(enabled, value, &text));
         response
     }
@@ -596,15 +596,15 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
 /// pivot with an accent bar under the chosen tab, in the plain look an accent underline.
 /// `response.changed()` when the tab changed.
 pub struct Tabs<'a> {
-    id: egui::Id,
+    id: egui::IdSalt,
     selected: &'a mut usize,
     labels: Vec<String>,
 }
 
 impl<'a> Tabs<'a> {
     /// Tabs reading `labels`, `selected` the index of the one shown.
-    pub fn new(id: impl std::hash::Hash + std::fmt::Debug, selected: &'a mut usize, labels: &[&str]) -> Self {
-        Tabs { id: egui::Id::new(id), selected, labels: labels.iter().map(|s| s.to_string()).collect() }
+    pub fn new(id: impl egui::AsIdSalt, selected: &'a mut usize, labels: &[&str]) -> Self {
+        Tabs { id: egui::IdSalt::new(id), selected, labels: labels.iter().map(|s| s.to_string()).collect() }
     }
 }
 
@@ -760,7 +760,7 @@ fn pivot_tab(ui: &mut Ui, x: &Ctx, label: &str, on: bool) -> Response {
     if response.has_focus() {
         crate::paint::ring(ui.painter(), &x.paint(), rect.shrink(2.0), CornerRadius::same(4));
     }
-    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, ui.is_enabled(), on, label));
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, ui.is_enabled(), on, label));
     response
 }
 
@@ -792,6 +792,6 @@ fn segment_tab(ui: &mut Ui, x: &Ctx, label: &str, on: bool) -> Response {
     if response.has_focus() {
         crate::paint::ring(ui.painter(), &x.paint(), body, inner);
     }
-    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::SelectableLabel, enabled, on, label));
+    response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, enabled, on, label));
     response
 }

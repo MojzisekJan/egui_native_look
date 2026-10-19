@@ -9,7 +9,7 @@ use crate::Look;
 /// and in libadwaita, a caret on Windows) and the title, and below it `contents` while it
 /// is open. Returns what `contents` returned, while open. [`Section`] does the same with
 /// the header's response, and the openness set from code.
-pub fn section<R>(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, title: &str, default_open: bool, contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
+pub fn section<R>(ui: &mut Ui, id: impl egui::AsIdSalt, title: &str, default_open: bool, contents: impl FnOnce(&mut Ui) -> R) -> Option<R> {
     Section::new(title).id(id).default_open(default_open).show(ui, contents).body_returned
 }
 
@@ -25,7 +25,7 @@ pub fn section<R>(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, title
 /// ```
 pub struct Section {
     title: String,
-    id: Option<egui::Id>,
+    id: Option<egui::IdSalt>,
     default_open: bool,
     open: Option<bool>,
 }
@@ -36,8 +36,8 @@ impl Section {
         Section { title: title.into(), id: None, default_open: false, open: None }
     }
     /// Its own id, for two sections with one title.
-    pub fn id(mut self, id: impl std::hash::Hash + std::fmt::Debug) -> Self {
-        self.id = Some(egui::Id::new(id));
+    pub fn id(mut self, id: impl egui::AsIdSalt) -> Self {
+        self.id = Some(egui::IdSalt::new(id));
         self
     }
     /// Whether it is open the first time it shows; closed by default.
@@ -56,7 +56,7 @@ impl Section {
         let x = Ctx::of(ui);
         let c = x.c;
         let title = self.title;
-        let id = ui.make_persistent_id(self.id.unwrap_or_else(|| egui::Id::new(&title)));
+        let id = ui.make_persistent_id(self.id.unwrap_or_else(|| egui::IdSalt::new(&title)));
         let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), id, self.default_open);
         if let Some(open) = self.open {
             state.set_open(open);
@@ -82,7 +82,7 @@ impl Section {
         if response.has_focus() {
             crate::paint::ring(ui.painter(), &x.paint(), rect, CornerRadius::same(x.m.radius));
         }
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::CollapsingHeader, ui.is_enabled(), &title));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::DisclosureTriangle, ui.is_enabled(), &title));
         state.store(ui.ctx());
         let shown = state.show_body_unindented(ui, contents);
         let (body_response, body_returned) = match shown {
@@ -230,7 +230,7 @@ impl Widget for MenuItem {
             let m = egui::pos2(rect.right() - 12.0, rect.center().y);
             ui.painter().add(egui::Shape::line(vec![m + egui::vec2(-2.0, -4.0), m + egui::vec2(2.0, 0.0), m + egui::vec2(-2.0, 4.0)], Stroke::new(1.5, weak)));
         }
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, &self.label));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, &self.label));
         response
     }
 }

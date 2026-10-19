@@ -26,8 +26,8 @@ pub struct Dialog {
 
 impl Dialog {
     /// A dialog titled `title`; `id` keeps its place from frame to frame.
-    pub fn new(id: impl std::hash::Hash + std::fmt::Debug, title: impl Into<String>) -> Self {
-        Dialog { id: egui::Id::new(id), title: title.into(), size: egui::vec2(420.0, 240.0), close_label: "Close".into() }
+    pub fn new(id: impl egui::AsIdSalt, title: impl Into<String>) -> Self {
+        Dialog { id: egui::Id::unique(id), title: title.into(), size: egui::vec2(420.0, 240.0), close_label: "Close".into() }
     }
     /// The close button's name, under the pointer and for a screen reader; "Close" by
     /// default, for an app to translate.
@@ -103,8 +103,8 @@ pub struct ToolWindow {
 
 impl ToolWindow {
     /// A window titled `title`; `id` keeps its place and size from frame to frame.
-    pub fn new(id: impl std::hash::Hash + std::fmt::Debug, title: impl Into<String>) -> Self {
-        ToolWindow { id: egui::Id::new(id), title: title.into(), size: egui::vec2(280.0, 200.0), pos: None, resizable: true, close_label: "Close".into() }
+    pub fn new(id: impl egui::AsIdSalt, title: impl Into<String>) -> Self {
+        ToolWindow { id: egui::Id::unique(id), title: title.into(), size: egui::vec2(280.0, 200.0), pos: None, resizable: true, close_label: "Close".into() }
     }
     /// The close button's name, under the pointer and for a screen reader; "Close" by
     /// default, for an app to translate.
@@ -169,7 +169,7 @@ struct Shown(Vec<(egui::Id, u64)>);
 /// those shown, nothing focused at the end of the last frame, and no pop-up open.
 fn escape_closes(ctx: &egui::Context, id: egui::Id) -> bool {
     let pass = ctx.cumulative_pass_nr();
-    let registry = egui::Id::new("egui_native_look::Dialogs");
+    let registry = egui::Id::unique("egui_native_look::Dialogs");
     let mut shown = ctx.data(|d| d.get_temp::<Shown>(registry)).unwrap_or_default();
     shown.0.retain(|(other, at)| *other != id && pass.saturating_sub(*at) <= 2);
     shown.0.push((id, pass));
@@ -236,8 +236,8 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
         Look::Mac => {
             // The window's red close button at the start of the bar.
             let dot = Rect::from_center_size(egui::pos2(bar.left() + 20.0, bar.center().y), egui::Vec2::splat(12.0));
-            let response = ui.interact(dot.expand(4.0), ui.id().with("close"), Sense::click());
-            response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, close_label));
+            let response = ui.interact(dot.expand(4.0), ui.scope_id().with("close"), Sense::click());
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, close_label));
             ui.painter().circle_filled(dot.center(), 6.0, crate::colors::rgb(0xff5f57));
             if response.hovered() {
                 let m = dot.center();
@@ -250,7 +250,7 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
         _ => {
             let side = 28.0;
             let rect = Rect::from_center_size(egui::pos2(bar.right() - side / 2.0 - 8.0, bar.center().y), egui::Vec2::splat(side));
-            let response = ui.interact(rect, ui.id().with("close"), Sense::click());
+            let response = ui.interact(rect, ui.scope_id().with("close"), Sense::click());
             let round = match x.look {
                 Look::Gtk | Look::Ios => CornerRadius::same((side / 2.0) as u8),
                 _ => CornerRadius::same(x.m.radius),
@@ -268,7 +268,7 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
             if response.has_focus() {
                 crate::paint::ring(ui.painter(), &x.paint(), rect, round);
             }
-            response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, close_label));
+            response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, close_label));
             response.on_hover_text(close_label).clicked()
         }
     }
@@ -325,7 +325,7 @@ impl TitleBar {
     pub fn show(self, ui: &mut Ui, rect: Rect) -> Option<WindowAction> {
         let x = Ctx::of(ui);
         let c = &x.c;
-        let drag = ui.interact(rect, ui.id().with("egui_native_look-title-bar"), Sense::click_and_drag());
+        let drag = ui.interact(rect, ui.scope_id().with("egui_native_look-title-bar"), Sense::click_and_drag());
         if drag.drag_started_by(egui::PointerButton::Primary) {
             ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
         }
@@ -341,10 +341,10 @@ impl TitleBar {
             let buttons = [(WindowAction::Close, 0.0), (WindowAction::ToggleMaximize, 1.0), (WindowAction::Minimize, 2.0)];
             for (what, slot) in buttons {
                 let r = Rect::from_min_size(egui::pos2(rect.right() - width * (slot + 1.0), rect.top()), egui::vec2(width, rect.height()));
-                let response = ui.interact(r, ui.id().with(("window-button", slot as i32)), Sense::click());
+                let response = ui.interact(r, ui.scope_id().with(("window-button", slot as i32)), Sense::click());
                 let close = what == WindowAction::Close;
                 let label = &self.labels[2 - slot as usize];
-                response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+                response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
                 let response = response.on_hover_text(label);
                 let mut colour = c.fg;
                 if response.hovered() {
@@ -378,9 +378,9 @@ impl TitleBar {
             if x.look != Look::Mac {
                 let side = (rect.height() - 12.0).clamp(20.0, 26.0);
                 let r = Rect::from_center_size(egui::pos2(rect.right() - side / 2.0 - 8.0, rect.center().y), egui::Vec2::splat(side));
-                let response = ui.interact(r, ui.id().with("window-close"), Sense::click());
+                let response = ui.interact(r, ui.scope_id().with("window-close"), Sense::click());
                 let label = &self.labels[2];
-                response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label));
+                response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
                 let response = response.on_hover_text(label);
                 ui.painter().rect_filled(r, CornerRadius::same((side / 2.0) as u8), if response.hovered() { c.button_hover } else { c.button });
                 close_cross(ui.painter(), r.center(), c.fg);

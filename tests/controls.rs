@@ -440,6 +440,25 @@ fn a_switch_and_a_segment_name_themselves_to_a_screen_reader() {
 }
 
 #[test]
+fn a_form_row_names_its_switch_for_a_screen_reader() {
+    let ctx = context(look::Look::Mac, true);
+    let mut on = false;
+    let row = |ui: &mut egui::Ui, on: &mut bool| {
+        look::Form::new("named").show(ui, |form| {
+            form.row("Snap to grid", |ui| ui.add(look::Switch::new(on)));
+        });
+        // Outside the form a switch has no name of its own.
+        ui.add(look::Switch::new(&mut false));
+    };
+    frame(&ctx, vec![], |ui| row(ui, &mut on));
+    let input = egui::RawInput { events: key(egui::Key::Tab), ..Default::default() };
+    let mut output = ctx.run_ui(input, |ui| row(ui, &mut on));
+    output.textures_delta.clear();
+    let named = output.platform_output.events.iter().any(|e| matches!(e, egui::output::OutputEvent::FocusGained(info) if info.label.as_deref() == Some("Snap to grid")));
+    assert!(named, "{:?}", output.platform_output.events);
+}
+
+#[test]
 fn a_number_field_keeps_to_its_type_and_any_step() {
     let ctx = context(look::Look::Mac, true);
     let mut full: u8 = 255;

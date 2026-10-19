@@ -37,7 +37,7 @@ fn controls(ui: &mut egui::Ui, s: &mut State) {
         ui.add(look::Button::new("Default").accent());
     });
     ui.horizontal(|ui| {
-        ui.add(look::Switch::new(&mut s.on));
+        ui.add(look::Switch::new(&mut s.on).accessible_label("Switch"));
         ui.add(look::Checkbox::new(&mut s.checked, "Check box"));
         let mut mixed = false;
         ui.add(look::Checkbox::new(&mut mixed, "Mixed").indeterminate(true));
@@ -50,10 +50,10 @@ fn controls(ui: &mut egui::Ui, s: &mut State) {
     ui.add(look::Tabs::new("tabs", &mut s.tab, &["General", "Keyboard"]));
     ui.horizontal(|ui| {
         ui.add(look::Dropdown::new("shape", &mut s.shape, &["Cuboid", "Sphere"]).width(150.0));
-        ui.add(look::NumberField::new(&mut s.radius).range(0.0..=1024.0));
+        ui.add(look::NumberField::new(&mut s.radius).range(0.0..=1024.0).accessible_label("Radius"));
     });
     ui.horizontal(|ui| {
-        ui.add(look::Slider::new(&mut s.volume, 0.0..=100.0).width(160.0));
+        ui.add(look::Slider::new(&mut s.volume, 0.0..=100.0).width(160.0).accessible_label("Volume"));
         ui.add(look::ProgressBar::new(0.4).width(120.0));
     });
     ui.add(look::TextField::new(&mut s.name).hint("Name").width(240.0));
@@ -68,9 +68,9 @@ fn more(ui: &mut egui::Ui, s: &mut State) {
     ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 2.0;
-        ui.add(look::IconButton::new("↖").selected(true));
-        ui.add(look::IconButton::new("↔"));
-        ui.add(look::IconButton::new("↕"));
+        ui.add(look::IconButton::new("#").selected(true));
+        ui.add(look::IconButton::new("W"));
+        ui.add(look::IconButton::new("H"));
     });
     look::Form::new("form").show(ui, |form| {
         let width = form.control_width();

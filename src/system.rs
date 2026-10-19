@@ -38,7 +38,7 @@ pub(crate) fn follow(ctx: &egui::Context) {
     if cfg!(any(target_arch = "wasm32", not(feature = "system"))) {
         return;
     }
-    let id = egui::Id::new("egui_native_look::Follow");
+    let id = egui::Id::unique("egui_native_look::Follow");
     let (now, focused) = ctx.input(|i| (i.time, i.events.iter().any(|e| matches!(e, egui::Event::WindowFocused(true)))));
     let mut state = ctx.data(|d| d.get_temp::<Follow>(id)).unwrap_or_default();
     if let Some(pending) = state.pending.clone() {

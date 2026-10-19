@@ -255,17 +255,13 @@ impl Gallery {
         self.frames += 1;
         ctx.request_repaint();
         if self.frames == 10 {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
-        }
-        let image = ctx.input(|i| i.events.iter().find_map(|e| match e {
-            egui::Event::Screenshot { image, .. } => Some(image.clone()),
-            _ => None,
-        }));
-        if let Some(image) = image {
-            let [w, h] = image.size;
-            let bytes: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
-            image::save_buffer(path, &bytes, w as u32, h as u32, image::ColorType::Rgba8).expect("saved the shot");
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            let (path, ctx2) = (path.clone(), ctx.clone());
+            ctx.request_screenshot(move |image| {
+                let [w, h] = image.size;
+                let bytes: Vec<u8> = image.pixels.iter().flat_map(|c| c.to_array()).collect();
+                image::save_buffer(&path, &bytes, w as u32, h as u32, image::ColorType::Rgba8).expect("saved the shot");
+                ctx2.send_viewport_cmd(egui::ViewportCommand::Close);
+            });
         }
     }
 }

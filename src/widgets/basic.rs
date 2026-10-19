@@ -46,7 +46,7 @@ impl Widget for Button {
         if ui.is_rect_visible(rect) {
             crate::paint::button(ui.painter(), &x.paint(), rect, &response, &self.label, x.m.body.clone(), enabled, self.accent);
         }
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, &self.label));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, enabled, &self.label));
         response
     }
 }
@@ -62,8 +62,8 @@ impl<'a> Switch<'a> {
     pub fn new(on: &'a mut bool) -> Self {
         Switch { on, label: String::new() }
     }
-    /// What it switches, for a screen reader: the label of its row, which a switch does
-    /// not draw itself.
+    /// What it switches, for a screen reader, as a switch draws no label itself. In a
+    /// [`crate::Form`] row the row's label is used when this is not set.
     pub fn accessible_label(mut self, label: impl Into<String>) -> Self {
         self.label = label.into();
         self
@@ -101,7 +101,8 @@ impl Widget for Switch<'_> {
         }
         let on = *self.on;
         let enabled = ui.is_enabled();
-        response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, enabled, on, &self.label));
+        let name = super::form::accessible_name(ui, &self.label);
+        response.widget_info(|| egui::WidgetInfo::selected(egui::Role::CheckBox, enabled, on, &name));
         if !ui.is_rect_visible(rect) {
             return response;
         }
@@ -238,7 +239,7 @@ impl Widget for Checkbox<'_> {
         if !x.look.native() {
             return ui.add(egui::Checkbox::new(self.checked, self.text).indeterminate(self.indeterminate));
         }
-        let (mut response, mark) = mark_row(ui, &x, self.text, egui::WidgetType::Checkbox, *self.checked);
+        let (mut response, mark) = mark_row(ui, &x, self.text, egui::Role::CheckBox, *self.checked);
         if response.clicked() {
             *self.checked = !*self.checked;
             response.mark_changed();
@@ -291,7 +292,7 @@ impl Widget for Radio {
         if !x.look.native() {
             return ui.radio(self.selected, self.text);
         }
-        let (response, mark) = mark_row(ui, &x, self.text, egui::WidgetType::RadioButton, self.selected);
+        let (response, mark) = mark_row(ui, &x, self.text, egui::Role::RadioButton, self.selected);
         let painter = ui.painter();
         let round = CornerRadius::same((mark.width() / 2.0) as u8);
         let enabled = ui.is_enabled();
@@ -338,7 +339,7 @@ pub fn check_mark(painter: &egui::Painter, c: egui::Pos2, color: Color32) {
 /// The row of a check box or radio button: the mark (14 points, 18 on Windows), then the
 /// label, all of it one click target. The label wraps as the `Ui` wraps its text, the mark
 /// beside its first line. Returns the response and the mark's square.
-fn mark_row(ui: &mut Ui, x: &Ctx, text: WidgetText, kind: egui::WidgetType, selected: bool) -> (Response, Rect) {
+fn mark_row(ui: &mut Ui, x: &Ctx, text: WidgetText, kind: egui::Role, selected: bool) -> (Response, Rect) {
     let (side, gap) = match x.look {
         Look::Windows => (18.0, 8.0),
         Look::Ios => (22.0, 10.0),

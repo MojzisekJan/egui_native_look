@@ -22,13 +22,13 @@ use crate::Look;
 /// # }
 /// ```
 pub struct Form {
-    id: egui::Id,
+    id: egui::IdSalt,
 }
 
 impl Form {
     /// A form; `id` keeps its label column's width from frame to frame.
-    pub fn new(id: impl std::hash::Hash + std::fmt::Debug) -> Self {
-        Form { id: egui::Id::new(id) }
+    pub fn new(id: impl egui::AsIdSalt) -> Self {
+        Form { id: egui::IdSalt::new(id) }
     }
 
     /// Lays out the rows `add` adds, the width available.
@@ -144,6 +144,16 @@ impl FormUi<'_> {
     }
 
     fn row_with<R>(&mut self, label: &str, tip: Option<&str>, control: impl FnOnce(&mut Ui) -> R) -> R {
+        // The row's label names its control for a screen reader, as a visible label would.
+        let ctx = self.ui.ctx().clone();
+        let outer = ctx.data(|d| d.get_temp::<Option<String>>(row_label_id())).flatten();
+        ctx.data_mut(|d| d.insert_temp(row_label_id(), Some(label.to_owned())));
+        let inner = self.lay_out_row(label, tip, control);
+        ctx.data_mut(|d| d.insert_temp(row_label_id(), outer));
+        inner
+    }
+
+    fn lay_out_row<R>(&mut self, label: &str, tip: Option<&str>, control: impl FnOnce(&mut Ui) -> R) -> R {
         let x = &self.x;
         let font = x.m.body.clone();
         let text_width = self.ui.fonts_mut(|f| f.layout_no_wrap(label.to_string(), font.clone(), x.c.fg).size().x);
@@ -210,4 +220,17 @@ impl FormUi<'_> {
             })
             .inner
     }
+}
+
+fn row_label_id() -> egui::Id {
+    egui::Id::unique("egui_native_look::Form row label")
+}
+
+/// The label of the [`Form`] row being laid out, for a control that draws no label of
+/// its own; `own` wins when it is set.
+pub(crate) fn accessible_name(ui: &Ui, own: &str) -> String {
+    if !own.is_empty() {
+        return own.to_owned();
+    }
+    ui.ctx().data(|d| d.get_temp::<Option<String>>(row_label_id())).flatten().unwrap_or_default()
 }

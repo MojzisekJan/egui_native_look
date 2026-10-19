@@ -37,7 +37,7 @@ impl Widget for ProgressBar {
         ui.painter().rect_filled(rail, round, x.c.track);
         let filled = Rect::from_min_max(rail.min, egui::pos2(egui::lerp(rail.left()..=rail.right(), self.progress), rail.max.y));
         ui.painter().rect_filled(filled, round, x.c.accent);
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ProgressIndicator, ui.is_enabled(), format!("{:.0} %", self.progress * 100.0)));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::ProgressIndicator, ui.is_enabled(), format!("{:.0} %", self.progress * 100.0)));
         response
     }
 }

@@ -193,6 +193,7 @@ pub struct NumberField<'a, T: egui::emath::Numeric> {
     steppers: bool,
     format: Format<'a>,
     clamp_existing: bool,
+    label: String,
 }
 
 impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
@@ -208,6 +209,7 @@ impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
             steppers: true,
             format: Format::default(),
             clamp_existing: true,
+            label: String::new(),
         }
     }
     /// Keeps the value inside `range`: − and + stop at its ends, and dragging and typing
@@ -240,6 +242,12 @@ impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
         self
     }
     format_methods!();
+    /// What the number is, for a screen reader, as the field draws no label itself. In a
+    /// [`crate::Form`] row the row's label is used when this is not set.
+    pub fn accessible_label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
+        self
+    }
     /// Whether a value already outside the range is pulled into it, as egui's
     /// `DragValue::clamp_existing_to_range`; by default it is.
     pub fn clamp_existing_to_range(mut self, clamp: bool) -> Self {
@@ -252,7 +260,8 @@ impl<T: egui::emath::Numeric> Widget for NumberField<'_, T> {
     fn ui(self, ui: &mut Ui) -> Response {
         let before = *self.value;
         let (lo, hi) = (*self.range.start(), *self.range.end());
-        let NumberField { value, range, step, speed, width, steppers, format, clamp_existing } = self;
+        let NumberField { value, range, step, speed, width, steppers, format, clamp_existing, label } = self;
+        let name = super::form::accessible_name(ui, &label);
         let step = if step.is_finite() && step != 0.0 { step.abs() } else { 1.0 };
         let x = Ctx::of(ui);
         let inner = ui.horizontal(|ui| {
@@ -271,6 +280,9 @@ impl<T: egui::emath::Numeric> Widget for NumberField<'_, T> {
                 ui.add_sized(size, format.apply(drag))
             });
             let number = number.inner;
+            if !name.is_empty() {
+                ui.ctx().accesskit_node_builder(number.id, |node| node.set_label(name.as_str()));
+            }
             underline(ui.painter(), number.rect, number.has_focus());
             if number.has_focus() && matches!(x.look, Look::Mac | Look::Gtk | Look::Ios) {
                 crate::paint::ring(ui.painter(), &x.paint(), number.rect, x.radius());
@@ -315,7 +327,13 @@ fn entry_visuals(ui: &mut Ui, x: &Ctx) {
 fn step_button(ui: &mut Ui, enabled: bool, plus: bool) -> Response {
     let side = ui.spacing().interact_size.y;
     let sign = egui::RichText::new(if plus { "+" } else { "−" }).color(Color32::TRANSPARENT);
-    let response = ui.add_enabled(enabled, egui::Button::new(sign).min_size(egui::vec2(side, side)));
+    // Exactly square: without padding the hidden glyph cannot widen the button.
+    let response = ui
+        .add_enabled_ui(enabled, |ui| {
+            ui.spacing_mut().button_padding = egui::Vec2::ZERO;
+            ui.add(egui::Button::new(sign).min_size(egui::vec2(side, side)))
+        })
+        .inner;
     let colour = if enabled { ui.style().interact(&response).fg_stroke.color } else { ui.visuals().weak_text_color() };
     let c = response.rect.center();
     let half = 4.0;

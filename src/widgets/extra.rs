@@ -78,7 +78,7 @@ impl Widget for IconButton {
         }
         let selected = self.selected;
         let label = if self.tooltip.is_empty() { self.glyph.clone() } else { self.tooltip.clone() };
-        response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Button, enabled, selected, &label));
+        response.widget_info(|| egui::WidgetInfo::selected(egui::Role::Button, enabled, selected, &label));
         if self.tooltip.is_empty() {
             response
         } else {
@@ -174,7 +174,7 @@ impl Widget for ColorWell<'_> {
             response.mark_changed();
         }
         let label = self.label;
-        response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ColorButton, enabled, &label));
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::ColorWell, enabled, &label));
         response
     }
 }
@@ -194,7 +194,7 @@ const TOAST_FADE: f64 = 0.2;
 struct Toasts(Vec<(String, f64, egui::ViewportId)>);
 
 fn toasts_id() -> egui::Id {
-    egui::Id::new("egui_native_look::Toasts")
+    egui::Id::unique("egui_native_look::Toasts")
 }
 
 /// Shows `text` in a toast at the bottom of the window for a few seconds; see

@@ -403,7 +403,7 @@ impl Resolved {
 }
 
 fn resolved_id() -> egui::Id {
-    egui::Id::new("egui_native_look::Resolved")
+    egui::Id::unique("egui_native_look::Resolved")
 }
 
 /// The theme installed in `ctx` with its colours; while none is, this system's look with
