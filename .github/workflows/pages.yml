@@ -1,0 +1,50 @@
+# Builds the gallery for the browser and publishes it to GitHub Pages.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-bindgen and wasm-opt
+        run: |
+          cargo generate-lockfile
+          version=$(cargo pkgid wasm-bindgen | sed 's/.*@//')
+          cargo install wasm-bindgen-cli --version "$version" --locked
+          gh release download --repo WebAssembly/binaryen --pattern '*-x86_64-linux.tar.gz' --output binaryen.tar.gz
+          mkdir binaryen && tar -xzf binaryen.tar.gz -C binaryen --strip-components=1
+          echo "$PWD/binaryen/bin" >> "$GITHUB_PATH"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: web/build.sh
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

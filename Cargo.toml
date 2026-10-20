@@ -9,7 +9,7 @@ repository = "https://github.com/MojzisekJan/egui_native_look"
 readme = "README.md"
 keywords = ["egui", "theme", "macos", "winui", "gtk"]
 categories = ["gui"]
-exclude = ["/tests/snapshots", "/docs", "/.github"]
+exclude = ["/tests/snapshots", "/docs", "/.github", "/web"]
 
 [features]
 default = ["system"]
@@ -38,9 +38,16 @@ web-sys = { version = "0.3.104", features = ["Window", "Navigator"], optional = 
 # The arrows in the gallery's and the snapshots' toolbars.
 egui = { version = "0.37.0", default-features = false, features = ["monochrome_emoji_fonts"] }
 eframe = { version = "0.37.0", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }
 criterion = { version = "0.5", default-features = false }
 egui_kittest = { version = "0.37.0", features = ["wgpu", "snapshot"] }
+
+# The gallery in the browser: `web/build.sh`.
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3.104", features = ["Document", "HtmlCanvasElement", "Location", "Window"] }
 
 [[bench]]
 name = "frame"

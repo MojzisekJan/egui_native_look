@@ -7,6 +7,9 @@ egui controls drawn the way macOS, Windows, GNOME, iOS and Android draw theirs. 
 still all egui, so it runs wherever egui runs, and your app keeps its own palette and
 layout.
 
+**[Try the gallery in your browser.](https://mojzisekjan.github.io/egui_native_look/)**
+Add `?mac`, `?gtk&light` and so on to the address to open it in a given look.
+
 | | Dark | Light |
 | --- | --- | --- |
 | macOS | <img src="https://raw.githubusercontent.com/MojzisekJan/egui_native_look/main/docs/looks/mac-dark.png" width="320"> | <img src="https://raw.githubusercontent.com/MojzisekJan/egui_native_look/main/docs/looks/mac-light.png" width="320"> |
@@ -45,7 +48,8 @@ look::Form::new("fillet").show(ui, |form| {
 controls on touch screens. The default `system` feature reads the system's accent,
 scheme and fonts; turn it off to get the controls alone. See the
 [documentation](https://docs.rs/egui_native_look) for every control, and run
-`cargo run --example gallery` to try them.
+`cargo run --example gallery` to try them. `web/build.sh` builds the same gallery for
+the browser.
 
 Requires egui 0.37.
 

@@ -1,47 +1,35 @@
 //! Every control in every look: `cargo run --example gallery [mac|windows|gtk|ios|material|plain] [light]`.
 //! The look and the scheme can be switched in the window too; `dialog` opens the dialog, `toast` shows a toast, `window` the tool window. With `GALLERY_SHOT=file.png`
-//! it saves its window to that file and quits.
+//! it saves its window to that file and quits. In the browser (`web/build.sh`) the same words go in the page's query: `?mac&light`.
 
 use eframe::egui;
 use egui_native_look as look;
 
+#[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result {
-    let forced = std::env::args().nth(1).and_then(|name| look::Look::from_name(&name));
-    let light = std::env::args().any(|a| a == "light");
-    let dialog = std::env::args().any(|a| a == "dialog");
-    let toast = std::env::args().any(|a| a == "toast");
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let shot = std::env::var_os("GALLERY_SHOT").map(Into::into);
     eframe::run_native(
         "egui_native_look gallery",
         eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([1040.0, 800.0]), ..Default::default() },
-        Box::new(move |cc| {
-            let chosen = forced.unwrap_or_else(look::Look::system);
-            let mut fonts = egui::FontDefinitions::default();
-            look::install_fonts(&mut fonts, chosen);
-            cc.egui_ctx.set_fonts(fonts);
-            look::install(&cc.egui_ctx, theme(chosen));
-            cc.egui_ctx.set_theme(if light { egui::Theme::Light } else { egui::Theme::Dark });
-            if toast {
-                look::toast(&cc.egui_ctx, "Map saved");
-            }
-            Ok(Box::new(Gallery {
-                look: LOOKS.iter().position(|l| *l == chosen).unwrap_or(0),
-                light,
-                shot: std::env::var_os("GALLERY_SHOT").map(Into::into),
-                radius: 8.0,
-                volume: 40.0,
-                faces: 4,
-                grid: true,
-                tint: egui::Color32::from_rgb(0xe0, 0x8a, 0x3c),
-                exposure: 1.0,
-                samples: 16,
-                position: [0.0, 64.0, -32.0],
-                length: 250.0,
-                tool_window: std::env::args().any(|a| a == "window"),
-                dialog,
-                ..Default::default()
-            }))
-        }),
+        Box::new(move |cc| Ok(Box::new(Gallery::new(cc, &args, shot)))),
     )
+}
+
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    use eframe::wasm_bindgen::JsCast;
+    let window = web_sys::window().expect("a window");
+    let query = window.location().search().unwrap_or_default();
+    let args: Vec<String> = query.trim_start_matches('?').split('&').filter(|a| !a.is_empty()).map(String::from).collect();
+    let canvas = window.document().and_then(|d| d.get_element_by_id("gallery")).expect("the page has a #gallery canvas");
+    let canvas = canvas.dyn_into::<web_sys::HtmlCanvasElement>().expect("#gallery is a canvas");
+    wasm_bindgen_futures::spawn_local(async move {
+        eframe::WebRunner::new()
+            .start(canvas, eframe::WebOptions::default(), Box::new(move |cc| Ok(Box::new(Gallery::new(cc, &args, None)))))
+            .await
+            .expect("started the gallery");
+    });
 }
 
 /// `look` with its system's sizes and, where the system has it, its semibold.
@@ -81,8 +69,44 @@ struct Gallery {
     position: [f32; 3],
     length: f64,
     tool_window: bool,
+    #[cfg_attr(target_arch = "wasm32", expect(dead_code, reason = "the browser takes no shots"))]
     shot: Option<std::path::PathBuf>,
+    #[cfg_attr(target_arch = "wasm32", expect(dead_code, reason = "the browser takes no shots"))]
     frames: u32,
+}
+
+impl Gallery {
+    /// The gallery as `args` ask for it: a look's name, `light`, `dialog`, `toast`, `window`.
+    fn new(cc: &eframe::CreationContext, args: &[String], shot: Option<std::path::PathBuf>) -> Self {
+        let has = |word: &str| args.iter().any(|a| a == word);
+        let chosen = args.first().and_then(|name| look::Look::from_name(name)).unwrap_or_else(look::Look::system);
+        let light = has("light");
+        let mut fonts = egui::FontDefinitions::default();
+        look::install_fonts(&mut fonts, chosen);
+        cc.egui_ctx.set_fonts(fonts);
+        look::install(&cc.egui_ctx, theme(chosen));
+        cc.egui_ctx.set_theme(if light { egui::Theme::Light } else { egui::Theme::Dark });
+        if has("toast") {
+            look::toast(&cc.egui_ctx, "Map saved");
+        }
+        Gallery {
+            look: LOOKS.iter().position(|l| *l == chosen).unwrap_or(0),
+            light,
+            shot,
+            radius: 8.0,
+            volume: 40.0,
+            faces: 4,
+            grid: true,
+            tint: egui::Color32::from_rgb(0xe0, 0x8a, 0x3c),
+            exposure: 1.0,
+            samples: 16,
+            position: [0.0, 64.0, -32.0],
+            length: 250.0,
+            tool_window: has("window"),
+            dialog: has("dialog"),
+            ..Default::default()
+        }
+    }
 }
 
 const LOOKS: [look::Look; 6] = [look::Look::Mac, look::Look::Windows, look::Look::Gtk, look::Look::Ios, look::Look::Material, look::Look::Plain];
@@ -90,6 +114,7 @@ const LOOKS: [look::Look; 6] = [look::Look::Mac, look::Look::Windows, look::Look
 impl eframe::App for Gallery {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        #[cfg(not(target_arch = "wasm32"))]
         self.save_shot(&ctx);
         look::follow_system(&ctx);
         egui::Panel::right("more").exact_size(400.0).frame(egui::Frame::central_panel(&ctx.global_style())).show(ui, |ui| {
@@ -250,6 +275,8 @@ impl Gallery {
         });
     }
 
+    /// Saves the window to `shot` and quits; the browser has no files to save to.
+    #[cfg(not(target_arch = "wasm32"))]
     fn save_shot(&mut self, ctx: &egui::Context) {
         let Some(path) = &self.shot else { return };
         self.frames += 1;
