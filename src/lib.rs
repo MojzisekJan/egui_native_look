@@ -72,7 +72,9 @@ mod text;
 mod widgets;
 
 pub use colors::{colors, Colors};
-pub use paint::{focus_ring, paint_button, paint_fluent, paint_popup_button, paint_raised, underline};
+pub use paint::{
+    focus_ring, paint_button, paint_fluent, paint_popup_button, paint_raised, underline,
+};
 pub use style::apply_style;
 pub use system::{system_accent, system_fonts, system_scheme, touch_screen, SystemFonts};
 pub use text::{cap_middle, entry_margin, galley_top, text};
@@ -82,6 +84,14 @@ use egui::{Color32, FontId};
 
 /// How the controls are drawn, on top of the app's own palette and layout.
 /// More looks may come, so a `match` on it needs a `_` arm.
+///
+/// Keep the returned value to use this configuration.
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+/// use egui_native_look::Look;
+/// Look::system();
+/// ```
+#[must_use]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Look {
@@ -154,11 +164,13 @@ impl Look {
     }
 
     /// Whether the controls are drawn in a system's manner rather than the app's own.
+    #[must_use]
     pub fn native(self) -> bool {
         self != Look::Plain
     }
 
     /// The look's name as people write it: "macOS", "Windows", "GTK", "Plain".
+    #[must_use]
     pub fn label(self) -> &'static str {
         match self {
             Look::Plain => "Plain",
@@ -178,6 +190,7 @@ impl std::fmt::Display for Look {
 }
 
 /// `shortcut` as a menu in `look` prints it: ⌥⇧⌘S on macOS, Ctrl+Shift+S elsewhere.
+#[must_use]
 pub fn shortcut_text(look: Look, shortcut: &egui::KeyboardShortcut) -> String {
     if look == Look::Mac {
         shortcut.format(&egui::ModifierNames::SYMBOLS, true)
@@ -189,6 +202,14 @@ pub fn shortcut_text(look: Look, shortcut: &egui::KeyboardShortcut) -> String {
 /// The colours the controls start from, for one scheme. The system looks draw their
 /// buttons, entries and tracks in their own shades and use only the text colours, the
 /// background and the accent (unless the system offers one); the plain look uses all.
+///
+/// Keep the returned value to use this configuration.
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+/// use egui_native_look::Palette;
+/// Palette::of(false);
+/// ```
+#[must_use]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Palette {
     /// Ordinary text.
@@ -225,6 +246,14 @@ pub struct Palette {
 }
 
 /// The app's palette for each scheme.
+///
+/// Keep the returned value to use this configuration.
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+/// use egui_native_look::Schemes;
+/// Schemes::default();
+/// ```
+#[must_use]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Schemes {
     /// The dark scheme's palette.
@@ -280,21 +309,36 @@ impl Palette {
 
 impl Default for Schemes {
     fn default() -> Self {
-        Schemes { dark: Palette::of(true), light: Palette::of(false) }
+        Schemes {
+            dark: Palette::of(true),
+            light: Palette::of(false),
+        }
     }
 }
 
 /// The sizes the controls take.
+///
+/// Keep the returned value to use this configuration.
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+/// use egui_native_look::Metrics;
+/// Metrics::of(egui_native_look::Look::Plain);
+/// ```
+#[must_use]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Metrics {
     /// The height of a button, an entry, a pop-up button, a segmented choice.
+    /// Applying the theme replaces non-positive or non-finite sizes with the look's
+    /// default, and bounds positive heights to 1..=1,000,000 points.
     pub control_height: f32,
     /// The rounding of an ordinary control.
     pub radius: u8,
-    /// The face labels are set in.
+    /// The face labels are set in. Applied font sizes use the look's default when
+    /// non-positive or non-finite, and otherwise are bounded to 1..=256 points.
     pub body: FontId,
     /// The face a chosen segment and a heading take: the body's family until
-    /// [`Metrics::system_bold`] switches it to the system's semibold.
+    /// [`Metrics::system_bold`] switches it to the system's semibold. Its size follows
+    /// the same validation as [`Metrics::body`].
     pub bold: FontId,
 }
 
@@ -311,7 +355,25 @@ impl Metrics {
             Look::Material => (40.0, 8, 14.0),
             Look::Plain => (28.0, 4, 13.0),
         };
-        Metrics { control_height: height, radius, body: FontId::proportional(size), bold: FontId::proportional(size) }
+        Metrics {
+            control_height: height,
+            radius,
+            body: FontId::proportional(size),
+            bold: FontId::proportional(size),
+        }
+    }
+
+    pub(crate) fn sanitized(mut self, look: Look) -> Self {
+        let defaults = Self::of(look);
+        self.control_height =
+            widgets::dimension(self.control_height).unwrap_or(defaults.control_height);
+        self.body.size = widgets::dimension(self.body.size)
+            .unwrap_or(defaults.body.size)
+            .min(256.0);
+        self.bold.size = widgets::dimension(self.bold.size)
+            .unwrap_or(defaults.bold.size)
+            .min(256.0);
+        self
     }
 
     /// With the bold face in the system's semibold, once [`install_fonts`] has put it in
@@ -326,7 +388,11 @@ impl Metrics {
     /// widgets with it), set egui's zoom: `ctx.set_zoom_factor`. The factor is held between
     /// 0.25 and 8; one that is not a number leaves the sizes as they are.
     pub fn scaled(mut self, factor: f32) -> Metrics {
-        let factor = if factor.is_nan() { 1.0 } else { factor.clamp(0.25, 8.0) };
+        let factor = if factor.is_nan() {
+            1.0
+        } else {
+            factor.clamp(0.25, 8.0)
+        };
         self.control_height = (self.control_height * factor).round().max(1.0);
         self.radius = (f32::from(self.radius) * factor).round().clamp(0.0, 255.0) as u8;
         self.body.size *= factor;
@@ -343,6 +409,14 @@ pub fn bold_family() -> egui::FontFamily {
 
 /// The whole of a look: which, the app's palette, the controls' sizes, and the system's
 /// accent once [`install`] has read it.
+///
+/// Keep the returned value to use this configuration.
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+/// use egui_native_look::Theme;
+/// Theme::system();
+/// ```
+#[must_use]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
     /// How the controls are drawn.
@@ -356,6 +430,12 @@ pub struct Theme {
     pub accent: Option<[u32; 2]>,
 }
 
+impl Default for Theme {
+    fn default() -> Self {
+        Self::system()
+    }
+}
+
 impl Theme {
     /// This system's look, the default palette and the system's sizes.
     pub fn system() -> Theme {
@@ -364,7 +444,12 @@ impl Theme {
 
     /// `look` with the default palette and its system's sizes.
     pub fn new(look: Look) -> Theme {
-        Theme { look, schemes: Schemes::default(), metrics: Metrics::of(look), accent: None }
+        Theme {
+            look,
+            schemes: Schemes::default(),
+            metrics: Metrics::of(look),
+            accent: None,
+        }
     }
 
     /// With the app's palette.
@@ -373,9 +458,9 @@ impl Theme {
         self
     }
 
-    /// With the app's sizes.
+    /// With the app's sizes, normalized according to [`Metrics`].
     pub fn metrics(mut self, metrics: Metrics) -> Theme {
-        self.metrics = metrics;
+        self.metrics = metrics.sanitized(self.look);
         self
     }
 }
@@ -395,12 +480,22 @@ pub(crate) struct Resolved {
 
 impl Resolved {
     fn of(theme: Theme, system_accent: bool, styled: bool) -> Resolved {
-        Resolved { dark: Colors::resolve(&theme, true), light: Colors::resolve(&theme, false), theme, system_accent, styled }
+        Resolved {
+            dark: Colors::resolve(&theme, true),
+            light: Colors::resolve(&theme, false),
+            theme,
+            system_accent,
+            styled,
+        }
     }
 
     /// The colours for `ctx`'s scheme of the moment.
     pub fn colors(&self, ctx: &egui::Context) -> Colors {
-        if ctx.theme() == egui::Theme::Dark { self.dark } else { self.light }
+        if ctx.theme() == egui::Theme::Dark {
+            self.dark
+        } else {
+            self.light
+        }
     }
 }
 
@@ -414,7 +509,11 @@ fn resolved_id() -> egui::Id {
 pub(crate) fn resolved(ctx: &egui::Context) -> std::sync::Arc<Resolved> {
     static FALLBACK: std::sync::OnceLock<std::sync::Arc<Resolved>> = std::sync::OnceLock::new();
     ctx.data(|d| d.get_temp::<std::sync::Arc<Resolved>>(resolved_id()))
-        .unwrap_or_else(|| FALLBACK.get_or_init(|| std::sync::Arc::new(Resolved::of(Theme::system(), true, false))).clone())
+        .unwrap_or_else(|| {
+            FALLBACK
+                .get_or_init(|| std::sync::Arc::new(Resolved::of(Theme::system(), true, false)))
+                .clone()
+        })
 }
 
 /// Installs `theme` in `ctx`: [`set_theme`], then styles egui's own widgets to match in
@@ -432,7 +531,9 @@ pub fn install(ctx: &egui::Context, theme: Theme) {
 
 fn restyle(ctx: &egui::Context, theme: &Theme) {
     for scheme in [egui::Theme::Dark, egui::Theme::Light] {
-        ctx.style_mut_of(scheme, |style| apply_style(style, theme, scheme == egui::Theme::Dark));
+        ctx.style_mut_of(scheme, |style| {
+            apply_style(style, theme, scheme == egui::Theme::Dark)
+        });
     }
 }
 
@@ -444,11 +545,17 @@ pub fn set_theme(ctx: &egui::Context, theme: Theme) -> Theme {
 }
 
 fn keep(ctx: &egui::Context, mut theme: Theme, styled: bool) -> Theme {
+    theme.metrics = theme.metrics.sanitized(theme.look);
     let system_accent = theme.accent.is_none();
     if system_accent {
         theme.accent = system::system_accent(theme.look);
     }
-    ctx.data_mut(|d| d.insert_temp(resolved_id(), std::sync::Arc::new(Resolved::of(theme.clone(), system_accent, styled))));
+    ctx.data_mut(|d| {
+        d.insert_temp(
+            resolved_id(),
+            std::sync::Arc::new(Resolved::of(theme.clone(), system_accent, styled)),
+        )
+    });
     theme
 }
 
@@ -478,7 +585,12 @@ pub(crate) fn take_system_accent(ctx: &egui::Context, accent: Option<[u32; 2]>) 
     let mut theme = current.theme.clone();
     theme.accent = accent;
     let styled = current.styled;
-    ctx.data_mut(|d| d.insert_temp(resolved_id(), std::sync::Arc::new(Resolved::of(theme.clone(), true, styled))));
+    ctx.data_mut(|d| {
+        d.insert_temp(
+            resolved_id(),
+            std::sync::Arc::new(Resolved::of(theme.clone(), true, styled)),
+        )
+    });
     if styled {
         restyle(ctx, &theme);
     }
@@ -500,17 +612,35 @@ pub fn look(ctx: &egui::Context) -> Look {
 /// behind [`bold_family`]. Returns whether the system had them.
 pub fn install_fonts(fonts: &mut egui::FontDefinitions, look: Look) -> bool {
     let system = system_fonts(look);
-    let proportional = fonts.families.get(&egui::FontFamily::Proportional).cloned().unwrap_or_default();
+    let proportional = fonts
+        .families
+        .get(&egui::FontFamily::Proportional)
+        .cloned()
+        .unwrap_or_default();
     let mut bold = proportional.clone();
     let found = system.is_some();
     if let Some(system) = system {
-        fonts.font_data.insert("egui_native_look-regular".into(), system.regular.into());
-        fonts.font_data.insert("egui_native_look-semibold".into(), system.semibold.into());
-        fonts.families.entry(egui::FontFamily::Proportional).or_default().insert(0, "egui_native_look-regular".into());
+        fonts
+            .font_data
+            .insert("egui_native_look-regular".into(), system.regular.into());
+        fonts
+            .font_data
+            .insert("egui_native_look-semibold".into(), system.semibold.into());
+        fonts
+            .families
+            .entry(egui::FontFamily::Proportional)
+            .or_default()
+            .insert(0, "egui_native_look-regular".into());
         bold.insert(0, "egui_native_look-semibold".into());
         if let Some(mono) = system.mono {
-            fonts.font_data.insert("egui_native_look-mono".into(), mono.into());
-            fonts.families.entry(egui::FontFamily::Monospace).or_default().insert(0, "egui_native_look-mono".into());
+            fonts
+                .font_data
+                .insert("egui_native_look-mono".into(), mono.into());
+            fonts
+                .families
+                .entry(egui::FontFamily::Monospace)
+                .or_default()
+                .insert(0, "egui_native_look-mono".into());
         }
     }
     fonts.families.entry(bold_family()).or_insert(bold);
@@ -526,7 +656,12 @@ pub(crate) fn lighten(c: Color32, t: f32) -> Color32 {
 /// `a` a fraction `t` of the way to `b`, alpha too.
 pub(crate) fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
     let l = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
-    Color32::from_rgba_unmultiplied(l(a.r(), b.r()), l(a.g(), b.g()), l(a.b(), b.b()), l(a.a(), b.a()))
+    Color32::from_rgba_unmultiplied(
+        l(a.r(), b.r()),
+        l(a.g(), b.g()),
+        l(a.b(), b.b()),
+        l(a.a(), b.a()),
+    )
 }
 
 #[cfg(test)]
@@ -542,7 +677,10 @@ mod tests {
         assert_eq!(theme(&ctx).accent, Some([0xff0000, 0xff0000]));
         let after = resolved(&ctx).dark.accent;
         assert_ne!(after, before);
-        assert_eq!(ctx.style_of(egui::Theme::Dark).visuals.selection.bg_fill, after.gamma_multiply(0.55));
+        assert_eq!(
+            ctx.style_of(egui::Theme::Dark).visuals.selection.bg_fill,
+            after.gamma_multiply(0.55)
+        );
     }
 
     #[test]
@@ -550,8 +688,30 @@ mod tests {
         let ctx = egui::Context::default();
         let mut chosen = Theme::new(Look::Gtk);
         chosen.accent = Some([0x00ff00, 0x00ff00]);
-        set_theme(&ctx, chosen);
+        let _ = set_theme(&ctx, chosen);
         take_system_accent(&ctx, Some([0xff0000, 0xff0000]));
         assert_eq!(theme(&ctx).accent, Some([0x00ff00, 0x00ff00]));
+    }
+    #[test]
+    fn theme_configuration_builders_preserve_the_base_configuration() {
+        let base = Theme::default();
+        assert_eq!(base.look, Look::system());
+        let metrics = Metrics::of(Look::Gtk).scaled(1.5);
+        let schemes = Schemes {
+            dark: Palette {
+                accent: Color32::RED,
+                ..Palette::of(true)
+            },
+            light: Palette {
+                accent: Color32::BLUE,
+                ..Palette::of(false)
+            },
+        };
+        let changed = base.clone().metrics(metrics.clone()).schemes(schemes);
+        assert_eq!(changed.look, base.look);
+        assert_eq!(changed.accent, base.accent);
+        assert_eq!(changed.metrics, metrics);
+        assert_eq!(changed.schemes, schemes);
+        assert_ne!(base.schemes, changed.schemes);
     }
 }

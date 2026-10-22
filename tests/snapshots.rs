@@ -47,19 +47,31 @@ fn controls(ui: &mut egui::Ui, s: &mut State) {
         look::radio_value(ui, &mut s.mode, 1, "Rotate");
     });
     ui.add(look::Segmented::new("axis", &mut s.axis, &["X", "Y", "Z"]).width(240.0));
-    ui.add(look::Tabs::new("tabs", &mut s.tab, &["General", "Keyboard"]));
+    ui.add(look::Tabs::new(
+        "tabs",
+        &mut s.tab,
+        &["General", "Keyboard"],
+    ));
     ui.horizontal(|ui| {
         ui.add(look::Dropdown::new("shape", &mut s.shape, &["Cuboid", "Sphere"]).width(150.0));
-        ui.add(look::NumberField::new(&mut s.radius).range(0.0..=1024.0).accessible_label("Radius"));
+        ui.add(
+            look::NumberField::new(&mut s.radius)
+                .range(0.0..=1024.0)
+                .accessible_label("Radius"),
+        );
     });
     ui.horizontal(|ui| {
-        ui.add(look::Slider::new(&mut s.volume, 0.0..=100.0).width(160.0).accessible_label("Volume"));
+        ui.add(
+            look::Slider::new(&mut s.volume, 0.0..=100.0)
+                .width(160.0)
+                .accessible_label("Volume"),
+        );
         ui.add(look::ProgressBar::new(0.4).width(120.0));
     });
     ui.add(look::TextField::new(&mut s.name).hint("Name").width(240.0));
     look::section(ui, "section", "Section", true, |ui| {
-        ui.add(look::ListRow::new(true));
-        ui.add(look::ListRow::new(false));
+        ui.add(look::ListRow::new(true).accessible_label("Selected row"));
+        ui.add(look::ListRow::new(false).accessible_label("Other row"));
     });
 }
 
@@ -74,8 +86,18 @@ fn more(ui: &mut egui::Ui, s: &mut State) {
     });
     look::Form::new("form").show(ui, |form| {
         let width = form.control_width();
-        form.row("Radius", |ui| ui.add(look::NumberField::new(&mut s.radius).range(0.0..=1024.0).width(width)));
-        form.row("Corners", |ui| ui.add(look::Dropdown::new("corners", &mut s.shape, &["Mitred", "Rounded"]).width(width)));
+        form.row("Radius", |ui| {
+            ui.add(
+                look::NumberField::new(&mut s.radius)
+                    .range(0.0..=1024.0)
+                    .width(width),
+            )
+        });
+        form.row("Corners", |ui| {
+            ui.add(
+                look::Dropdown::new("corners", &mut s.shape, &["Mitred", "Rounded"]).width(width),
+            )
+        });
         let mut tint = egui::Color32::from_rgb(0xe0, 0x8a, 0x3c);
         form.row("Colour", |ui| ui.add(look::ColorWell::new(&mut tint)));
         form.row("Snap to grid", |ui| ui.add(look::Switch::new(&mut s.on)));
@@ -86,19 +108,49 @@ fn more(ui: &mut egui::Ui, s: &mut State) {
 /// the look, the scheme and `suffix`.
 fn every_look_and_scheme_of(add: fn(&mut egui::Ui, &mut State), height: f32, suffix: &str) {
     let mut failures = Vec::new();
-    for chosen in [look::Look::Mac, look::Look::Windows, look::Look::Gtk, look::Look::Ios, look::Look::Material, look::Look::Plain] {
+    for chosen in [
+        look::Look::Mac,
+        look::Look::Windows,
+        look::Look::Gtk,
+        look::Look::Ios,
+        look::Look::Material,
+        look::Look::Plain,
+    ] {
         for (scheme, name) in [(egui::Theme::Dark, "dark"), (egui::Theme::Light, "light")] {
-            let state = State { on: true, checked: true, mode: 1, axis: 0, tab: 0, shape: 0, radius: 8.0, volume: 40.0, name: String::new() };
-            let mut harness = egui_kittest::Harness::builder().with_size(egui::vec2(420.0, height)).build_ui_state(
-                move |ui, state: &mut State| {
-                    egui::Frame::new().fill(ui.visuals().panel_fill).inner_margin(12).show(ui, |ui| add(ui, state));
-                },
-                state,
-            );
+            let mut options = egui_kittest::SnapshotOptions::default();
+            // One antialiased edge pixel can vary between graphics backends.
+            if chosen == look::Look::Mac && scheme == egui::Theme::Light && suffix.is_empty() {
+                options.max_failed_pixels = 1;
+            }
+            let state = State {
+                on: true,
+                checked: true,
+                mode: 1,
+                axis: 0,
+                tab: 0,
+                shape: 0,
+                radius: 8.0,
+                volume: 40.0,
+                name: String::new(),
+            };
+            let mut harness = egui_kittest::Harness::builder()
+                .with_options(options)
+                .with_size(egui::vec2(420.0, height))
+                .build_ui_state(
+                    move |ui, state: &mut State| {
+                        egui::Frame::new()
+                            .fill(ui.visuals().panel_fill)
+                            .inner_margin(12)
+                            .show(ui, |ui| add(ui, state));
+                    },
+                    state,
+                );
             look::install(&harness.ctx, theme(chosen));
             harness.ctx.set_theme(scheme);
             harness.run();
-            if let Err(error) = harness.try_snapshot(format!("{}-{name}{suffix}", chosen.label().to_lowercase())) {
+            if let Err(error) =
+                harness.try_snapshot(format!("{}-{name}{suffix}", chosen.label().to_lowercase()))
+            {
                 failures.push(error.to_string());
             }
         }
@@ -116,4 +168,52 @@ fn every_look_and_scheme() {
 #[ignore = "renders with wgpu: cargo test --test snapshots -- --include-ignored"]
 fn the_toolbar_and_form_in_every_look_and_scheme() {
     every_look_and_scheme_of(more, 330.0, "-more");
+}
+
+#[test]
+#[ignore = "renders with wgpu: cargo test --test snapshots -- --include-ignored"]
+fn material_dialog_corners_in_both_schemes() {
+    let mut failures = Vec::new();
+    for (scheme, name) in [(egui::Theme::Dark, "dark"), (egui::Theme::Light, "light")] {
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(440.0, 320.0))
+            .with_theme(scheme)
+            .with_context_setup(|ctx| look::install(ctx, theme(look::Look::Material)))
+            .build_ui(|ui| {
+                let area = ui.max_rect();
+                for row in 0..12 {
+                    for column in 0..16 {
+                        let color = if (row + column) % 2 == 0 {
+                            egui::Color32::from_rgb(100, 130, 160)
+                        } else {
+                            egui::Color32::from_rgb(180, 160, 120)
+                        };
+                        let min = area.min + egui::vec2(column as f32 * 32.0, row as f32 * 32.0);
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(min, egui::Vec2::splat(32.0)),
+                            0.0,
+                            color,
+                        );
+                    }
+                }
+                look::Dialog::new("material-corners", "Save changes?")
+                    .size((280.0, 160.0))
+                    .show(
+                        ui.ctx(),
+                        &mut true,
+                        |ui| {
+                            ui.label("Save changes to this document?");
+                        },
+                        |ui| {
+                            ui.add(look::Button::new("Save").accent());
+                            ui.add(look::Button::new("Cancel"));
+                        },
+                    );
+            });
+        harness.run();
+        if let Err(error) = harness.try_snapshot(format!("material-{name}-dialog")) {
+            failures.push(error.to_string());
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

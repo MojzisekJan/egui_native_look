@@ -40,7 +40,14 @@ pub(crate) fn follow(ctx: &egui::Context) {
         return;
     }
     let id = egui::Id::unique("egui_native_look::Follow");
-    let (now, focused) = ctx.input(|i| (i.time, i.events.iter().any(|e| matches!(e, egui::Event::WindowFocused(true)))));
+    let (now, focused) = ctx.input(|i| {
+        (
+            i.time,
+            i.events
+                .iter()
+                .any(|e| matches!(e, egui::Event::WindowFocused(true))),
+        )
+    });
     let mut state = ctx.data(|d| d.get_temp::<Follow>(id)).unwrap_or_default();
     if let Some(pending) = state.pending.clone() {
         let received = pending.lock().map(|r| r.try_recv());
@@ -62,7 +69,14 @@ pub(crate) fn follow(ctx: &egui::Context) {
         state.last = Some(now);
         let look = crate::look(ctx);
         if cheap {
-            apply(ctx, Found { look, accent: system_accent(look), scheme: system_scheme() });
+            apply(
+                ctx,
+                Found {
+                    look,
+                    accent: system_accent(look),
+                    scheme: system_scheme(),
+                },
+            );
         } else {
             // Reading takes a process on GNOME, so it is done off the UI thread, and what it
             // finds is applied here, on a later frame.
@@ -70,7 +84,11 @@ pub(crate) fn follow(ctx: &egui::Context) {
             state.pending = Some(std::sync::Arc::new(std::sync::Mutex::new(receive)));
             let repaint = ctx.clone();
             std::thread::spawn(move || {
-                let _ = send.send(Found { look, accent: system_accent(look), scheme: system_scheme() });
+                let _ = send.send(Found {
+                    look,
+                    accent: system_accent(look),
+                    scheme: system_scheme(),
+                });
                 repaint.request_repaint();
             });
         }
@@ -135,7 +153,11 @@ pub(crate) fn apple_browser() -> bool {
     #[cfg(all(target_arch = "wasm32", feature = "system"))]
     let apple = web_sys::window()
         .and_then(|w| w.navigator().user_agent().ok())
-        .is_some_and(|agent| ["iPhone", "iPad", "Macintosh"].iter().any(|name| agent.contains(name)));
+        .is_some_and(|agent| {
+            ["iPhone", "iPad", "Macintosh"]
+                .iter()
+                .any(|name| agent.contains(name))
+        });
     #[cfg(not(all(target_arch = "wasm32", feature = "system")))]
     let apple = false;
     apple
@@ -175,10 +197,24 @@ pub fn system_fonts(look: Look) -> Option<SystemFonts> {
 }
 
 /// One variable font at the weight `weight`.
-#[cfg_attr(not(all(feature = "system", any(target_os = "macos", target_os = "windows", target_os = "linux", target_os = "android"))), allow(dead_code))]
+#[cfg_attr(
+    not(all(
+        feature = "system",
+        any(
+            target_os = "macos",
+            target_os = "windows",
+            target_os = "linux",
+            target_os = "android"
+        )
+    )),
+    allow(dead_code)
+)]
 fn weighted(bytes: &[u8], weight: f32) -> FontData {
     let mut data = FontData::from_owned(bytes.to_vec());
-    data.tweak = egui::FontTweak { coords: egui::epaint::text::VariationCoords::new([(b"wght", weight)]), ..Default::default() };
+    data.tweak = egui::FontTweak {
+        coords: egui::epaint::text::VariationCoords::new([(b"wght", weight)]),
+        ..Default::default()
+    };
     data
 }
 
@@ -190,28 +226,53 @@ mod mac {
     /// macOS sets its emphasised labels in; SF Mono.
     pub fn fonts() -> Option<super::SystemFonts> {
         let bytes = std::fs::read("/System/Library/Fonts/SFNS.ttf").ok()?;
-        let mono = std::fs::read("/System/Library/Fonts/SFNSMono.ttf").ok().map(FontData::from_owned);
-        Some(super::SystemFonts { regular: super::weighted(&bytes, 400.0), semibold: super::weighted(&bytes, 590.0), mono })
+        let mono = std::fs::read("/System/Library/Fonts/SFNSMono.ttf")
+            .ok()
+            .map(FontData::from_owned);
+        Some(super::SystemFonts {
+            regular: super::weighted(&bytes, 400.0),
+            semibold: super::weighted(&bytes, 590.0),
+            mono,
+        })
     }
 
     /// Dark when System Settings > Appearance is dark (or automatic, and dark now): the
     /// application's appearance on the main thread, `defaults` elsewhere.
     pub fn scheme() -> Option<egui::Theme> {
         if let Some(main) = objc2::MainThreadMarker::new() {
-            let name = objc2_app_kit::NSApplication::sharedApplication(main).effectiveAppearance().name().to_string();
-            return Some(if name.contains("Dark") { egui::Theme::Dark } else { egui::Theme::Light });
+            let name = objc2_app_kit::NSApplication::sharedApplication(main)
+                .effectiveAppearance()
+                .name()
+                .to_string();
+            return Some(if name.contains("Dark") {
+                egui::Theme::Dark
+            } else {
+                egui::Theme::Light
+            });
         }
-        let out = std::process::Command::new("defaults").args(["read", "-g", "AppleInterfaceStyle"]).output().ok()?;
+        let out = std::process::Command::new("defaults")
+            .args(["read", "-g", "AppleInterfaceStyle"])
+            .output()
+            .ok()?;
         // Light has no value at all, and `defaults` fails for it.
-        Some(if String::from_utf8_lossy(&out.stdout).trim() == "Dark" { egui::Theme::Dark } else { egui::Theme::Light })
+        Some(if String::from_utf8_lossy(&out.stdout).trim() == "Dark" {
+            egui::Theme::Dark
+        } else {
+            egui::Theme::Light
+        })
     }
 
     /// The accent colour of System Settings > Appearance, as 0xRRGGBB in sRGB.
     pub fn accent() -> Option<u32> {
         use objc2_app_kit::{NSColor, NSColorSpace};
-        let color = NSColor::controlAccentColor().colorUsingColorSpace(&NSColorSpace::sRGBColorSpace())?;
+        let color =
+            NSColor::controlAccentColor().colorUsingColorSpace(&NSColorSpace::sRGBColorSpace())?;
         let channel = |v: f64| (v.clamp(0.0, 1.0) * 255.0).round() as u32;
-        Some(channel(color.redComponent()) << 16 | channel(color.greenComponent()) << 8 | channel(color.blueComponent()))
+        Some(
+            channel(color.redComponent()) << 16
+                | channel(color.greenComponent()) << 8
+                | channel(color.blueComponent()),
+        )
     }
 }
 
@@ -220,7 +281,10 @@ mod windows {
     use egui::FontData;
 
     fn fonts_dir() -> std::path::PathBuf {
-        std::env::var_os("WINDIR").map(std::path::PathBuf::from).unwrap_or_else(|| "C:\\Windows".into()).join("Fonts")
+        std::env::var_os("WINDIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| "C:\\Windows".into())
+            .join("Fonts")
     }
 
     /// Segoe UI Variable (Windows 11), one variable font for both weights, else Segoe UI
@@ -228,45 +292,91 @@ mod windows {
     pub fn fonts() -> Option<super::SystemFonts> {
         let dir = fonts_dir();
         let (regular, semibold) = if let Ok(bytes) = std::fs::read(dir.join("SegUIVar.ttf")) {
-            (super::weighted(&bytes, 400.0), super::weighted(&bytes, 600.0))
+            (
+                super::weighted(&bytes, 400.0),
+                super::weighted(&bytes, 600.0),
+            )
         } else {
             let regular = std::fs::read(dir.join("segoeui.ttf")).ok()?;
-            let semibold = std::fs::read(dir.join("seguisb.ttf")).unwrap_or_else(|_| regular.clone());
-            (FontData::from_owned(regular), FontData::from_owned(semibold))
+            let semibold =
+                std::fs::read(dir.join("seguisb.ttf")).unwrap_or_else(|_| regular.clone());
+            (
+                FontData::from_owned(regular),
+                FontData::from_owned(semibold),
+            )
         };
-        let mono = ["CascadiaMono.ttf", "consola.ttf"].iter().find_map(|name| std::fs::read(dir.join(name)).ok()).map(FontData::from_owned);
-        Some(super::SystemFonts { regular, semibold, mono })
+        let mono = ["CascadiaMono.ttf", "consola.ttf"]
+            .iter()
+            .find_map(|name| std::fs::read(dir.join(name)).ok())
+            .map(FontData::from_owned);
+        Some(super::SystemFonts {
+            regular,
+            semibold,
+            mono,
+        })
     }
 
     /// The apps' mode of Personalization > Colors.
     pub fn scheme() -> Option<egui::Theme> {
-        use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+        use windows_sys::Win32::System::Registry::{
+            RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD,
+        };
         let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
         let key = wide("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
         let name = wide("AppsUseLightTheme");
         let mut light = 0u32;
         let mut size = 4u32;
         // SAFETY: the strings are NUL-terminated and the value is a four-byte DWORD.
-        let status = unsafe { RegGetValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr(), RRF_RT_REG_DWORD, std::ptr::null_mut(), (&mut light as *mut u32).cast(), &mut size) };
-        (status == 0).then_some(if light == 0 { egui::Theme::Dark } else { egui::Theme::Light })
+        let status = unsafe {
+            RegGetValueW(
+                HKEY_CURRENT_USER,
+                key.as_ptr(),
+                name.as_ptr(),
+                RRF_RT_REG_DWORD,
+                std::ptr::null_mut(),
+                (&mut light as *mut u32).cast(),
+                &mut size,
+            )
+        };
+        (status == 0).then_some(if light == 0 {
+            egui::Theme::Dark
+        } else {
+            egui::Theme::Light
+        })
     }
 
     /// The accent's light shade (for the dark scheme) and dark shade (for the light), as
     /// 0xRRGGBB, from the palette Windows keeps beside the chosen accent.
     pub fn accent() -> Option<[u32; 2]> {
-        use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_BINARY};
+        use windows_sys::Win32::System::Registry::{
+            RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_BINARY,
+        };
         let wide = |s: &str| s.encode_utf16().chain([0]).collect::<Vec<u16>>();
         let key = wide("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Accent");
         let name = wide("AccentPalette");
         let mut palette = [0u8; 32];
         let mut size = palette.len() as u32;
         // SAFETY: the strings are NUL-terminated and the buffer is `size` bytes long.
-        let status = unsafe { RegGetValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr(), RRF_RT_REG_BINARY, std::ptr::null_mut(), palette.as_mut_ptr().cast(), &mut size) };
+        let status = unsafe {
+            RegGetValueW(
+                HKEY_CURRENT_USER,
+                key.as_ptr(),
+                name.as_ptr(),
+                RRF_RT_REG_BINARY,
+                std::ptr::null_mut(),
+                palette.as_mut_ptr().cast(),
+                &mut size,
+            )
+        };
         if status != 0 || size < 20 {
             return None;
         }
         // Eight RGBA entries: Light 3, Light 2, Light 1, the accent, Dark 1, Dark 2, Dark 3.
-        let rgb = |i: usize| u32::from(palette[i * 4]) << 16 | u32::from(palette[i * 4 + 1]) << 8 | u32::from(palette[i * 4 + 2]);
+        let rgb = |i: usize| {
+            u32::from(palette[i * 4]) << 16
+                | u32::from(palette[i * 4 + 1]) << 8
+                | u32::from(palette[i * 4 + 2])
+        };
         Some([rgb(1), rgb(4)])
     }
 }
@@ -295,20 +405,39 @@ mod gnome {
         ])
         .map(FontData::from_owned);
         // Both faces are variable: semibold is weight 600, as libadwaita's headings take.
-        Some(super::SystemFonts { regular: super::weighted(&text, 400.0), semibold: super::weighted(&text, 600.0), mono })
+        Some(super::SystemFonts {
+            regular: super::weighted(&text, 400.0),
+            semibold: super::weighted(&text, 600.0),
+            mono,
+        })
     }
 
     /// GNOME's style (`org.gnome.desktop.interface color-scheme`): dark when it prefers
     /// dark.
     pub fn scheme() -> Option<egui::Theme> {
-        let out = std::process::Command::new("gsettings").args(["get", "org.gnome.desktop.interface", "color-scheme"]).output().ok()?;
-        out.status.success().then(|| if String::from_utf8_lossy(&out.stdout).contains("dark") { egui::Theme::Dark } else { egui::Theme::Light })
+        let out = std::process::Command::new("gsettings")
+            .args(["get", "org.gnome.desktop.interface", "color-scheme"])
+            .output()
+            .ok()?;
+        out.status.success().then(|| {
+            if String::from_utf8_lossy(&out.stdout).contains("dark") {
+                egui::Theme::Dark
+            } else {
+                egui::Theme::Light
+            }
+        })
     }
 
     /// GNOME's accent (`org.gnome.desktop.interface accent-color`) as libadwaita draws it.
     pub fn accent() -> Option<u32> {
-        let out = std::process::Command::new("gsettings").args(["get", "org.gnome.desktop.interface", "accent-color"]).output().ok()?;
-        let name = String::from_utf8_lossy(&out.stdout).trim().trim_matches('\'').to_string();
+        let out = std::process::Command::new("gsettings")
+            .args(["get", "org.gnome.desktop.interface", "accent-color"])
+            .output()
+            .ok()?;
+        let name = String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .trim_matches('\'')
+            .to_string();
         Some(match name.as_str() {
             "blue" => 0x3584e4,
             "teal" => 0x2190a4,
@@ -336,7 +465,51 @@ mod android {
             Ok(medium) => FontData::from_owned(medium),
             Err(_) => super::weighted(&regular, 500.0),
         };
-        let mono = std::fs::read("/system/fonts/DroidSansMono.ttf").ok().map(FontData::from_owned);
-        Some(super::SystemFonts { regular: super::weighted(&regular, 400.0), semibold, mono })
+        let mono = std::fs::read("/system/fonts/DroidSansMono.ttf")
+            .ok()
+            .map(FontData::from_owned);
+        Some(super::SystemFonts {
+            regular: super::weighted(&regular, 400.0),
+            semibold,
+            mono,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{follow, Follow};
+
+    #[test]
+    fn an_idle_system_follower_does_not_request_more_frames() {
+        let ctx = egui::Context::default();
+        // Start after the initial system read has completed. Its completion is allowed
+        // to wake the UI once; an idle follower must not keep the UI repainting.
+        ctx.data_mut(|data| {
+            data.insert_temp(
+                egui::Id::unique("egui_native_look::Follow"),
+                Follow {
+                    last: Some(0.0),
+                    pending: None,
+                },
+            )
+        });
+        for frame in 0..8 {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    time: Some(f64::from(frame) * 0.01),
+                    ..Default::default()
+                },
+                |ui| follow(ui.ctx()),
+            );
+            output.textures_delta.clear();
+            if frame >= 3 {
+                let delay = output.viewport_output[&egui::ViewportId::ROOT].repaint_delay;
+                assert!(
+                    delay > std::time::Duration::from_secs(60),
+                    "idle follower requested repaint after {delay:?}"
+                );
+            }
+        }
     }
 }

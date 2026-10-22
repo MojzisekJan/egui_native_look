@@ -11,6 +11,13 @@ pub(crate) fn rgb(c: u32) -> Color32 {
 /// The colours the controls are drawn in, for one look and scheme. Made by
 /// [`Colors::resolve`] or [`colors`](crate::colors); more may be added.
 #[derive(Clone, Copy, Debug, PartialEq)]
+///
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+/// use egui_native_look::{Colors, Theme};
+/// Colors::resolve(&Theme::default(), false);
+/// ```
+#[must_use]
 #[non_exhaustive]
 pub struct Colors {
     /// Whether these are the dark scheme's.
@@ -65,7 +72,11 @@ type Shades = [(u32, u32); 5];
 impl Colors {
     /// The colours of `theme` in the dark scheme or the light one.
     pub fn resolve(theme: &Theme, dark: bool) -> Colors {
-        let p = if dark { theme.schemes.dark } else { theme.schemes.light };
+        let p = if dark {
+            theme.schemes.dark
+        } else {
+            theme.schemes.light
+        };
         let look = theme.look;
         let by = |shades: Shades, plain: Color32| -> Color32 {
             let pick = |(d, l): (u32, u32)| rgb(if dark { d } else { l });
@@ -110,15 +121,96 @@ impl Colors {
             // pressed) over the window.
             // iOS: the system fills (tertiarySystemFill and friends); Material: the tonal
             // container (secondaryContainer) and the highest surface container.
-            button: by([(0x3d3f45, 0xffffff), (0x2f3136, 0xfbfbfb), (0x323336, 0xdadbde), (0x3a3a3c, 0xe5e5ea), (0x4a4458, 0xe8def8)], p.button),
-            button_hover: by([(0x46484f, 0xf7f7f8), (0x36383d, 0xf5f5f5), (0x3d3e41, 0xd0d1d4), (0x48484a, 0xdcdce1), (0x564f66, 0xddd2ee)], p.button_hover),
-            button_pressed: by([(0x35373c, 0xe4e4e7), (0x2a2c30, 0xf3f3f3), (0x5f6063, 0xb0b1b4), (0x545456, 0xd1d1d6), (0x625a74, 0xd2c6e4)], p.button_pressed),
-            button_disabled: by([(0x2c2e33, 0xf1f1f3), (0x2a2c30, 0xf5f5f5), (0x26272a, 0xe3e4e7), (0x232325, 0xefeff4), (0x2b292f, 0xeae6ee)], p.button_disabled),
-            entry: by([(0x2a2c31, 0xffffff), (0x2f3136, 0xfbfbfb), (0x323336, 0xdadbde), (0x2c2c2e, 0xffffff), (0x36343b, 0xe6e0e9)], p.entry),
-            entry_focused: by([(0x2a2c31, 0xffffff), (0x1d1e21, 0xffffff), (0x323336, 0xdadbde), (0x2c2c2e, 0xffffff), (0x36343b, 0xe6e0e9)], p.entry),
-            control_border: by([(0x4a4d54, 0xc9c9ce), (0x3a3c41, 0xe5e5e5), (0x3d3e41, 0xd0d1d4), (0x38383a, 0xd1d1d6), (0x49454f, 0xcac4d0)], p.border),
-            control_strong: by([(0x8b9199, 0x5e646c), (0x9a9b9e, 0x868686), (0x5f6063, 0xb0b1b4), (0x636366, 0xc7c7cc), (0x938f99, 0x79747e)], p.dim),
-            track: by([(0x3a3c42, 0xe3e3e7), (0x26282c, 0xe1e1e3), (0x3d3e41, 0xd0d1d4), (0x39393d, 0xe9e9ea), (0x36343b, 0xe6e0e9)], p.button),
+            button: by(
+                [
+                    (0x3d3f45, 0xffffff),
+                    (0x2f3136, 0xfbfbfb),
+                    (0x323336, 0xdadbde),
+                    (0x3a3a3c, 0xe5e5ea),
+                    (0x4a4458, 0xe8def8),
+                ],
+                p.button,
+            ),
+            button_hover: by(
+                [
+                    (0x46484f, 0xf7f7f8),
+                    (0x36383d, 0xf5f5f5),
+                    (0x3d3e41, 0xd0d1d4),
+                    (0x48484a, 0xdcdce1),
+                    (0x564f66, 0xddd2ee),
+                ],
+                p.button_hover,
+            ),
+            button_pressed: by(
+                [
+                    (0x35373c, 0xe4e4e7),
+                    (0x2a2c30, 0xf3f3f3),
+                    (0x5f6063, 0xb0b1b4),
+                    (0x545456, 0xd1d1d6),
+                    (0x625a74, 0xd2c6e4),
+                ],
+                p.button_pressed,
+            ),
+            button_disabled: by(
+                [
+                    (0x2c2e33, 0xf1f1f3),
+                    (0x2a2c30, 0xf5f5f5),
+                    (0x26272a, 0xe3e4e7),
+                    (0x232325, 0xefeff4),
+                    (0x2b292f, 0xeae6ee),
+                ],
+                p.button_disabled,
+            ),
+            entry: by(
+                [
+                    (0x2a2c31, 0xffffff),
+                    (0x2f3136, 0xfbfbfb),
+                    (0x323336, 0xdadbde),
+                    (0x2c2c2e, 0xffffff),
+                    (0x36343b, 0xe6e0e9),
+                ],
+                p.entry,
+            ),
+            entry_focused: by(
+                [
+                    (0x2a2c31, 0xffffff),
+                    (0x1d1e21, 0xffffff),
+                    (0x323336, 0xdadbde),
+                    (0x2c2c2e, 0xffffff),
+                    (0x36343b, 0xe6e0e9),
+                ],
+                p.entry,
+            ),
+            control_border: by(
+                [
+                    (0x4a4d54, 0xc9c9ce),
+                    (0x3a3c41, 0xe5e5e5),
+                    (0x3d3e41, 0xd0d1d4),
+                    (0x38383a, 0xd1d1d6),
+                    (0x49454f, 0xcac4d0),
+                ],
+                p.border,
+            ),
+            control_strong: by(
+                [
+                    (0x8b9199, 0x5e646c),
+                    (0x9a9b9e, 0x868686),
+                    (0x5f6063, 0xb0b1b4),
+                    (0x636366, 0xc7c7cc),
+                    (0x938f99, 0x79747e),
+                ],
+                p.dim,
+            ),
+            track: by(
+                [
+                    (0x3a3c42, 0xe3e3e7),
+                    (0x26282c, 0xe1e1e3),
+                    (0x3d3e41, 0xd0d1d4),
+                    (0x39393d, 0xe9e9ea),
+                    (0x36343b, 0xe6e0e9),
+                ],
+                p.button,
+            ),
             raised: if dark { rgb(0x5b5e65) } else { Color32::WHITE },
             accent,
             accent_hover,
@@ -133,9 +225,14 @@ impl Colors {
 fn on(accent: Color32, look: Look) -> Color32 {
     let linear = |v: u8| {
         let v = f32::from(v) / 255.0;
-        if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
     };
-    let luminance = 0.2126 * linear(accent.r()) + 0.7152 * linear(accent.g()) + 0.0722 * linear(accent.b());
+    let luminance =
+        0.2126 * linear(accent.r()) + 0.7152 * linear(accent.g()) + 0.0722 * linear(accent.b());
     // Lower than the even-contrast point (0.18), so the systems' blues keep white text as
     // they do, while a yellow or a pale accent takes dark text.
     if luminance < 0.28 {

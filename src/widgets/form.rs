@@ -21,6 +21,14 @@ use crate::Look;
 /// });
 /// # }
 /// ```
+///
+/// The builder must be added to a UI or shown to have an effect.
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+/// use egui_native_look::Form;
+/// Form::new("settings");
+/// ```
+#[must_use = "add the widget to a UI or call its show method"]
 pub struct Form {
     id: egui::IdSalt,
 }
@@ -28,7 +36,9 @@ pub struct Form {
 impl Form {
     /// A form; `id` keeps its label column's width from frame to frame.
     pub fn new(id: impl egui::AsIdSalt) -> Self {
-        Form { id: egui::IdSalt::new(id) }
+        Form {
+            id: egui::IdSalt::new(id),
+        }
     }
 
     /// Lays out the rows `add` adds, the width available.
@@ -37,8 +47,13 @@ impl Form {
         let boxed = matches!(x.look, Look::Gtk | Look::Ios);
         let id = ui.make_persistent_id(self.id);
         // The label column is as wide as the widest label, measured last frame; a wider
-        // label this frame lays the form out again.
-        let label_width = ui.ctx().data(|d| d.get_temp::<f32>(id)).unwrap_or(0.0);
+        // label this frame lays the form out again. Reserve the maximum column before
+        // the first measurement, and clamp cached widths after a viewport resize.
+        let label_width = ui
+            .ctx()
+            .data(|d| d.get_temp::<f32>(id))
+            .unwrap_or((ui.available_width() * 0.4).max(60.0));
+        let label_width = label_width.min((ui.available_width() * 0.4).max(60.0));
         let background = boxed.then(|| ui.painter().add(egui::Shape::Noop));
         let (left, top) = (ui.cursor().left(), ui.cursor().top());
         let width = ui.available_width();
@@ -46,20 +61,32 @@ impl Form {
         if boxed {
             ui.spacing_mut().item_spacing.y = 0.0;
         }
-        let mut form = FormUi { ui, x, id, boxed, label_width, widest: 0.0, rows: 0 };
+        let mut form = FormUi {
+            ui,
+            x,
+            id,
+            boxed,
+            label_width,
+            widest: 0.0,
+            rows: 0,
+        };
         let inner = add(&mut form);
         let FormUi { ui, x, widest, .. } = form;
         if boxed {
             ui.spacing_mut().item_spacing.y = spacing;
         }
         if let Some(background) = background {
-            let rect = Rect::from_min_max(egui::pos2(left, top), egui::pos2(left + width, ui.cursor().top()));
+            let rect = Rect::from_min_max(
+                egui::pos2(left, top),
+                egui::pos2(left + width, ui.cursor().top()),
+            );
             ui.painter().set(background, card(&x, rect));
             ui.add_space(spacing);
         }
         if !boxed && widest != label_width {
             ui.ctx().data_mut(|d| d.insert_temp(id, widest));
-            ui.ctx().request_discard("egui_native_look::Form label column");
+            ui.ctx()
+                .request_discard("egui_native_look::Form label column");
         }
         inner
     }
@@ -69,16 +96,45 @@ impl Form {
 fn card(x: &Ctx, rect: Rect) -> egui::Shape {
     let c = &x.c;
     let (fill, round) = match x.look {
-        Look::Ios => (if c.dark { crate::lerp_color(c.bg, Color32::WHITE, 0.1) } else { Color32::WHITE }, 10),
-        _ => (if c.dark { crate::lerp_color(c.bg, Color32::WHITE, 0.07) } else { Color32::WHITE }, 12),
+        Look::Ios => (
+            if c.dark {
+                crate::lerp_color(c.bg, Color32::WHITE, 0.1)
+            } else {
+                Color32::WHITE
+            },
+            10,
+        ),
+        _ => (
+            if c.dark {
+                crate::lerp_color(c.bg, Color32::WHITE, 0.07)
+            } else {
+                Color32::WHITE
+            },
+            12,
+        ),
     };
-    let stroke = if x.look == Look::Gtk { Stroke::new(1.0, c.border) } else { Stroke::NONE };
-    egui::epaint::RectShape::new(rect, CornerRadius::same(round), fill, stroke, egui::StrokeKind::Inside).into()
+    let stroke = if x.look == Look::Gtk {
+        Stroke::new(1.0, c.border)
+    } else {
+        Stroke::NONE
+    };
+    egui::epaint::RectShape::new(
+        rect,
+        CornerRadius::same(round),
+        fill,
+        stroke,
+        egui::StrokeKind::Inside,
+    )
+    .into()
 }
 
 /// The line between two rows of a boxed list.
 fn separator(x: &Ctx) -> Color32 {
-    if x.look == Look::Ios { x.c.fg.gamma_multiply(0.14) } else { x.c.border }
+    if x.look == Look::Ios {
+        x.c.fg.gamma_multiply(0.14)
+    } else {
+        x.c.border
+    }
 }
 
 /// What a label shows under the pointer: the whole label when it was cut short, and its tip.
@@ -124,7 +180,12 @@ impl FormUi<'_> {
     }
 
     /// A row whose label shows `tip` under the pointer.
-    pub fn row_with_tip<R>(&mut self, label: &str, tip: &str, control: impl FnOnce(&mut Ui) -> R) -> R {
+    pub fn row_with_tip<R>(
+        &mut self,
+        label: &str,
+        tip: &str,
+        control: impl FnOnce(&mut Ui) -> R,
+    ) -> R {
         self.row_with(label, Some(tip), control)
     }
 
@@ -136,36 +197,65 @@ impl FormUi<'_> {
         }
         let indent = self.label_width + Self::GAP;
         self.rows += 1;
-        self.ui.horizontal(|ui| {
-            ui.add_space(indent - ui.spacing().item_spacing.x);
-            contents(ui)
-        })
-        .inner
+        self.ui
+            .horizontal(|ui| {
+                ui.add_space(indent - ui.spacing().item_spacing.x);
+                contents(ui)
+            })
+            .inner
     }
 
-    fn row_with<R>(&mut self, label: &str, tip: Option<&str>, control: impl FnOnce(&mut Ui) -> R) -> R {
+    fn row_with<R>(
+        &mut self,
+        label: &str,
+        tip: Option<&str>,
+        control: impl FnOnce(&mut Ui) -> R,
+    ) -> R {
         // The row's label names its control for a screen reader, as a visible label would.
         let ctx = self.ui.ctx().clone();
-        let outer = ctx.data(|d| d.get_temp::<Option<String>>(row_label_id())).flatten();
+        let outer = ctx
+            .data(|d| d.get_temp::<Option<String>>(row_label_id()))
+            .flatten();
         ctx.data_mut(|d| d.insert_temp(row_label_id(), Some(label.to_owned())));
         let inner = self.lay_out_row(label, tip, control);
         ctx.data_mut(|d| d.insert_temp(row_label_id(), outer));
         inner
     }
 
-    fn lay_out_row<R>(&mut self, label: &str, tip: Option<&str>, control: impl FnOnce(&mut Ui) -> R) -> R {
+    fn lay_out_row<R>(
+        &mut self,
+        label: &str,
+        tip: Option<&str>,
+        control: impl FnOnce(&mut Ui) -> R,
+    ) -> R {
         let x = &self.x;
         let font = x.m.body.clone();
-        let text_width = self.ui.fonts_mut(|f| f.layout_no_wrap(label.to_string(), font.clone(), x.c.fg).size().x);
+        let text_width = self.ui.fonts_mut(|f| {
+            f.layout_no_wrap(label.to_string(), font.clone(), x.c.fg)
+                .size()
+                .x
+        });
         let first = self.rows == 0;
         self.rows += 1;
         if self.boxed {
             let row: f32 = if x.look == Look::Ios { 44.0 } else { 50.0 };
             let height = row.max(self.ui.spacing().interact_size.y + 12.0);
-            let (rect, response) = self.ui.allocate_exact_size(egui::vec2(self.ui.available_width(), height), Sense::hover());
+            let (rect, response) = self.ui.allocate_exact_size(
+                egui::vec2(self.ui.available_width(), height),
+                Sense::hover(),
+            );
             if !first {
                 let y = rect.top() + 0.5;
-                self.ui.painter().hline(rect.left() + if x.look == Look::Ios { Self::INSET } else { 0.0 }..=rect.right(), y, Stroke::new(1.0, separator(x)));
+                self.ui.painter().hline(
+                    rect.left()
+                        + if x.look == Look::Ios {
+                            Self::INSET
+                        } else {
+                            0.0
+                        }..=rect.right(),
+                    y,
+                    Stroke::new(1.0, separator(x)),
+                );
             }
             // The control ends at the row's end: it is laid out left to right from where
             // last frame's width puts it, and laid out again if that width changed.
@@ -177,24 +267,42 @@ impl FormUi<'_> {
             let (galley, cut) = super::truncated(self.ui, label, font, x.c.fg, room);
             let shown_width = galley.size().x;
             let top = crate::galley_top(self.ui.ctx(), &galley, rect.center().y);
-            self.ui.painter().galley(egui::pos2(rect.left() + Self::INSET, top), galley, x.c.fg);
+            self.ui
+                .painter()
+                .galley(egui::pos2(rect.left() + Self::INSET, top), galley, x.c.fg);
             if let Some(hover) = hover_text(label, cut, tip) {
-                let label_rect = Rect::from_min_size(rect.min, egui::vec2(Self::INSET + shown_width, height));
-                self.ui.interact(label_rect, response.id.with("tip"), Sense::hover()).on_hover_text(hover);
+                let label_rect =
+                    Rect::from_min_size(rect.min, egui::vec2(Self::INSET + shown_width, height));
+                self.ui
+                    .interact(label_rect, response.id.with("tip"), Sense::hover())
+                    .on_hover_text(hover);
             }
             let text_width = shown_width;
             let end = rect.right() - Self::INSET;
             // Unmeasured, it has the whole room after the label, which a control that fills
             // its row keeps.
             let after_label = rect.left() + Self::INSET + text_width + Self::GAP;
-            let start = if used > 0.0 { (end - used).max(after_label) } else { after_label };
-            let room = Rect::from_min_max(egui::pos2(start, rect.top()), egui::pos2(end, rect.bottom()));
-            let mut child = self.ui.new_child(UiBuilder::new().max_rect(room).layout(Layout::left_to_right(Align::Center)));
+            let start = if used > 0.0 {
+                (end - used).max(after_label)
+            } else {
+                after_label
+            };
+            let room = Rect::from_min_max(
+                egui::pos2(start, rect.top()),
+                egui::pos2(end, rect.bottom()),
+            );
+            let mut child = self.ui.new_child(
+                UiBuilder::new()
+                    .max_rect(room)
+                    .layout(Layout::left_to_right(Align::Center)),
+            );
             let inner = control(&mut child);
             let width = child.min_rect().width();
             if (width - used).abs() > 0.5 {
                 self.ui.ctx().data_mut(|d| d.insert_temp(id, width));
-                self.ui.ctx().request_discard("egui_native_look::Form control width");
+                self.ui
+                    .ctx()
+                    .request_discard("egui_native_look::Form control width");
             }
             return inner;
         }
@@ -208,9 +316,16 @@ impl FormUi<'_> {
         self.ui
             .horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = Self::GAP;
-                let (rect, response) = ui.allocate_exact_size(egui::vec2(label_width, ui.spacing().interact_size.y), Sense::hover());
+                let (rect, response) = ui.allocate_exact_size(
+                    egui::vec2(label_width, ui.spacing().interact_size.y),
+                    Sense::hover(),
+                );
                 let (galley, cut) = super::truncated(ui, label, font, colour, label_width);
-                let left = if right { rect.right() - galley.size().x } else { rect.left() };
+                let left = if right {
+                    rect.right() - galley.size().x
+                } else {
+                    rect.left()
+                };
                 let top = crate::galley_top(ui.ctx(), &galley, rect.center().y);
                 ui.painter().galley(egui::pos2(left, top), galley, colour);
                 if let Some(hover) = hover_text(label, cut, tip) {
@@ -232,5 +347,30 @@ pub(crate) fn accessible_name(ui: &Ui, own: &str) -> String {
     if !own.is_empty() {
         return own.to_owned();
     }
-    ui.ctx().data(|d| d.get_temp::<Option<String>>(row_label_id())).flatten().unwrap_or_default()
+    ui.ctx()
+        .data(|d| d.get_temp::<Option<String>>(row_label_id()))
+        .flatten()
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::hover_text;
+
+    #[test]
+    fn truncated_labels_remain_available_with_their_help_text() {
+        assert_eq!(
+            hover_text("Long label", true, Some("Help")),
+            Some("Long label\n\nHelp".into())
+        );
+        assert_eq!(
+            hover_text("Long label", true, None),
+            Some("Long label".into())
+        );
+        assert_eq!(
+            hover_text("Label", false, Some("Help")),
+            Some("Help".into())
+        );
+        assert_eq!(hover_text("Label", false, None), None);
+    }
 }

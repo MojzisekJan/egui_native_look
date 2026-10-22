@@ -11,6 +11,7 @@ use crate::{Colors, Look, Theme};
 /// other text styles, so an app may set them before or after. The body and button text
 /// styles take the theme's [`crate::Metrics::body`].
 pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
+    let metrics = theme.metrics.clone().sanitized(theme.look);
     let c = Colors::resolve(theme, dark);
     let look = theme.look;
     let visuals = &mut style.visuals;
@@ -21,8 +22,12 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
     visuals.weak_text_color = Some(c.dim);
     visuals.hyperlink_color = c.accent;
     visuals.selection.bg_fill = c.accent.gamma_multiply(if dark { 0.55 } else { 0.35 });
-    visuals.selection.stroke = if look == Look::Mac { Stroke::new(2.0, c.accent.gamma_multiply(0.7)) } else { Stroke::new(1.0, c.accent) };
-    let rounding = CornerRadius::same(theme.metrics.radius);
+    visuals.selection.stroke = if look == Look::Mac {
+        Stroke::new(2.0, c.accent.gamma_multiply(0.7))
+    } else {
+        Stroke::new(1.0, c.accent)
+    };
+    let rounding = CornerRadius::same(metrics.radius);
     visuals.window_corner_radius = CornerRadius::same(match look {
         Look::Mac => 10,
         Look::Windows | Look::Gtk => 8,
@@ -43,7 +48,12 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
     w.noninteractive.bg_stroke = Stroke::new(1.0, c.border);
     w.noninteractive.fg_stroke = Stroke::new(1.0, c.fg);
     w.noninteractive.corner_radius = rounding;
-    for (state, fill) in [(&mut w.inactive, c.button), (&mut w.hovered, c.button_hover), (&mut w.active, c.button_pressed), (&mut w.open, c.button_hover)] {
+    for (state, fill) in [
+        (&mut w.inactive, c.button),
+        (&mut w.hovered, c.button_hover),
+        (&mut w.active, c.button_pressed),
+        (&mut w.open, c.button_hover),
+    ] {
         state.bg_fill = fill;
         state.weak_bg_fill = fill;
         state.corner_radius = rounding;
@@ -59,7 +69,11 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
         Look::Mac => w.active.bg_stroke = Stroke::new(1.0, c.accent),
         Look::Windows | Look::Gtk | Look::Ios | Look::Material => {}
     }
-    style.spacing.interact_size.y = theme.metrics.control_height;
-    style.text_styles.insert(egui::TextStyle::Button, theme.metrics.body.clone());
-    style.text_styles.insert(egui::TextStyle::Body, theme.metrics.body.clone());
+    style.spacing.interact_size.y = metrics.control_height;
+    style
+        .text_styles
+        .insert(egui::TextStyle::Button, metrics.body.clone());
+    style
+        .text_styles
+        .insert(egui::TextStyle::Body, metrics.body.clone());
 }
