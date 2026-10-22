@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>egui_native_look gallery</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1b1b; }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  html, body { margin: 0; height: 100%; height: 100dvh; overflow: hidden; background: #1b1b1b; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
   p { position: absolute; inset: 0; margin: auto; height: 1em; text-align: center; color: #999; font: 14px system-ui, sans-serif; }
 </style>
 </head>
@@ -14,9 +14,17 @@
 <p id="loading">Loading the gallery…</p>
 <canvas id="gallery"></canvas>
 <script type="module">
-  import init from "./gallery.js";
-  await init();
-  document.getElementById("loading").remove();
+  try {
+    const { fitCanvasToViewport } = await import("./viewport.mjs");
+    fitCanvasToViewport(document.getElementById("gallery"), window);
+    const { default: init } = await import("./gallery.js");
+    await init();
+    document.getElementById("loading").remove();
+  } catch (error) {
+    document.getElementById("loading").textContent = "Could not load the gallery. Reload to try again.";
+    document.getElementById("gallery").style.display = "none";
+    console.error(error);
+  }
 </script>
 </body>
 </html>
