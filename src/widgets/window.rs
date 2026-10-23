@@ -6,8 +6,10 @@ use egui::{Color32, CornerRadius, Rect, Sense, Stroke, Ui};
 use super::Ctx;
 use crate::Look;
 
-/// A dialog: a window inside the app with the look's header (its title and close
-/// button), a body, and a row of actions along the bottom.
+/// A dialog: a window inside the app with the look's header, a body, and a row of
+/// actions along the bottom. Each system draws its own: macOS's sheet, WinUI's content
+/// dialog, libadwaita's and iOS's alerts and Material's dialog, all closing on their
+/// actions; the plain look's window with its title and a close button.
 ///
 /// ```no_run
 /// # fn demo(ctx: &egui::Context, open: &mut bool) {
@@ -30,18 +32,33 @@ use crate::Look;
 pub struct Dialog {
     id: egui::Id,
     title: String,
-    size: egui::Vec2,
+    /// The size asked for; by default the look's.
+    size: Option<egui::Vec2>,
     close_label: String,
     close_on_escape: bool,
 }
 
 impl Dialog {
+    /// The size a dialog opens at unless asked otherwise: Material 3's 280-point minimum
+    /// width, libadwaita's 300-point alert, 420 by 240 elsewhere.
+    fn default_size(look: Look) -> egui::Vec2 {
+        match look {
+            Look::Material => egui::vec2(280.0, 1.0),
+            Look::Gtk => egui::vec2(300.0, 1.0),
+            // WinUI's content dialog is at least 320 wide.
+            Look::Windows => egui::vec2(320.0, 1.0),
+            // iOS 26's alert on an iPhone: 316 points.
+            Look::Ios => egui::vec2(316.0, 1.0),
+            _ => egui::vec2(420.0, 240.0),
+        }
+    }
+
     /// A dialog titled `title`; `id` keeps its place from frame to frame.
     pub fn new(id: impl egui::AsIdSalt, title: impl Into<String>) -> Self {
         Dialog {
             id: egui::Id::unique(id),
             title: title.into(),
-            size: egui::vec2(420.0, 240.0),
+            size: None,
             close_label: "Close".into(),
             close_on_escape: true,
         }
@@ -62,17 +79,19 @@ impl Dialog {
     /// are capped at 1,000,000 points.
     pub fn size(mut self, size: impl Into<egui::Vec2>) -> Self {
         let size = size.into();
-        self.size = egui::vec2(
-            super::dimension(size.x).unwrap_or(self.size.x),
-            super::dimension(size.y).unwrap_or(self.size.y),
-        );
+        let previous = self.size.unwrap_or(egui::vec2(420.0, 240.0));
+        self.size = Some(egui::vec2(
+            super::dimension(size.x).unwrap_or(previous.x),
+            super::dimension(size.y).unwrap_or(previous.y),
+        ));
         self
     }
 
     /// Shows a centred modal while `open`, blocking input to the UI behind it.
-    /// The close button and Escape clear `open`. The size is limited to the viewport,
-    /// with scrolling for tall content. Actions run right to left on wide dialogs and
-    /// top to bottom on narrow ones, aligned to the right. An unhandled Escape closes
+    /// A close button, where the look has one, and Escape clear `open`. The size is limited
+    /// to the viewport, with scrolling for tall content. Actions run right to left side by
+    /// side (sharing the row equally in libadwaita, WinUI and iOS), and top to bottom
+    /// aligned to the right when they do not fit. An unhandled Escape closes
     /// only the top dialog when enabled; fields and popups handle it first.
     /// Closing restores focus to the enabled widget focused when the dialog opened.
     /// Keep calling `show` with `open = false` after closing through application state.
@@ -105,6 +124,7 @@ impl Dialog {
                 opener: ctx.memory(|memory| memory.focused()),
                 frame: frame_nr,
                 editing: false,
+                settled: false,
             });
             ctx.memory_mut(|memory| memory.stop_text_input());
         }
@@ -130,6 +150,7 @@ impl Dialog {
                     blocked: false,
                     focused,
                     text_input: false,
+                    first_field: None,
                     pass: keyboard_pass,
                 },
             )
@@ -150,36 +171,178 @@ impl Dialog {
         let frame = dialog_frame(ctx);
         let available =
             (ctx.content_rect().size() - egui::vec2(32.0, 32.0)).max(egui::Vec2::splat(1.0));
-        let size = self.size.min(available);
-        let modal = egui::Modal::new(self.id)
+        let size = self
+            .size
+            .unwrap_or_else(|| Self::default_size(x.look))
+            .min(available);
+        let mut modal = egui::Modal::new(self.id)
             .area(egui::Modal::default_area(self.id).accessible_name(self.title.clone()))
-            .frame(frame)
-            .show(ctx, |ui| {
-                ui.set_width(size.x);
-                egui::ScrollArea::vertical()
-                    .max_height(available.y)
-                    .show(ui, |ui| {
-                        ui.set_min_width(size.x);
-                        ui.set_min_height(size.y);
-                        close |= header(ui, &x, &self.title, &self.close_label, false);
-                        egui::Frame::new().inner_margin(16).show(ui, |ui| {
+            .frame(frame);
+        match x.look {
+            // A macOS sheet dims the window behind it only lightly.
+            Look::Mac => {
+                modal =
+                    modal.backdrop_color(Color32::from_black_alpha(if x.c.dark { 80 } else { 50 }))
+            }
+            // Android's dialogs dim it to about half.
+            Look::Material => modal = modal.backdrop_color(Color32::from_black_alpha(138)),
+            // WinUI's smoke: black at 30 %; iOS dims to a fifth.
+            Look::Windows => modal = modal.backdrop_color(Color32::from_black_alpha(77)),
+            Look::Ios => modal = modal.backdrop_color(Color32::from_black_alpha(51)),
+            // libadwaita dims it with twice its shade colour.
+            Look::Gtk => {
+                modal = modal.backdrop_color(Color32::from_rgba_unmultiplied(
+                    0,
+                    0,
+                    6,
+                    if x.c.dark { 128 } else { 36 },
+                ))
+            }
+            _ => {}
+        }
+        let margin = if x.look == Look::Mac {
+            egui::Margin {
+                left: 20,
+                right: 20,
+                top: 0,
+                bottom: 20,
+            }
+        } else if matches!(x.look, Look::Material | Look::Gtk | Look::Windows) {
+            egui::Margin {
+                left: 24,
+                right: 24,
+                top: 0,
+                bottom: 24,
+            }
+        } else if x.look == Look::Ios {
+            // An iOS alert's buttons run 14 points from its sides and 16 from its foot.
+            egui::Margin {
+                left: 14,
+                right: 14,
+                top: 0,
+                bottom: 16,
+            }
+        } else {
+            egui::Margin::same(16)
+        };
+        let modal = modal.show(ctx, |ui| {
+            ui.set_width(size.x);
+            // The area offers last frame's size; let content that grew since then
+            // grow the dialog up to the viewport before it scrolls.
+            ui.set_max_height(available.y);
+            egui::ScrollArea::vertical()
+                .max_height(available.y)
+                .show(ui, |ui| {
+                    ui.set_min_width(size.x);
+                    ui.set_min_height(size.y);
+                    close |= header(ui, &x, &self.title, &self.close_label, false);
+                    egui::Frame::new().inner_margin(margin).show(ui, |ui| {
+                        if x.look == Look::Gtk {
+                            // An alert's body is centred under its heading.
+                            ui.vertical_centered(body);
+                        } else if x.look == Look::Ios {
+                            // iOS sets an alert's message 28 points in, in its 15-point
+                            // secondary text.
+                            egui::Frame::new()
+                                .inner_margin(egui::Margin::symmetric(14, 0))
+                                .show(ui, |ui| {
+                                    ui.style_mut().override_font_id =
+                                        Some(egui::FontId::new(15.0, x.m.body.family.clone()));
+                                    ui.visuals_mut().override_text_color = Some(x.c.dim);
+                                    body(ui);
+                                });
+                        } else {
                             body(ui);
-                            ui.add_space(12.0);
-                            let layout = if ui.available_width() < 360.0 {
-                                egui::Layout::top_down(egui::Align::Max)
-                            } else {
-                                egui::Layout::right_to_left(egui::Align::Center)
-                            };
-                            ui.with_layout(layout, actions);
+                        }
+                        ui.add_space(match x.look {
+                            Look::Material | Look::Windows => 24.0,
+                            Look::Gtk => 21.0,
+                            Look::Ios => 18.0,
+                            _ => 12.0,
                         });
+                        // WinUI sets its buttons apart on the window's own colour, under a
+                        // faint line, 24 points round them.
+                        let command = (x.look == Look::Windows).then(|| {
+                            let top = ui.cursor().top();
+                            ui.add_space(24.0);
+                            (ui.painter().add(egui::Shape::Noop), top)
+                        });
+                        // The row's width is only known after the actions are drawn, so it is
+                        // kept from the last side-by-side pass; a row that no longer fits
+                        // discards the pass and stacks the actions in the next one.
+                        let row_id = self.id.with("dialog-actions-width");
+                        let actions = |ui: &mut Ui| as_dialog_actions(ui, actions);
+                        let room = ui.available_width();
+                        let needed = ui.ctx().data(|d| d.get_temp::<f32>(row_id));
+                        if needed.is_some_and(|needed| needed > room) {
+                            ui.with_layout(egui::Layout::top_down(egui::Align::Max), actions);
+                        } else {
+                            // Sized like `ui.horizontal`, so the row is centred on its
+                            // own height rather than on the room left in the dialog.
+                            let row = egui::vec2(room, ui.spacing().interact_size.y);
+                            let width = ui
+                                .allocate_ui_with_layout(
+                                    row,
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        actions(ui);
+                                        ui.min_rect().width()
+                                    },
+                                )
+                                .inner;
+                            ui.ctx().data_mut(|d| d.insert_temp(row_id, width));
+                            if width > room {
+                                ui.ctx().request_discard("egui_native_look::Dialog actions");
+                            }
+                        }
+                        if let Some((shape, top)) = command {
+                            let inner = ui.max_rect();
+                            let area = Rect::from_min_max(
+                                egui::pos2(inner.left() - 24.0, top),
+                                egui::pos2(inner.right() + 24.0, ui.min_rect().bottom() + 24.0),
+                            );
+                            let line = Color32::from_black_alpha(if x.c.dark { 25 } else { 15 });
+                            ui.painter().set(
+                                shape,
+                                egui::Shape::Vec(vec![
+                                    egui::Shape::rect_filled(
+                                        area,
+                                        CornerRadius {
+                                            sw: 8,
+                                            se: 8,
+                                            ..Default::default()
+                                        },
+                                        x.c.bg,
+                                    ),
+                                    egui::Shape::hline(
+                                        area.x_range(),
+                                        area.top() + 0.5,
+                                        Stroke::new(1.0, line),
+                                    ),
+                                ]),
+                            );
+                        }
                     });
-            });
+                });
+        });
         let focused = ctx.memory(|memory| memory.focused());
-        state.editing = ctx
-            .data(|data| data.get_temp::<DialogKeyboard>(keyboard_id))
-            .is_some_and(|keyboard| {
-                keyboard.text_input && focused.is_some() && focused == keyboard.focused
-            });
+        let keyboard = ctx.data(|data| data.get_temp::<DialogKeyboard>(keyboard_id));
+        state.editing = keyboard.as_ref().is_some_and(|keyboard| {
+            keyboard.text_input && focused.is_some() && focused == keyboard.focused
+        });
+        // The first frame only measures the dialog, so its fields take no focus yet.
+        if !state.settled && !newly_opened {
+            // An opened dialog puts the focus in its first text field, as GNOME's and
+            // macOS's do, unless the focus already moved into it. Not on a touch screen,
+            // where it would raise the software keyboard unasked.
+            let touch = crate::touch_screen() || ctx.input(|input| input.has_touch_screen());
+            if let Some(field) = keyboard.and_then(|keyboard| keyboard.first_field) {
+                if !touch && (focused.is_none() || focused == state.opener) {
+                    ctx.memory_mut(|memory| memory.request_focus(field));
+                }
+            }
+            state.settled = true;
+        }
         ctx.data_mut(|data| data.insert_temp(state_id, state.clone()));
         close |= modal.response.should_close();
         close |= escape_allowed
@@ -199,6 +362,8 @@ struct DialogLifecycle {
     opener: Option<egui::Id>,
     frame: u64,
     editing: bool,
+    /// Whether the dialog has given out its initial focus.
+    settled: bool,
 }
 
 #[derive(Clone)]
@@ -207,6 +372,8 @@ struct DialogKeyboard {
     blocked: bool,
     focused: Option<egui::Id>,
     text_input: bool,
+    /// The first enabled text field laid out in the dialog this pass.
+    first_field: Option<egui::Id>,
     pass: u64,
 }
 
@@ -244,6 +411,21 @@ fn restore_dialog_focus(ctx: &egui::Context, opener: Option<egui::Id>) {
     }
 }
 
+/// Records an enabled text field `id` in the dialog `ui` belongs to, if any; the first is
+/// the one an opened dialog focuses.
+pub(super) fn dialog_field(ui: &Ui, id: egui::Id) {
+    let key = ui.layer_id().id.with("dialog-keyboard");
+    let pass = ui.ctx().cumulative_pass_nr();
+    ui.data_mut(|data| {
+        if let Some(mut keyboard) = data.get_temp::<DialogKeyboard>(key) {
+            if keyboard.pass == pass && keyboard.first_field.is_none() {
+                keyboard.first_field = Some(id);
+                data.insert_temp(key, keyboard);
+            }
+        }
+    });
+}
+
 pub(super) fn dialog_text_input(ui: &Ui, composing: bool) {
     let id = ui.layer_id().id.with("dialog-keyboard");
     let pass = ui.ctx().cumulative_pass_nr();
@@ -256,6 +438,77 @@ pub(super) fn dialog_text_input(ui: &Ui, composing: bool) {
             }
         }
     });
+}
+
+fn dialog_actions_id() -> egui::Id {
+    egui::Id::unique("egui_native_look::Dialog actions")
+}
+
+/// Runs `actions`, the buttons along a dialog's bottom, marked as such for
+/// [`in_dialog_actions`].
+fn as_dialog_actions(ui: &mut Ui, actions: impl FnOnce(&mut Ui)) {
+    let outer = in_dialog_actions(ui.ctx());
+    ui.data_mut(|d| d.insert_temp(dialog_actions_id(), true));
+    let look = crate::look(ui.ctx());
+    if matches!(look, Look::Gtk | Look::Windows | Look::Ios) {
+        // libadwaita's responses and WinUI's and iOS's buttons share the row in equal widths,
+        // 12 and 8 points apart: each button takes its share of the row by the count of the
+        // last pass.
+        let gap = if look == Look::Gtk { 12.0 } else { 8.0 };
+        ui.spacing_mut().item_spacing.x = gap;
+        let room = ui.available_width();
+        let count =
+            ui.data(|d| d.get_temp::<usize>(dialog_actions_count_id(ui.layer_id()).with("last")));
+        ui.data_mut(|d| {
+            d.insert_temp(dialog_actions_count_id(ui.layer_id()), 0usize);
+            d.insert_temp(
+                dialog_actions_count_id(ui.layer_id()).with("share"),
+                count.map(|n| (room - gap * (n.max(1) - 1) as f32) / n.max(1) as f32),
+            );
+        });
+    }
+    let last =
+        ui.data(|d| d.get_temp::<usize>(dialog_actions_count_id(ui.layer_id()).with("last")));
+    actions(ui);
+    let n = ui.data_mut(|d| {
+        d.insert_temp(dialog_actions_id(), outer);
+        let n = d
+            .get_temp::<usize>(dialog_actions_count_id(ui.layer_id()))
+            .unwrap_or(0);
+        d.insert_temp(dialog_actions_count_id(ui.layer_id()).with("last"), n);
+        n
+    });
+    // A changed count (the first pass too) shares the row out wrongly: lay it out again.
+    if matches!(look, Look::Gtk | Look::Windows | Look::Ios) && last != Some(n) {
+        ui.ctx()
+            .request_discard("egui_native_look::Dialog action count");
+    }
+}
+
+/// Where a dialog keeps its actions' count, under the dialog's own layer.
+fn dialog_actions_count_id(layer: egui::LayerId) -> egui::Id {
+    layer.id.with("egui_native_look::Dialog actions count")
+}
+
+/// The width each of a libadwaita alert's responses or a WinUI dialog's buttons takes,
+/// counting this one, or `None` outside a dialog's actions and on the first pass.
+pub(super) fn shared_action_width(ui: &Ui) -> Option<f32> {
+    if !in_dialog_actions(ui.ctx()) {
+        return None;
+    }
+    let key = dialog_actions_count_id(ui.layer_id());
+    ui.data_mut(|d| {
+        let n = d.get_temp::<usize>(key).unwrap_or(0);
+        d.insert_temp(key, n + 1);
+        d.get_temp::<Option<f32>>(key.with("share")).flatten()
+    })
+}
+
+/// Whether the buttons being added are a dialog's actions, which Material 3 draws as text
+/// buttons.
+pub(super) fn in_dialog_actions(ctx: &egui::Context) -> bool {
+    ctx.data(|d| d.get_temp::<bool>(dialog_actions_id()))
+        .unwrap_or(false)
 }
 
 pub(super) fn dialog_button(ui: &Ui, response: &mut egui::Response, default: bool) {
@@ -440,13 +693,68 @@ fn escape_closes(ctx: &egui::Context, id: egui::Id) -> bool {
     topmost && ctx.input(|input| input.focused && input.key_pressed(egui::Key::Escape))
 }
 
-/// Material modal surfaces use the backdrop instead of a window outline or shadow.
+/// Material modal surfaces use the backdrop instead of a window outline or shadow; a macOS
+/// sheet is rounder than a window.
 fn dialog_frame(ctx: &egui::Context) -> egui::Frame {
     let frame = window_frame(ctx).inner_margin(0);
-    if crate::look(ctx) == Look::Material {
-        frame.stroke(Stroke::NONE).shadow(egui::Shadow::NONE)
-    } else {
-        frame
+    match crate::look(ctx) {
+        Look::Material => frame.stroke(Stroke::NONE).shadow(egui::Shadow::NONE),
+        // iOS 26's alert: a light glass, 30-point corners, a soft shadow.
+        Look::Ios => {
+            let c = crate::colors(ctx);
+            let ink = if c.dark {
+                Color32::WHITE
+            } else {
+                Color32::BLACK
+            };
+            frame
+                .corner_radius(CornerRadius::same(30))
+                .stroke(Stroke::NONE)
+                .fill(crate::lerp_color(
+                    c.bg,
+                    ink,
+                    if c.dark { 0.07 } else { 0.067 },
+                ))
+        }
+        // WinUI lays a white layer over the window's colour for the dialog's content (a
+        // twentieth of white on the dark scheme); its buttons keep the window's colour.
+        Look::Windows => {
+            let c = crate::colors(ctx);
+            frame.fill(if c.dark {
+                crate::lerp_color(c.bg, Color32::WHITE, 0.05)
+            } else {
+                Color32::WHITE
+            })
+        }
+        // libadwaita's alert: 18-point corners, the window's colour on the light scheme
+        // and a lighter grey on the dark, a soft shade around it.
+        Look::Gtk => {
+            let c = crate::colors(ctx);
+            frame
+                .corner_radius(CornerRadius::same(18))
+                .stroke(Stroke::NONE)
+                .fill(if c.dark { c.surface } else { c.bg })
+                .shadow(egui::Shadow {
+                    offset: [0, 0],
+                    blur: 5,
+                    spread: 2,
+                    color: Color32::from_rgba_unmultiplied(0, 0, 6, 26),
+                })
+        }
+        // A macOS sheet has no edge, and on the dark scheme stands a shade above the window.
+        Look::Mac => {
+            let c = crate::colors(ctx);
+            let fill = if c.dark {
+                crate::lerp_color(c.surface, Color32::WHITE, 0.022)
+            } else {
+                c.surface
+            };
+            frame
+                .corner_radius(CornerRadius::same(16))
+                .stroke(Stroke::NONE)
+                .fill(fill)
+        }
+        _ => frame,
     }
 }
 
@@ -479,51 +787,95 @@ pub fn window_frame(ctx: &egui::Context) -> egui::Frame {
 }
 
 /// A dialog's header in the look. Returns whether its close button was clicked.
-/// Material's dialogs have none, closing on their actions; `closable` gives one anyway,
-/// for a window without actions.
+/// Material's dialogs and macOS's sheets have none, closing on their actions; `closable`
+/// gives one anyway, for a window without actions.
 fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) -> bool {
     let c = &x.c;
+    // A macOS sheet has no title bar: its title is bold text at the top of the body;
+    // a libadwaita alert has its heading centred 32 points down, ten above its body.
+    let sheet = x.look == Look::Mac && !closable;
+    // WinUI's content dialog: its title 24 points in, without a close button or a line.
+    let content_dialog = x.look == Look::Windows && !closable;
+    let alert = x.look == Look::Gtk && !closable;
+    // iOS 26's alert: its bold title 28 points in, without a bar.
+    let ios_alert = x.look == Look::Ios && !closable;
     let height: f32 = match x.look {
-        Look::Material => 56.0,
+        // Material's title sits 24 points in, its 32-point line 16 points above the body.
+        Look::Material => 72.0,
+        _ if alert => 66.0,
+        _ if ios_alert => 48.0,
+        _ if content_dialog => 64.0,
         Look::Ios => 52.0,
+        _ if sheet => 48.0,
+        // macOS's title bar.
+        Look::Mac => 32.0,
         _ => 40.0,
     };
     let height = height.max(super::minimum_target(ui));
     let (bar, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::hover());
     let painter = ui.painter();
     let font = match x.look {
-        // Material's dialog title is its headline-small (24), Windows' its subtitle (20).
-        Look::Material => egui::FontId::new(22.0, x.m.bold.family.clone()),
+        // Material's dialog title is its headline-small (24, regular), Windows' its
+        // subtitle (20).
+        Look::Material => egui::FontId::new(24.0, x.m.body.family.clone()),
+        Look::Windows if content_dialog => egui::FontId::new(20.0, x.m.bold.family.clone()),
         Look::Windows => egui::FontId::new(18.0, x.m.bold.family.clone()),
+        _ if ios_alert => x.m.bold.clone(),
+        // libadwaita's title-2: 136 % of the body, in its heaviest weight.
+        _ if alert => egui::FontId::new(x.m.body.size * 1.36, x.m.bold.family.clone()),
         _ => x.m.bold.clone(),
     };
-    let left_title = matches!(x.look, Look::Windows | Look::Material);
+    let left_title = sheet || matches!(x.look, Look::Windows | Look::Material);
     // The title keeps clear of the close button at either end, cut short if it must be.
     let (galley, _) = super::truncated(ui, title, font, c.fg, bar.width() - 2.0 * 48.0);
-    let left = if left_title {
+    let left = if ios_alert {
+        bar.left() + 28.0
+    } else if x.look == Look::Material || content_dialog {
+        bar.left() + 24.0
+    } else if left_title {
         bar.left() + 20.0
     } else {
         bar.center().x - galley.size().x / 2.0
     };
-    let top = crate::galley_top(ui.ctx(), &galley, bar.center().y);
+    let middle = if sheet {
+        bar.center().y + 4.0
+    } else if x.look == Look::Material {
+        bar.top() + 38.5
+    } else if alert {
+        bar.top() + 44.0
+    } else if content_dialog {
+        bar.top() + 38.0
+    } else if ios_alert {
+        bar.top() + 31.0
+    } else {
+        bar.center().y
+    };
+    let top = crate::galley_top(ui.ctx(), &galley, middle);
     painter.galley(egui::pos2(left, top), galley, c.fg);
-    if !left_title {
-        painter.hline(
-            bar.x_range(),
-            bar.bottom() - 0.5,
-            Stroke::new(1.0, c.border),
-        );
+    if !left_title && !alert && !ios_alert {
+        let line = if x.look == Look::Mac {
+            let ink = if c.dark {
+                Color32::WHITE
+            } else {
+                Color32::BLACK
+            };
+            crate::lerp_color(c.surface, ink, if c.dark { 0.1 } else { 0.09 })
+        } else {
+            c.border
+        };
+        painter.hline(bar.x_range(), bar.bottom() - 0.5, Stroke::new(1.0, line));
     }
     match x.look {
-        Look::Material if !closable => false,
+        Look::Material | Look::Mac | Look::Gtk | Look::Windows | Look::Ios if !closable => false,
         Look::Mac => {
-            // The window's red close button at the start of the bar.
+            // The window's red close button at the start of the bar: fourteen points,
+            // centred sixteen from the corner.
             let dot = Rect::from_center_size(
                 egui::pos2(
-                    bar.left() + 20.0_f32.max(super::minimum_target(ui) * 0.5),
+                    bar.left() + 16.0_f32.max(super::minimum_target(ui) * 0.5),
                     bar.center().y,
                 ),
-                egui::Vec2::splat(12.0),
+                egui::Vec2::splat(14.0),
             );
             let response = super::click_response(
                 ui,
@@ -540,8 +892,11 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
             response.widget_info(|| {
                 egui::WidgetInfo::labeled(egui::Role::Button, ui.is_enabled(), close_label)
             });
-            ui.painter()
-                .circle_filled(dot.center(), 6.0, crate::colors::rgb(0xff5f57));
+            ui.painter().circle_filled(
+                dot.center(),
+                7.0,
+                crate::colors::rgb(if c.dark { 0xf2605a } else { 0xf9807a }),
+            );
             if response.hovered() {
                 let m = dot.center();
                 let s = Stroke::new(1.2, Color32::from_black_alpha(150));
@@ -838,30 +1193,55 @@ mod tests {
 
     #[test]
     fn other_dialog_looks_keep_their_window_frames() {
-        for chosen in [
-            crate::Look::Plain,
-            crate::Look::Mac,
-            crate::Look::Windows,
-            crate::Look::Gtk,
-            crate::Look::Ios,
-        ] {
+        for chosen in [crate::Look::Plain, crate::Look::Mac] {
             for scheme in [egui::Theme::Dark, egui::Theme::Light] {
                 let ctx = egui::Context::default();
                 crate::install(&ctx, crate::Theme::new(chosen));
                 ctx.set_theme(scheme);
-                assert_eq!(
-                    super::dialog_frame(&ctx),
-                    super::window_frame(&ctx).inner_margin(0)
-                );
+                let window = super::window_frame(&ctx).inner_margin(0);
+                // A macOS sheet keeps the window's shadow, rounder and without an edge.
+                let expected = if chosen == crate::Look::Mac {
+                    let c = crate::colors(&ctx);
+                    let fill = if c.dark {
+                        crate::lerp_color(c.surface, egui::Color32::WHITE, 0.022)
+                    } else {
+                        c.surface
+                    };
+                    window
+                        .corner_radius(egui::CornerRadius::same(16))
+                        .stroke(egui::Stroke::NONE)
+                        .fill(fill)
+                } else {
+                    window
+                };
+                assert_eq!(super::dialog_frame(&ctx), expected);
             }
         }
+    }
+
+    #[test]
+    fn a_gtk_dialog_is_an_alert() {
+        let ctx = egui::Context::default();
+        crate::install(&ctx, crate::Theme::new(crate::Look::Gtk));
+        // libadwaita's alert: 18-point corners, rounder than its windows' 12.
+        assert_eq!(
+            super::dialog_frame(&ctx).corner_radius,
+            egui::CornerRadius::same(18)
+        );
+        assert_eq!(
+            super::window_frame(&ctx).corner_radius,
+            egui::CornerRadius::same(12)
+        );
     }
 
     #[test]
     fn invalid_window_axes_preserve_previous_sizes() {
         for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 0.0, -1.0] {
             let dialog = Dialog::new("dialog", "Dialog").size((123.0, 234.0));
-            assert_eq!(dialog.size((invalid, 345.0)).size, egui::vec2(123.0, 345.0));
+            assert_eq!(
+                dialog.size((invalid, 345.0)).size,
+                Some(egui::vec2(123.0, 345.0))
+            );
             let window = ToolWindow::new("window", "Window").default_size((123.0, 234.0));
             assert_eq!(
                 window.default_size((345.0, invalid)).size,
@@ -871,7 +1251,7 @@ mod tests {
         let bounds = egui::vec2(f32::MIN_POSITIVE, f32::MAX);
         assert_eq!(
             Dialog::new("dialog", "Dialog").size(bounds).size,
-            egui::vec2(1.0, 1_000_000.0)
+            Some(egui::vec2(1.0, 1_000_000.0))
         );
         assert_eq!(
             ToolWindow::new("window", "Window")

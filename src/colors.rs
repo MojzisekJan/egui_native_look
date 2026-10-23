@@ -2,7 +2,7 @@
 
 use egui::Color32;
 
-use crate::{lighten, Look, Theme};
+use crate::{lerp_color, lighten, Look, Theme};
 
 pub(crate) fn rgb(c: u32) -> Color32 {
     Color32::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8)
@@ -64,10 +64,16 @@ pub struct Colors {
     pub on_accent: Color32,
     /// A list row or menu item under the pointer.
     pub row_hover: Color32,
+    /// Whether the window is active. macOS draws an inactive window's accent in grey,
+    /// which these colours already carry in the macOS look.
+    pub active: bool,
+    /// Whether the theme asks for more contrast; the controls then draw an edge in
+    /// `control_border`.
+    pub high_contrast: bool,
 }
 
-/// `(dark, light)` for macOS, Windows, GTK, iOS and Material.
-type Shades = [(u32, u32); 5];
+/// `(dark, light)` for Windows, GTK, iOS and Material.
+type Shades = [(u32, u32); 4];
 
 impl Colors {
     /// The colours of `theme` in the dark scheme or the light one.
@@ -78,15 +84,24 @@ impl Colors {
             theme.schemes.light
         };
         let look = theme.look;
-        let by = |shades: Shades, plain: Color32| -> Color32 {
+        let by = |shades: Shades, mac: Color32, plain: Color32| -> Color32 {
             let pick = |(d, l): (u32, u32)| rgb(if dark { d } else { l });
             match look {
-                Look::Mac => pick(shades[0]),
-                Look::Windows => pick(shades[1]),
-                Look::Gtk => pick(shades[2]),
-                Look::Ios => pick(shades[3]),
-                Look::Material => pick(shades[4]),
+                Look::Mac => mac,
+                Look::Windows => pick(shades[0]),
+                Look::Gtk => pick(shades[1]),
+                Look::Ios => pick(shades[2]),
+                Look::Material => pick(shades[3]),
                 Look::Plain => plain,
+            }
+        };
+        // macOS 26 fills its controls with the text colour's ink at a low opacity, so they
+        // show on any window: `(dark, light)` opacities of white and of black.
+        let ink = |(d, l): (f32, f32)| {
+            if dark {
+                crate::lerp_color(p.bg, Color32::WHITE, d)
+            } else {
+                crate::lerp_color(p.bg, Color32::BLACK, l)
             }
         };
         let system_accent = theme.accent.map(|[d, l]| rgb(if dark { d } else { l }));
@@ -94,8 +109,8 @@ impl Colors {
             // WinUI's default blue, Light 2 on the dark scheme and Dark 1 on the light.
             Look::Windows => system_accent.unwrap_or(rgb(if dark { 0x60cdff } else { 0x005fb8 })),
             Look::Gtk => system_accent.unwrap_or(rgb(0x3584e4)),
-            // systemBlue; Material 3's baseline primary.
-            Look::Ios => system_accent.unwrap_or(rgb(if dark { 0x0a84ff } else { 0x007aff })),
+            // iOS 26's systemBlue; Material 3's baseline primary.
+            Look::Ios => system_accent.unwrap_or(rgb(if dark { 0x0091ff } else { 0x0088ff })),
             Look::Material => system_accent.unwrap_or(rgb(if dark { 0xd0bcff } else { 0x6750a4 })),
             Look::Mac => system_accent.unwrap_or(p.accent),
             Look::Plain => p.accent,
@@ -104,11 +119,12 @@ impl Colors {
             // WinUI shows the accent at 90 % under the pointer.
             Look::Windows => accent.gamma_multiply(0.9).to_opaque(),
             Look::Gtk | Look::Ios => lighten(accent, 0.1),
-            Look::Material => accent.gamma_multiply(0.92).to_opaque(),
+            // Material lays its 8 % state layer in the primary's text colour.
+            Look::Material => lerp_color(accent, on(accent, look), 0.08),
             Look::Mac if system_accent.is_some() => lighten(accent, 0.15),
             _ => p.accent_hover,
         };
-        Colors {
+        let colors = Colors {
             dark,
             fg: p.fg,
             dim: p.dim,
@@ -123,92 +139,92 @@ impl Colors {
             // container (secondaryContainer) and the highest surface container.
             button: by(
                 [
-                    (0x3d3f45, 0xffffff),
                     (0x2f3136, 0xfbfbfb),
                     (0x323336, 0xdadbde),
-                    (0x3a3a3c, 0xe5e5ea),
+                    (0x262629, 0xe9e9eb),
                     (0x4a4458, 0xe8def8),
                 ],
+                ink((0.09, 0.063)),
                 p.button,
             ),
             button_hover: by(
                 [
-                    (0x46484f, 0xf7f7f8),
                     (0x36383d, 0xf5f5f5),
                     (0x3d3e41, 0xd0d1d4),
-                    (0x48484a, 0xdcdce1),
+                    (0x2f2f33, 0xe1e1e4),
                     (0x564f66, 0xddd2ee),
                 ],
+                ink((0.11, 0.085)),
                 p.button_hover,
             ),
             button_pressed: by(
                 [
-                    (0x35373c, 0xe4e4e7),
                     (0x2a2c30, 0xf3f3f3),
                     (0x5f6063, 0xb0b1b4),
-                    (0x545456, 0xd1d1d6),
+                    (0x3a3a3e, 0xd6d6da),
                     (0x625a74, 0xd2c6e4),
                 ],
+                ink((0.2, 0.15)),
                 p.button_pressed,
             ),
             button_disabled: by(
                 [
-                    (0x2c2e33, 0xf1f1f3),
                     (0x2a2c30, 0xf5f5f5),
                     (0x26272a, 0xe3e4e7),
-                    (0x232325, 0xefeff4),
+                    (0x262629, 0xe9e9eb),
                     (0x2b292f, 0xeae6ee),
                 ],
+                ink((0.045, 0.035)),
                 p.button_disabled,
             ),
             entry: by(
                 [
-                    (0x2a2c31, 0xffffff),
                     (0x2f3136, 0xfbfbfb),
                     (0x323336, 0xdadbde),
-                    (0x2c2c2e, 0xffffff),
+                    (0x000000, 0xffffff),
                     (0x36343b, 0xe6e0e9),
                 ],
+                rgb(if dark { 0x181818 } else { 0xffffff }),
                 p.entry,
             ),
             entry_focused: by(
                 [
-                    (0x2a2c31, 0xffffff),
                     (0x1d1e21, 0xffffff),
                     (0x323336, 0xdadbde),
-                    (0x2c2c2e, 0xffffff),
+                    (0x000000, 0xffffff),
                     (0x36343b, 0xe6e0e9),
                 ],
+                rgb(if dark { 0x181818 } else { 0xffffff }),
                 p.entry,
             ),
             control_border: by(
                 [
-                    (0x4a4d54, 0xc9c9ce),
                     (0x3a3c41, 0xe5e5e5),
                     (0x3d3e41, 0xd0d1d4),
-                    (0x38383a, 0xd1d1d6),
+                    (0x333333, 0xcccccc),
                     (0x49454f, 0xcac4d0),
                 ],
+                ink((0.058, 0.067)),
                 p.border,
             ),
             control_strong: by(
                 [
-                    (0x8b9199, 0x5e646c),
                     (0x9a9b9e, 0x868686),
                     (0x5f6063, 0xb0b1b4),
                     (0x636366, 0xc7c7cc),
                     (0x938f99, 0x79747e),
                 ],
+                rgb(if dark { 0x8b9199 } else { 0x5e646c }),
                 p.dim,
             ),
             track: by(
                 [
-                    (0x3a3c42, 0xe3e3e7),
                     (0x26282c, 0xe1e1e3),
                     (0x3d3e41, 0xd0d1d4),
-                    (0x39393d, 0xe9e9ea),
+                    (0x2b2b2e, 0xe5e5e6),
                     (0x36343b, 0xe6e0e9),
                 ],
+                ink((0.117, 0.09)),
                 p.button,
             ),
             raised: if dark { rgb(0x5b5e65) } else { Color32::WHITE },
@@ -216,6 +232,25 @@ impl Colors {
             accent_hover,
             on_accent: on(accent, look),
             row_hover: p.row_hover,
+            active: true,
+            high_contrast: false,
+        };
+        let colors = match look {
+            Look::Ios => colors.ios_fills(),
+            Look::Gtk => colors.gtk_fills(),
+            // Material 3's disabled roles: content at 38 % of the text colour, containers
+            // at 12 %.
+            Look::Material => Colors {
+                disabled: lerp_color(colors.bg, colors.fg, 0.38),
+                button_disabled: lerp_color(colors.bg, colors.fg, 0.12),
+                ..colors
+            },
+            _ => colors,
+        };
+        if theme.high_contrast {
+            colors.more_contrast()
+        } else {
+            colors
         }
     }
 }
@@ -241,6 +276,78 @@ fn on(accent: Color32, look: Look) -> Color32 {
         rgb(0x381e72)
     } else {
         Color32::BLACK
+    }
+}
+
+impl Colors {
+    /// More contrast, after libadwaita's high-contrast values: separators and control
+    /// edges at half the text colour, troughs at 30 %, secondary text at 90 %, and controls
+    /// outlined.
+    fn more_contrast(mut self) -> Colors {
+        let fg = self.fg;
+        let mix = |share: f32| {
+            Color32::from_rgba_unmultiplied(fg.r(), fg.g(), fg.b(), (share * 255.0).round() as u8)
+        };
+        self.high_contrast = true;
+        self.dim = lerp_color(self.bg, fg, 0.9);
+        self.border = lerp_color(self.bg, fg, 0.5);
+        self.grid = self.border;
+        self.control_border = mix(0.5);
+        self.control_strong = lerp_color(self.bg, fg, 0.8);
+        self.track = mix(0.3);
+        self
+    }
+
+    /// libadwaita's fills: the text colour mixed with transparency, so they read the same
+    /// over any surface (buttons and entries 10 %, hovered 15 %, pressed 30 %; troughs 15 %).
+    fn gtk_fills(mut self) -> Colors {
+        let fg = self.fg;
+        let mix = |share: f32| {
+            Color32::from_rgba_unmultiplied(fg.r(), fg.g(), fg.b(), (share * 255.0).round() as u8)
+        };
+        self.button = mix(0.1);
+        self.button_hover = mix(0.15);
+        self.button_pressed = mix(0.3);
+        self.button_disabled = self.button;
+        self.entry = mix(0.1);
+        self.entry_focused = mix(0.1);
+        self.track = mix(0.15);
+        self
+    }
+
+    /// iOS 26's fills, translucent over the window as its system fills are, measured on
+    /// white and black: `(dark, light)` opacities of white and black.
+    fn ios_fills(mut self) -> Colors {
+        let base = self;
+        let ink = |(d, l): (f32, f32)| crate::ink(&base, d, l);
+        self.button = ink((0.15, 0.086));
+        self.button_hover = ink((0.18, 0.11));
+        self.button_pressed = ink((0.23, 0.16));
+        self.button_disabled = self.button;
+        self.track = ink((0.17, 0.1));
+        self.entry = self.bg;
+        self.entry_focused = self.bg;
+        self.control_border = ink((0.2, 0.2));
+        // The tertiary label, for disabled text and placeholders.
+        self.disabled = lerp_color(self.bg, self.fg, if self.dark { 0.345 } else { 0.27 });
+        self
+    }
+
+    /// These colours as an inactive window shows them: in the macOS look the accent
+    /// turns a grey with the text colour on it; the other looks keep theirs.
+    pub(crate) fn inactive(mut self, look: Look) -> Colors {
+        self.active = false;
+        if look == Look::Mac {
+            let ink = if self.dark {
+                Color32::WHITE
+            } else {
+                Color32::BLACK
+            };
+            self.accent = crate::lerp_color(self.bg, ink, if self.dark { 0.17 } else { 0.12 });
+            self.accent_hover = self.accent;
+            self.on_accent = self.fg;
+        }
+        self
     }
 }
 

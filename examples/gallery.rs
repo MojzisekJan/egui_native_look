@@ -1,5 +1,5 @@
 //! Every control in every look: `cargo run --example gallery [mac|windows|gtk|ios|material|plain] [light]`.
-//! The look and the scheme can be switched in the window too; `dialog` opens the dialog, `toast` shows a toast, `window` the tool window. With `GALLERY_SHOT=file.png`
+//! The look and the scheme can be switched in the window too; `dialog` opens the dialog, `toast` shows a toast, `window` the tool window, `contrast` asks for more contrast. With `GALLERY_SHOT=file.png`
 //! it saves its window to that file and quits. In the browser (`web/build.sh`) the same words go in the page's query: `?mac&light`.
 
 use eframe::egui;
@@ -49,7 +49,11 @@ fn main() {
     });
 }
 
-/// `look` with its system's sizes and, where the system has it, its semibold.
+/// Whether the gallery was asked for more contrast (the word `contrast`).
+static CONTRAST: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// `look` with its system's sizes and, where the system has it, its semibold; with more
+/// contrast when asked.
 fn theme(look: look::Look) -> look::Theme {
     let metrics = look::Metrics::of(look);
     let metrics = if look::system_fonts(look).is_some() {
@@ -57,7 +61,9 @@ fn theme(look: look::Look) -> look::Theme {
     } else {
         metrics
     };
-    look::Theme::new(look).metrics(metrics)
+    look::Theme::new(look)
+        .metrics(metrics)
+        .high_contrast(CONTRAST.load(std::sync::atomic::Ordering::Relaxed))
 }
 
 #[derive(Default)]
@@ -112,6 +118,7 @@ impl Gallery {
         shot: Option<std::path::PathBuf>,
     ) -> Self {
         let has = |word: &str| args.iter().any(|a| a == word);
+        CONTRAST.store(has("contrast"), std::sync::atomic::Ordering::Relaxed);
         let chosen = args
             .first()
             .and_then(|name| look::Look::from_name(name))
@@ -165,6 +172,23 @@ const LOOKS: [look::Look; 6] = [
 ];
 
 /// Custom widgets allocate complete rectangles, so narrow rows stack explicitly.
+/// A vertical scroll area that a touch screen scrolls by dragging from its first touch.
+/// egui enables dragging only once it has seen a touch, which would leave the first
+/// swipe on a phone without effect.
+fn scroll_area(id: &str, touch: bool) -> egui::ScrollArea {
+    let drag = if touch {
+        egui::scroll_area::DragScroll::Always
+    } else {
+        egui::scroll_area::DragScroll::OnTouch
+    };
+    egui::ScrollArea::vertical()
+        .id_salt(id)
+        .scroll_source(egui::scroll_area::ScrollSource {
+            drag,
+            ..Default::default()
+        })
+}
+
 fn responsive_row<R>(
     ui: &mut egui::Ui,
     add: impl FnOnce(&mut egui::Ui) -> R,
@@ -188,26 +212,22 @@ impl eframe::App for Gallery {
                 .exact_size(400.0)
                 .frame(egui::Frame::central_panel(&ctx.global_style()))
                 .show(ui, |ui| {
-                    egui::ScrollArea::vertical()
-                        .id_salt("more-scroll")
-                        .show(ui, |ui| {
-                            ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
-                            self.more(ui);
-                        });
+                    scroll_area("more-scroll", look::touch_screen()).show(ui, |ui| {
+                        ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
+                        self.more(ui);
+                    });
                 });
         }
         look::show_toasts(&ctx);
         egui::CentralPanel::default().show(ui, |ui| {
-            egui::ScrollArea::vertical()
-                .id_salt("gallery-scroll")
-                .show(ui, |ui| {
-                    ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
-                    self.controls(ui);
-                    if compact {
-                        ui.separator();
-                        self.more(ui);
-                    }
-                });
+            scroll_area("gallery-scroll", look::touch_screen()).show(ui, |ui| {
+                ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
+                self.controls(ui);
+                if compact {
+                    ui.separator();
+                    self.more(ui);
+                }
+            });
         });
     }
 }
@@ -222,11 +242,11 @@ impl Gallery {
         let ctx = ui.ctx().clone();
         responsive_row(ui, |ui| {
             let labels: Vec<&str> = LOOKS.iter().map(|l| l.label()).collect();
-            let changed = if ui.available_width() < 560.0 {
+            let changed = if ui.available_width() < 620.0 {
                 ui.add(look::Dropdown::new("look", &mut self.look, &labels).width(180.0))
                     .changed()
             } else {
-                ui.add(look::Segmented::new("look", &mut self.look, &labels).width(440.0))
+                ui.add(look::Segmented::new("look", &mut self.look, &labels).width(500.0))
                     .changed()
             };
             if changed {
@@ -235,7 +255,10 @@ impl Gallery {
                 ctx.set_fonts(fonts);
                 look::install(&ctx, theme(LOOKS[self.look]));
             }
-            if ui.add(look::Switch::new(&mut self.light)).changed() {
+            if ui
+                .add(look::Switch::new(&mut self.light).accessible_label("Light"))
+                .changed()
+            {
                 ctx.set_theme(if self.light {
                     egui::Theme::Light
                 } else {
@@ -277,16 +300,20 @@ impl Gallery {
             ui.label(format!("Last action: {}", self.last_action));
         }
         responsive_row(ui, |ui| {
-            ui.add(look::Switch::new(&mut self.on));
+            ui.add(look::Switch::new(&mut self.on).accessible_label("Switch"));
             ui.label("Switch");
             ui.add(look::Checkbox::new(&mut self.checked, "Check box"));
             let mixed = !self.mixed;
             ui.add(look::Checkbox::new(&mut self.mixed, "Mixed").indeterminate(mixed));
         });
         responsive_row(ui, |ui| {
-            look::radio_value(ui, &mut self.mode, 0, "Automatic");
-            look::radio_value(ui, &mut self.mode, 1, "Manual");
-            look::radio_value(ui, &mut self.mode, 2, "Custom");
+            look::RadioGroup::new("mode", &mut self.mode)
+                .accessible_label("Mode")
+                .show(ui, |group| {
+                    group.option(0, "Automatic");
+                    group.option(1, "Manual");
+                    group.option(2, "Custom");
+                });
         });
         ui.add(
             look::Segmented::new("size", &mut self.size, &["Small", "Medium", "Large"])
@@ -317,10 +344,18 @@ impl Gallery {
                 )
                 .width(180.0),
             );
-            ui.add(look::NumberField::new(&mut self.delay).range(0.0..=1024.0));
+            ui.add(
+                look::NumberField::new(&mut self.delay)
+                    .range(0.0..=1024.0)
+                    .accessible_label("Delay"),
+            );
         });
         responsive_row(ui, |ui| {
-            ui.add(look::Slider::new(&mut self.volume, 0.0..=100.0).width(200.0));
+            ui.add(
+                look::Slider::new(&mut self.volume, 0.0..=100.0)
+                    .width(200.0)
+                    .accessible_label("Volume"),
+            );
             ui.add(look::ProgressBar::new((self.volume / 100.0) as f32).width(140.0));
             ui.add(look::Spinner::new());
         });
@@ -879,6 +914,71 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+    #[test]
+    fn the_first_swipe_on_a_touch_screen_scrolls_the_phone_gallery() {
+        use egui_kittest::kittest::Queryable;
+        for chosen in LOOKS {
+            // The harness also checks that every control in the phone layout has a name.
+            let mut harness = egui_kittest::Harness::builder()
+                .with_size(egui::vec2(390.0, 844.0))
+                .with_context_setup(move |ctx| install_gallery_theme(ctx, chosen))
+                .build_ui_state(
+                    |ui, gallery: &mut Gallery| {
+                        scroll_area("gallery-scroll", true).show(ui, |ui| {
+                            ui.spacing_mut().item_spacing = egui::vec2(8.0, 10.0);
+                            gallery.controls(ui);
+                            ui.separator();
+                            gallery.more(ui);
+                        });
+                    },
+                    Gallery {
+                        look: LOOKS.iter().position(|look| *look == chosen).unwrap(),
+                        ..Default::default()
+                    },
+                );
+            harness.run_steps(3);
+            let before = harness.get_by_label("Button").rect().top();
+            let x = 360.0;
+            let touch = |phase, y: f32| egui::Event::Touch {
+                device_id: egui::TouchDeviceId(1),
+                id: egui::TouchId(1),
+                phase,
+                pos: egui::pos2(x, y),
+                force: None,
+            };
+            let button = |y: f32, pressed| egui::Event::PointerButton {
+                pos: egui::pos2(x, y),
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: egui::Modifiers::NONE,
+            };
+            harness.input_mut().events.extend([
+                touch(egui::TouchPhase::Start, 700.0),
+                egui::Event::PointerMoved(egui::pos2(x, 700.0)),
+                button(700.0, true),
+            ]);
+            harness.step();
+            for step in 1..=10 {
+                let y = 700.0 - 40.0 * step as f32;
+                harness.input_mut().events.extend([
+                    touch(egui::TouchPhase::Move, y),
+                    egui::Event::PointerMoved(egui::pos2(x, y)),
+                ]);
+                harness.step();
+            }
+            harness.input_mut().events.extend([
+                touch(egui::TouchPhase::End, 300.0),
+                button(300.0, false),
+                egui::Event::PointerGone,
+            ]);
+            harness.run_steps(3);
+            let after = harness.get_by_label("Button").rect().top();
+            assert!(
+                before - after > 200.0,
+                "{chosen}: the first swipe moved the content from {before} to {after}"
+            );
         }
     }
 }

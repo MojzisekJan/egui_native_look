@@ -36,6 +36,37 @@ fn click(at: egui::Pos2) -> Vec<Vec<egui::Event>> {
     ]
 }
 
+/// The centres of a number field's Decrease and Increase buttons, wherever the look puts
+/// them: on either side of the field, or stacked in a stepper after it.
+fn step_points(
+    ctx: &egui::Context,
+    mut add: impl FnMut(&mut egui::Ui),
+) -> (egui::Pos2, egui::Pos2) {
+    ctx.enable_accesskit();
+    let input = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(340.0, 600.0),
+        )),
+        ..Default::default()
+    };
+    let mut output = ctx.run_ui(input, |ui| add(ui));
+    output.textures_delta.clear();
+    let nodes = output.platform_output.accesskit_update.unwrap().nodes;
+    let centre = |label| {
+        let bounds = nodes
+            .iter()
+            .find(|(_, node)| node.role() == egui::Role::Button && node.label() == Some(label))
+            .and_then(|(_, node)| node.bounds())
+            .unwrap_or_else(|| panic!("no {label} button"));
+        egui::pos2(
+            ((bounds.x0 + bounds.x1) * 0.5) as f32,
+            ((bounds.y0 + bounds.y1) * 0.5) as f32,
+        )
+    };
+    (centre("Decrease"), centre("Increase"))
+}
+
 /// A context with `chosen` installed, in the dark scheme or the light one.
 fn context(chosen: look::Look, dark: bool) -> egui::Context {
     let ctx = egui::Context::default();
@@ -67,6 +98,15 @@ fn key(key: egui::Key) -> Vec<egui::Event> {
         modifiers: Default::default(),
     }]
 }
+
+/// The looks of systems, without the plain look's own controls.
+const SYSTEM_LOOKS: [look::Look; 5] = [
+    look::Look::Mac,
+    look::Look::Windows,
+    look::Look::Gtk,
+    look::Look::Ios,
+    look::Look::Material,
+];
 
 const LOOKS: [look::Look; 6] = [
     look::Look::Plain,
@@ -285,6 +325,54 @@ fn a_toast_goes_after_a_while() {
 }
 
 #[test]
+fn a_toast_waits_under_the_pointer_and_is_announced() {
+    let ctx = context(look::Look::Gtk, true);
+    ctx.enable_accesskit();
+    let run = |time: f64, events: Vec<egui::Event>| {
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(400.0, 300.0),
+            )),
+            time: Some(time),
+            events,
+            ..Default::default()
+        };
+        let mut output = ctx.run_ui(input, |ui| look::show_toasts(ui.ctx()));
+        output.textures_delta.clear();
+        let nodes = output.platform_output.accesskit_update.unwrap().nodes;
+        nodes
+            .iter()
+            .find(|(_, node)| node.role() == egui::Role::Status)
+            .map(|(_, node)| {
+                assert_eq!(node.live(), Some(egui::accesskit::Live::Polite));
+                assert_eq!(node.label(), Some("Saved"));
+                node.bounds().unwrap()
+            })
+    };
+    run(0.0, vec![]);
+    look::toast(&ctx, "Saved");
+    // The toasts' area measures itself in its first frame.
+    run(0.9, vec![]);
+    let bounds = run(1.0, vec![]).expect("the toast is announced");
+    let over = egui::pos2(
+        ((bounds.x0 + bounds.x1) * 0.5) as f32,
+        ((bounds.y0 + bounds.y1) * 0.5) as f32,
+    );
+    // Held under the pointer well past its time.
+    let mut time = 1.0;
+    while time < 8.0 {
+        time += 0.1;
+        assert!(
+            run(time, vec![egui::Event::PointerMoved(over)]).is_some(),
+            "gone under the pointer at {time}"
+        );
+    }
+    run(time, vec![egui::Event::PointerGone]);
+    assert!(run(time + 4.5, vec![]).is_none(), "the toast stayed");
+}
+
+#[test]
 fn a_popup_button_shows_the_apps_own_list() {
     for chosen in LOOKS {
         let ctx = context(chosen, true);
@@ -470,9 +558,157 @@ fn metrics_scale_and_a_touch_look_is_finger_sized() {
     let metrics = look::Metrics::of(look::Look::Mac).scaled(2.0);
     assert_eq!(
         (metrics.control_height, metrics.radius, metrics.body.size),
-        (44.0, 12, 26.0)
+        (48.0, 12, 26.0)
     );
-    assert!(look::Metrics::of(look::Look::touch()).control_height >= 40.0);
+    // A touch look draws its own size (iOS 34 points) but reserves a finger's target on a
+    // touch screen.
+    let ctx = context(look::Look::touch(), false);
+    let at = egui::pos2(300.0, 500.0);
+    let tap = |phase| egui::Event::Touch {
+        device_id: egui::TouchDeviceId(1),
+        id: egui::TouchId(1),
+        phase,
+        pos: at,
+        force: None,
+    };
+    frame(
+        &ctx,
+        vec![tap(egui::TouchPhase::Start), tap(egui::TouchPhase::End)],
+        |_| {},
+    );
+    let target = frame(&ctx, vec![], |ui| ui.add(look::Button::new("Save")).rect);
+    assert!(target.height() >= 48.0, "{target:?}");
+}
+
+#[test]
+fn material_sizes_its_buttons_and_fields_as_material_3() {
+    let ctx = context(look::Look::Material, false);
+    let (button, field) = frame(&ctx, vec![], |ui| {
+        let button = ui.add(look::Button::new("OK")).rect;
+        let field = ui
+            .add(look::TextField::new(&mut String::new()).width(200.0))
+            .rect;
+        (button, field)
+    });
+    // A short label still makes a 64-point button; a filled field without a label is 48.
+    assert!(button.width() >= 64.0, "{button:?}");
+    assert_eq!(field.height(), 48.0);
+}
+
+#[test]
+fn gtk_joins_its_spin_buttons_to_the_field() {
+    let ctx = context(look::Look::Gtk, false);
+    let mut value = 8.0;
+    let field = frame(&ctx, vec![], |ui| {
+        ui.add(
+            look::NumberField::new(&mut value)
+                .range(0.0..=10.0)
+                .width(106.0),
+        )
+        .rect
+    });
+    // One 34-point box as wide as asked: the number, then − and + with no gap between.
+    assert_eq!((field.width(), field.height()), (106.0, 34.0));
+    let plus = field.right_center() - egui::vec2(16.0, 0.0);
+    for events in click(plus) {
+        frame(&ctx, events, |ui| {
+            ui.add(
+                look::NumberField::new(&mut value)
+                    .range(0.0..=10.0)
+                    .width(106.0),
+            )
+        });
+    }
+    assert_eq!(value, 9.0);
+}
+
+#[test]
+fn each_look_opens_in_its_systems_window_colours() {
+    // A theme starts from its system's window and text colours; the plain look from the
+    // shared default palette.
+    let rgb = |c: u32| egui::Color32::from_rgb((c >> 16) as u8, (c >> 8) as u8, c as u8);
+    for (chosen, light, dark) in [
+        (look::Look::Mac, 0xffffff, 0x1e1e1e),
+        (look::Look::Windows, 0xf3f3f3, 0x202020),
+        (look::Look::Gtk, 0xfafafb, 0x222226),
+        (look::Look::Ios, 0xffffff, 0x000000),
+        (look::Look::Material, 0xfef7ff, 0x141218),
+    ] {
+        let theme = look::Theme::new(chosen);
+        assert_eq!(theme.schemes.light.bg, rgb(light), "{chosen}");
+        assert_eq!(theme.schemes.dark.bg, rgb(dark), "{chosen}");
+    }
+    assert_eq!(
+        look::Theme::new(look::Look::Plain).schemes,
+        look::Schemes::default()
+    );
+}
+
+#[test]
+fn shared_dialog_actions_are_equal_from_the_first_frame() {
+    for chosen in [look::Look::Gtk, look::Look::Windows, look::Look::Ios] {
+        let ctx = context(chosen, false);
+        let mut open = true;
+        let mut buttons = Vec::new();
+        frame(&ctx, vec![], |_ui| {
+            buttons.clear();
+            look::Dialog::new("first", "Save changes?").show(
+                &ctx,
+                &mut open,
+                |ui| {
+                    ui.label("Save your changes?");
+                },
+                |ui| {
+                    buttons.push(ui.add(look::Button::new("Save").accent()).rect);
+                    buttons.push(ui.add(look::Button::new("Don't save")).rect);
+                },
+            );
+        });
+        // libadwaita, WinUI and iOS share the row equally, without a frame of natural widths.
+        assert_eq!(buttons.len(), 2, "{chosen}");
+        assert!(
+            (buttons[0].width() - buttons[1].width()).abs() < 0.5,
+            "{chosen}: {buttons:?}"
+        );
+    }
+}
+
+#[test]
+fn more_contrast_outlines_controls_and_darkens_secondary_text() {
+    for chosen in [
+        look::Look::Gtk,
+        look::Look::Mac,
+        look::Look::Ios,
+        look::Look::Material,
+    ] {
+        let normal = look::Colors::resolve(&look::Theme::new(chosen), false);
+        let more = look::Colors::resolve(&look::Theme::new(chosen).high_contrast(true), false);
+        // Secondary text closer to the text colour than before.
+        let distance = |a: egui::Color32, b: egui::Color32| {
+            (i32::from(a.r()) - i32::from(b.r())).abs()
+                + (i32::from(a.g()) - i32::from(b.g())).abs()
+        };
+        assert!(
+            distance(more.dim, more.fg) < distance(normal.dim, normal.fg),
+            "{chosen}"
+        );
+        // A button takes an edge it had not.
+        let ctx = egui::Context::default();
+        look::install(&ctx, look::Theme::new(chosen).high_contrast(true));
+        let (rect, output) = {
+            let mut rect = egui::Rect::NOTHING;
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                rect = ui.add(look::Button::new("Edge")).rect;
+            });
+            output.textures_delta.clear();
+            (rect, output)
+        };
+        let edged = output.shapes.iter().any(|shape| {
+            matches!(&shape.shape, egui::Shape::Rect(r)
+                if r.rect == rect && r.stroke.width >= 1.0 && r.stroke.color.a() > 0)
+        });
+        assert!(edged, "{chosen}: no edge round the button");
+    }
 }
 
 #[test]
@@ -672,6 +908,12 @@ fn the_arrow_keys_move_a_slider_and_a_segmented_choice_more_than_once() {
             frame(&ctx, key(egui::Key::ArrowRight), |ui| add(ui, &mut value));
         }
         assert_eq!(value, 3.0, "{chosen}: the slider lost the focus");
+        // Up raises and Down lowers the value in every look, keeping the focus.
+        for _ in 0..2 {
+            frame(&ctx, key(egui::Key::ArrowUp), |ui| add(ui, &mut value));
+        }
+        frame(&ctx, key(egui::Key::ArrowDown), |ui| add(ui, &mut value));
+        assert_eq!(value, 4.0, "{chosen}: vertical arrows");
         let mut axis = 0;
         let add = |ui: &mut egui::Ui, axis: &mut usize| {
             ui.add(look::Segmented::new("axis", axis, &["X", "Y", "Z"]).width(240.0))
@@ -680,14 +922,22 @@ fn the_arrow_keys_move_a_slider_and_a_segmented_choice_more_than_once() {
         frame(&ctx, key(egui::Key::Tab), |ui| add(ui, &mut axis));
         // The key's release: a frame with the focus settled.
         frame(&ctx, vec![], |ui| add(ui, &mut axis));
+        // GTK's toggle group moves the focus with the arrows and chooses with Space.
+        let gtk = chosen == look::Look::Gtk;
         for _ in 0..2 {
             frame(&ctx, key(egui::Key::ArrowRight), |ui| add(ui, &mut axis));
+        }
+        if gtk {
+            frame(&ctx, key(egui::Key::Space), |ui| add(ui, &mut axis));
         }
         assert_eq!(
             axis, 2,
             "{chosen}: the segmented choice did not follow the arrows"
         );
         frame(&ctx, key(egui::Key::ArrowLeft), |ui| add(ui, &mut axis));
+        if gtk {
+            frame(&ctx, key(egui::Key::Space), |ui| add(ui, &mut axis));
+        }
         assert_eq!(axis, 1, "{chosen}");
     }
 }
@@ -737,12 +987,9 @@ fn a_form_row_names_its_switch_for_a_screen_reader() {
 fn a_number_field_keeps_to_its_type_and_any_step() {
     let ctx = context(look::Look::Mac, true);
     let mut full: u8 = 255;
-    // The + button is the last control of the row; a click there must not wrap the value.
-    let plus = frame(&ctx, vec![], |ui| {
-        ui.add(look::NumberField::new(&mut full).width(140.0))
-            .rect
-            .right_center()
-            - egui::vec2(8.0, 0.0)
+    // A click on Increase must not wrap the value.
+    let (_, plus) = step_points(&ctx, |ui| {
+        ui.add(look::NumberField::new(&mut full).width(140.0));
     });
     for events in click(plus) {
         frame(&ctx, events, |ui| {
@@ -919,6 +1166,23 @@ fn a_dropdown_can_be_chosen_and_cancelled_with_the_keyboard() {
             egui::Popup::is_any_open(&ctx),
             "{chosen}: focus did not return to the button"
         );
+        // The list wraps: Down from the last row (the chosen one) reaches the first.
+        frame(&ctx, key(egui::Key::ArrowDown), |ui| {
+            draw(ui, &mut selected)
+        });
+        frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+        frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
+        assert_eq!(selected, 0, "{chosen}: Down from the last row");
+        frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+        frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
+        frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+        frame(&ctx, key(egui::Key::ArrowUp), |ui| draw(ui, &mut selected));
+        frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+        frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
+        assert_eq!(selected, 2, "{chosen}: Up from the first row");
+        frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+        frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
+        frame(&ctx, vec![], |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Home), |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Escape), |ui| draw(ui, &mut selected));
         assert_eq!(selected, 2, "{chosen}: Escape committed the pending choice");
@@ -1038,6 +1302,688 @@ fn a_default_dialog_fits_a_phone_and_a_short_viewport() {
             assert!(
                 rect.width() <= size.x && rect.height() <= size.y,
                 "{chosen}: {rect:?} exceeds {size:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn dialog_actions_sit_side_by_side_and_stack_only_when_they_do_not_fit() {
+    for chosen in LOOKS {
+        for (width, labels, stacked) in [
+            (360.0, ["Save", "Cancel"], false),
+            (
+                320.0,
+                ["Save changes to the document", "Discard unsaved changes"],
+                true,
+            ),
+        ] {
+            let ctx = context(chosen, true);
+            let mut open = true;
+            let mut buttons = Vec::new();
+            // The arrangement holds from the first frame: a row that does not fit is redrawn
+            // stacked within it. The centred dialog settles its position a frame later.
+            for frame in 0..3 {
+                let mut output = ctx.run_ui(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(width + 40.0, 600.0),
+                        )),
+                        ..Default::default()
+                    },
+                    |_ui| {
+                        buttons.clear();
+                        look::Dialog::new("actions", "Save changes?")
+                            .size([width, 80.0])
+                            .show(
+                                &ctx,
+                                &mut open,
+                                |ui| {
+                                    ui.label("Save your changes?");
+                                },
+                                |ui| {
+                                    for label in labels {
+                                        buttons.push(ui.add(look::Button::new(label)).rect);
+                                    }
+                                },
+                            );
+                    },
+                );
+                output.textures_delta.clear();
+                let [first, second] = [buttons[0], buttons[1]];
+                if stacked {
+                    assert!(
+                        second.top() >= first.bottom()
+                            && (first.right() - second.right()).abs() < 0.5,
+                        "{chosen}, frame {frame}: long actions must stack right-aligned: \
+                         {first:?} {second:?}"
+                    );
+                } else {
+                    assert!(
+                        (first.center().y - second.center().y).abs() < 0.5
+                            && second.right() <= first.left(),
+                        "{chosen}, frame {frame}: short actions must share a row, first on the \
+                         right: {first:?} {second:?}"
+                    );
+                }
+            }
+            let dialog = ctx
+                .memory(|memory| memory.area_rect(egui::Id::unique("actions")))
+                .unwrap();
+            for button in &buttons {
+                assert!(
+                    dialog.contains_rect(*button),
+                    "{chosen}: {button:?} outside {dialog:?}"
+                );
+            }
+            let lowest = buttons
+                .iter()
+                .map(|button| button.bottom())
+                .fold(0.0, f32::max);
+            // At most the 24-point margin and the frame's one-point edge.
+            assert!(
+                dialog.bottom() - lowest <= 25.0,
+                "{chosen}: the dialog must end below its actions: {dialog:?} {buttons:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_dialog_grows_with_content_added_after_it_opened() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let mut open = true;
+        let mut last = egui::Rect::NOTHING;
+        for frame in 0..6 {
+            let rows = if frame < 2 { 1 } else { 9 };
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(480.0, 600.0),
+                    )),
+                    ..Default::default()
+                },
+                |_ui| {
+                    look::Dialog::new("growing", "Details")
+                        .size([320.0, 80.0])
+                        .show(
+                            &ctx,
+                            &mut open,
+                            |ui| {
+                                for row in 0..rows {
+                                    last = ui.label(format!("Detail {row}")).rect;
+                                }
+                            },
+                            |ui| {
+                                ui.add(look::Button::new("Done"));
+                            },
+                        );
+                },
+            );
+            output.textures_delta.clear();
+        }
+        let dialog = ctx
+            .memory(|memory| memory.area_rect(egui::Id::unique("growing")))
+            .unwrap();
+        assert!(
+            dialog.contains_rect(last),
+            "{chosen}: the last row {last:?} must fit the grown dialog {dialog:?}"
+        );
+    }
+}
+
+#[test]
+fn system_dialogs_close_on_their_actions_without_a_close_button() {
+    // macOS's sheet, WinUI's content dialog, libadwaita's and iOS's alerts and Material's
+    // dialog close on their actions; the plain look keeps a close button.
+    for (chosen, has_close) in [
+        (look::Look::Mac, false),
+        (look::Look::Windows, false),
+        (look::Look::Gtk, false),
+        (look::Look::Material, false),
+        (look::Look::Ios, false),
+        (look::Look::Plain, true),
+    ] {
+        let ctx = context(chosen, false);
+        ctx.enable_accesskit();
+        let mut open = true;
+        let mut update = None;
+        for _ in 0..2 {
+            let mut output = ctx.run_ui(egui::RawInput::default(), |_ui| {
+                look::Dialog::new("sheet", "Save changes?").show(
+                    &ctx,
+                    &mut open,
+                    |ui| {
+                        ui.label("Save your changes?");
+                    },
+                    |ui| {
+                        ui.add(look::Button::new("Save"));
+                    },
+                );
+            });
+            output.textures_delta.clear();
+            update = output.platform_output.accesskit_update;
+        }
+        let close =
+            update.unwrap().nodes.iter().any(|(_, node)| {
+                node.role() == egui::Role::Button && node.label() == Some("Close")
+            });
+        assert_eq!(close, has_close, "{chosen}");
+    }
+}
+
+#[test]
+fn a_search_field_clears_from_its_button_and_keeps_the_focus() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, false);
+        ctx.enable_accesskit();
+        let mut text = String::from("query");
+        let draw = |ui: &mut egui::Ui, text: &mut String| {
+            let response = ui.add(look::TextField::new(text).search().width(240.0));
+            (response.id, response.changed())
+        };
+        let mut changed = false;
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(340.0, 600.0),
+            )),
+            ..Default::default()
+        };
+        let mut output = ctx.run_ui(input, |ui| {
+            draw(ui, &mut text);
+        });
+        output.textures_delta.clear();
+        let nodes = output.platform_output.accesskit_update.unwrap().nodes;
+        let bounds = nodes
+            .iter()
+            .find(|(_, node)| node.role() == egui::Role::Button && node.label() == Some("Clear"))
+            .and_then(|(_, node)| node.bounds())
+            .unwrap_or_else(|| panic!("{chosen}: no Clear button"));
+        let at = egui::pos2(
+            ((bounds.x0 + bounds.x1) * 0.5) as f32,
+            ((bounds.y0 + bounds.y1) * 0.5) as f32,
+        );
+        for events in click(at) {
+            changed |= frame(&ctx, events, |ui| draw(ui, &mut text)).1;
+        }
+        let (id, _) = frame(&ctx, vec![], |ui| draw(ui, &mut text));
+        assert!(text.is_empty(), "{chosen}: {text:?}");
+        assert!(changed, "{chosen}: clearing is a change");
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(id), "{chosen}");
+        // An empty search field offers nothing to clear.
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            draw(ui, &mut text);
+        });
+        output.textures_delta.clear();
+        let clear = output
+            .platform_output
+            .accesskit_update
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|(_, node)| node.label() == Some("Clear"));
+        assert!(!clear, "{chosen}");
+    }
+}
+
+#[test]
+fn an_opened_dialog_focuses_its_first_field_except_on_a_touch_screen() {
+    for touch in [false, true] {
+        let ctx = context(look::Look::Gtk, true);
+        if touch {
+            let at = egui::pos2(300.0, 500.0);
+            let tap = |phase| egui::Event::Touch {
+                device_id: egui::TouchDeviceId(1),
+                id: egui::TouchId(1),
+                phase,
+                pos: at,
+                force: None,
+            };
+            frame(
+                &ctx,
+                vec![tap(egui::TouchPhase::Start), tap(egui::TouchPhase::End)],
+                |_| {},
+            );
+        }
+        let mut open = true;
+        let mut name = String::new();
+        let mut field = egui::Id::NULL;
+        for _ in 0..3 {
+            frame(&ctx, vec![], |_ui| {
+                look::Dialog::new("rename", "Rename").show(
+                    &ctx,
+                    &mut open,
+                    |ui| {
+                        ui.label("New name");
+                        field = ui.add(look::TextField::new(&mut name)).id;
+                    },
+                    |ui| {
+                        ui.add(look::Button::new("Rename").default_action());
+                    },
+                );
+            });
+        }
+        let focused = ctx.memory(|memory| memory.focused());
+        if touch {
+            assert_ne!(focused, Some(field), "no keyboard raised unasked");
+        } else {
+            assert_eq!(focused, Some(field));
+        }
+    }
+}
+
+/// The menu items' enabled states, by label, from the accessibility tree.
+fn menu_items(output: &egui::FullOutput) -> Vec<(String, bool, egui::Pos2)> {
+    let nodes = &output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes;
+    nodes
+        .iter()
+        .filter(|(_, node)| node.role() == egui::Role::MenuItem)
+        .map(|(_, node)| {
+            let bounds = node.bounds().unwrap();
+            (
+                node.label().unwrap_or_default().to_owned(),
+                !node.is_disabled(),
+                egui::pos2(
+                    ((bounds.x0 + bounds.x1) * 0.5) as f32,
+                    ((bounds.y0 + bounds.y1) * 0.5) as f32,
+                ),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn a_text_field_offers_cut_copy_paste_and_select_all() {
+    for password in [false, true] {
+        let ctx = context(look::Look::Gtk, true);
+        ctx.enable_accesskit();
+        let mut text = String::from("secret words");
+        let draw = |ui: &mut egui::Ui, text: &mut String| {
+            ui.add(look::TextField::new(text).password(password).width(240.0));
+        };
+        let run = |events: Vec<egui::Event>, text: &mut String| {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(340.0, 600.0),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                |ui| draw(ui, text),
+            );
+            output.textures_delta.clear();
+            output
+        };
+        let at = egui::pos2(60.0, 12.0);
+        let secondary = |pressed| egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        let primary = |at, pressed| egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        run(vec![egui::Event::PointerMoved(at)], &mut text);
+        run(vec![secondary(true)], &mut text);
+        run(vec![secondary(false)], &mut text);
+        let output = run(vec![], &mut text);
+        let items = menu_items(&output);
+        let enabled = |label: &str| items.iter().find(|item| item.0 == label).map(|item| item.1);
+        assert_eq!(enabled("Cut"), Some(false), "nothing selected yet");
+        assert_eq!(enabled("Copy"), Some(false));
+        assert_eq!(enabled("Paste"), Some(true));
+        let all = items.iter().find(|item| item.0 == "Select All").unwrap().2;
+        run(vec![egui::Event::PointerMoved(all)], &mut text);
+        run(vec![primary(all, true)], &mut text);
+        run(vec![primary(all, false)], &mut text);
+        run(vec![], &mut text);
+        // Open it again over the selection; Copy needs a selection and no password.
+        run(vec![egui::Event::PointerMoved(at)], &mut text);
+        run(vec![secondary(true)], &mut text);
+        run(vec![secondary(false)], &mut text);
+        let output = run(vec![], &mut text);
+        let items = menu_items(&output);
+        let copy = items.iter().find(|item| item.0 == "Copy").unwrap().clone();
+        assert_eq!(
+            copy.1, !password,
+            "Copy with a selection, password={password}"
+        );
+        if !password {
+            run(vec![egui::Event::PointerMoved(copy.2)], &mut text);
+            run(vec![primary(copy.2, true)], &mut text);
+            let output = run(vec![primary(copy.2, false)], &mut text);
+            let asked = output.viewport_output.values().any(|viewport| {
+                viewport
+                    .commands
+                    .iter()
+                    .any(|command| matches!(command, egui::ViewportCommand::RequestCopy))
+            });
+            assert!(asked, "Copy asks the integration to copy");
+            // The system copies from the focused field's selection, so both are back.
+            run(vec![], &mut text);
+            let field = ctx.memory(|memory| memory.focused()).unwrap();
+            let range = egui::TextEdit::load_state(&ctx, field)
+                .and_then(|state| state.cursor.char_range())
+                .unwrap();
+            let sorted = range.as_sorted_char_range();
+            assert_eq!(
+                (sorted.start, sorted.end),
+                (0.into(), text.chars().count().into())
+            );
+        }
+    }
+}
+
+#[test]
+fn text_fields_keep_their_edge_where_buttons_have_none() {
+    for chosen in [look::Look::Mac, look::Look::Windows, look::Look::Plain] {
+        let ctx = context(chosen, false);
+        let mut text = String::new();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            ui.add(look::TextField::new(&mut text).width(200.0));
+        });
+        output.textures_delta.clear();
+        let edge = look::colors(&ctx).control_border;
+        let edged = output.shapes.iter().any(|shape| {
+            matches!(&shape.shape, egui::Shape::Rect(rect) if rect.stroke.width >= 1.0
+                && (rect.stroke.color == edge || chosen == look::Look::Plain))
+        });
+        assert!(edged, "{chosen}: the text field lost its edge");
+    }
+}
+
+#[test]
+fn disabled_mac_controls_are_drawn_in_their_own_colours_not_faded() {
+    for (chosen, opaque) in [(look::Look::Mac, true), (look::Look::Gtk, false)] {
+        let ctx = context(chosen, false);
+        let mut on = true;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            ui.add_enabled(false, look::Switch::new(&mut on).accessible_label("Power"));
+        });
+        output.textures_delta.clear();
+        // The knob: the last light disc or pill drawn.
+        let knob = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Circle(circle) => Some(circle.fill),
+                egui::Shape::Rect(rect) if rect.rect.width() < 40.0 => Some(rect.fill),
+                _ => None,
+            })
+            .rfind(|fill| fill.r() > 120 && fill.g() > 120 && fill.b() > 120)
+            .expect("a knob");
+        assert_eq!(knob.a() == 255, opaque, "{chosen}: {knob:?}");
+    }
+}
+
+#[test]
+fn a_mac_list_greys_its_selection_without_the_focus() {
+    let ctx = context(look::Look::Mac, false);
+    let run = |events: Vec<egui::Event>| {
+        let mut rows = (egui::Rect::NOTHING, egui::Rect::NOTHING);
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(340.0, 600.0),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ui| {
+                let first = ui.add(look::ListRow::new(false).accessible_label("First"));
+                let second = ui.add(look::ListRow::new(true).accessible_label("Second"));
+                rows = (first.rect, second.rect);
+            },
+        );
+        output.textures_delta.clear();
+        let fill = output.shapes.iter().find_map(|shape| match &shape.shape {
+            egui::Shape::Rect(shape) if shape.rect == rows.1 => Some(shape.fill),
+            _ => None,
+        });
+        (rows, fill)
+    };
+    let (rows, quiet) = run(vec![]);
+    // Read once a frame has told egui the window is active.
+    let accent = look::colors(&ctx).accent;
+    assert_ne!(
+        quiet,
+        Some(accent),
+        "without the focus the selection is grey"
+    );
+    // A click on a row gives the list the focus, and the selection the accent.
+    for events in click(rows.0.center()) {
+        run(events);
+    }
+    let (_, lit) = run(vec![]);
+    assert_eq!(lit, Some(accent));
+}
+
+#[test]
+fn an_inactive_mac_window_greys_its_accent() {
+    let ctx = context(look::Look::Mac, false);
+    let run = |focused: bool, on: &mut bool| {
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                focused,
+                ..Default::default()
+            },
+            |ui| {
+                ui.add(look::Switch::new(on).accessible_label("Power"));
+            },
+        );
+        output.textures_delta.clear();
+        (look::colors(&ctx), output)
+    };
+    let mut on = true;
+    let (active, _) = run(true, &mut on);
+    let (inactive, output) = run(false, &mut on);
+    assert!(active.active && !inactive.active);
+    assert_ne!(active.accent, inactive.accent);
+    assert_eq!(inactive.on_accent, inactive.fg);
+    let grey = inactive.accent;
+    let track = output
+        .shapes
+        .iter()
+        .any(|shape| matches!(&shape.shape, egui::Shape::Rect(rect) if rect.fill == grey));
+    assert!(track, "the switched-on track turns grey");
+    // Other looks keep their accent.
+    let ctx = context(look::Look::Gtk, false);
+    let mut output = ctx.run_ui(
+        egui::RawInput {
+            focused: false,
+            ..Default::default()
+        },
+        |_| {},
+    );
+    output.textures_delta.clear();
+    assert_ne!(look::colors(&ctx).accent, look::colors(&ctx).fg);
+}
+
+#[test]
+fn a_stepped_mac_slider_marks_its_steps() {
+    for (step, dots) in [(Some(10.0), 11), (None, 0), (Some(0.5), 0)] {
+        let ctx = context(look::Look::Mac, false);
+        let mut value = 40.0;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let slider = look::Slider::new(&mut value, 0.0..=100.0).width(200.0);
+            let slider = match step {
+                Some(step) => slider.step_by(step),
+                None => slider,
+            };
+            ui.add(slider.accessible_label("Volume"));
+        });
+        output.textures_delta.clear();
+        let marks = output
+            .shapes
+            .iter()
+            .filter(|shape| {
+                matches!(&shape.shape, egui::Shape::Rect(rect)
+                    if rect.rect.size() == egui::Vec2::splat(2.0))
+            })
+            .count();
+        assert_eq!(marks, dots, "step {step:?}");
+    }
+}
+
+#[test]
+fn mac_control_sizes_follow_swiftui() {
+    let small = look::Metrics::small(look::Look::Mac);
+    let large = look::Metrics::large(look::Look::Mac);
+    assert_eq!((small.control_height, small.body.size), (20.0, 11.0));
+    assert_eq!((large.control_height, large.body.size), (28.0, 13.0));
+    // Width of a switch and height of a text field, as SwiftUI draws them.
+    for (metrics, switch, field) in [
+        (small, 45.0, 23.0),
+        (look::Metrics::of(look::Look::Mac), 54.0, 26.0),
+        (large, 63.0, 26.0),
+    ] {
+        let ctx = egui::Context::default();
+        look::install(&ctx, look::Theme::new(look::Look::Mac).metrics(metrics));
+        let mut on = true;
+        let mut text = String::new();
+        let mut sizes = (0.0, 0.0);
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let switch = ui.add(look::Switch::new(&mut on).accessible_label("Power"));
+            let field = ui.add(look::TextField::new(&mut text).width(200.0));
+            sizes = (switch.rect.width(), field.rect.height());
+        });
+        output.textures_delta.clear();
+        assert_eq!(sizes, (switch, field));
+    }
+    // The other looks scale in proportion.
+    let windows = look::Metrics::small(look::Look::Windows);
+    assert!(windows.control_height < look::Metrics::of(look::Look::Windows).control_height);
+}
+
+#[test]
+fn tabbing_into_a_text_field_selects_its_text() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, false);
+        let mut first = String::from("first");
+        let mut second = String::from("second field");
+        let mut id = egui::Id::NULL;
+        let mut draw = |ui: &mut egui::Ui| {
+            ui.add(look::TextField::new(&mut first).width(120.0));
+            id = ui.add(look::TextField::new(&mut second).width(120.0)).id;
+        };
+        frame(&ctx, vec![], &mut draw);
+        frame(&ctx, key(egui::Key::Tab), &mut draw);
+        frame(&ctx, vec![], &mut draw);
+        frame(&ctx, key(egui::Key::Tab), &mut draw);
+        frame(&ctx, vec![], &mut draw);
+        assert_eq!(ctx.memory(|memory| memory.focused()), Some(id), "{chosen}");
+        let range = egui::TextEdit::load_state(&ctx, id)
+            .and_then(|state| state.cursor.char_range())
+            .expect("a cursor")
+            .as_sorted_char_range();
+        assert_eq!(
+            (range.start, range.end),
+            (0.into(), "second field".len().into()),
+            "{chosen}: the whole text is selected"
+        );
+    }
+}
+
+#[test]
+fn switch_width_is_the_width_a_switch_takes() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, false);
+        let mut on = false;
+        let mut width = 0.0;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            width = ui
+                .add(look::Switch::new(&mut on).accessible_label("Power"))
+                .rect
+                .width();
+        });
+        output.textures_delta.clear();
+        assert_eq!(width, look::switch_width(chosen), "{chosen}");
+    }
+}
+
+#[test]
+fn mac_number_fields_stand_as_tall_as_text_fields() {
+    let ctx = context(look::Look::Mac, false);
+    let (mut number, mut text) = (8, String::new());
+    let mut heights = (0.0, 0.0, 0.0);
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+        let plain = ui.add(
+            look::NumberField::new(&mut number)
+                .steppers(false)
+                .width(64.0),
+        );
+        let stepped = ui.add(look::NumberField::new(&mut number).width(88.0));
+        let field = ui.add(look::TextField::new(&mut text).width(64.0));
+        heights = (
+            plain.rect.height(),
+            stepped.rect.height(),
+            field.rect.height(),
+        );
+    });
+    output.textures_delta.clear();
+    assert_eq!(heights, (26.0, 26.0, 26.0));
+}
+
+#[test]
+fn a_pressed_mac_default_button_darkens_on_light_and_lightens_on_dark() {
+    for dark in [false, true] {
+        let ctx = context(look::Look::Mac, dark);
+        let run = |events: Vec<egui::Event>| {
+            let mut rect = egui::Rect::NOTHING;
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    events,
+                    ..Default::default()
+                },
+                |ui| rect = ui.add(look::Button::new("Default").accent()).rect,
+            );
+            output.textures_delta.clear();
+            (rect, output)
+        };
+        let (rect, _) = run(vec![]);
+        let at = rect.center();
+        run(vec![egui::Event::PointerMoved(at)]);
+        let (_, output) = run(vec![egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: Default::default(),
+        }]);
+        let accent = look::colors(&ctx).accent;
+        let fill = output
+            .shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Rect(shape) if shape.rect == rect => Some(shape.fill),
+                _ => None,
+            })
+            .expect("the button's body");
+        let brightness = |c: egui::Color32| u32::from(c.r()) + u32::from(c.g()) + u32::from(c.b());
+        if dark {
+            assert!(
+                brightness(fill) > brightness(accent),
+                "{fill:?} lighter than {accent:?}"
+            );
+        } else {
+            assert!(
+                brightness(fill) < brightness(accent),
+                "{fill:?} darker than {accent:?}"
             );
         }
     }
@@ -1199,6 +2145,9 @@ fn segmented_choices_accept_extreme_indices_and_leave_empty_choices_unchanged() 
             frame(&ctx, key(egui::Key::ArrowRight), |ui| {
                 draw(ui, &mut selected)
             });
+            if chosen == look::Look::Gtk {
+                frame(&ctx, key(egui::Key::Space), |ui| draw(ui, &mut selected));
+            }
             assert_eq!(
                 selected,
                 if labels.is_empty() { usize::MAX } else { 1 },
@@ -1221,15 +2170,44 @@ fn choices_support_home_and_end_and_keep_keyboard_focus_after_clicking() {
             frame(&ctx, events, |ui| draw(ui, &mut selected));
         }
         assert_eq!(selected, 1);
-        frame(&ctx, key(egui::Key::ArrowRight), |ui| {
-            draw(ui, &mut selected)
-        });
+        let gtk = chosen == look::Look::Gtk;
+        let press = |name, selected: &mut usize| {
+            frame(&ctx, key(name), |ui| draw(ui, selected));
+            if gtk {
+                frame(&ctx, key(egui::Key::Space), |ui| draw(ui, selected));
+            }
+        };
+        press(egui::Key::ArrowRight, &mut selected);
         assert_eq!(selected, 2, "{chosen}: the click did not focus the choices");
-        frame(&ctx, key(egui::Key::Home), |ui| draw(ui, &mut selected));
+        press(egui::Key::Home, &mut selected);
         assert_eq!(selected, 0, "{chosen}: Home did not reach the first choice");
-        frame(&ctx, key(egui::Key::End), |ui| draw(ui, &mut selected));
+        press(egui::Key::End, &mut selected);
         assert_eq!(selected, 2, "{chosen}: End did not reach the last choice");
     }
+}
+
+#[test]
+fn gtk_toggle_groups_move_the_focus_and_choose_with_space_or_enter() {
+    let ctx = context(look::Look::Gtk, true);
+    let mut selected = 0;
+    let draw = |ui: &mut egui::Ui, selected: &mut usize| {
+        ui.add(look::Segmented::new("toggles", selected, &["A", "B", "C"]).width(240.0))
+    };
+    frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+    frame(&ctx, key(egui::Key::Tab), |ui| draw(ui, &mut selected));
+    frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+    for name in [
+        egui::Key::ArrowRight,
+        egui::Key::End,
+        egui::Key::Home,
+        egui::Key::ArrowRight,
+    ] {
+        frame(&ctx, key(name), |ui| draw(ui, &mut selected));
+        assert_eq!(selected, 0, "{name:?} moves only the focus");
+    }
+    let response = frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
+    assert_eq!(selected, 1, "Enter chooses the focused toggle");
+    assert!(response.has_focus());
 }
 
 #[test]
@@ -1247,14 +2225,22 @@ fn tabs_support_home_and_end_in_every_look() {
         frame(&ctx, vec![], |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Tab), |ui| draw(ui, &mut selected));
         frame(&ctx, vec![], |ui| draw(ui, &mut selected));
-        frame(&ctx, key(egui::Key::Home), |ui| draw(ui, &mut selected));
+        // GTK's view switcher moves the focus with the keys and chooses with Space.
+        let gtk = chosen == look::Look::Gtk;
+        let press = |name, selected: &mut usize| {
+            frame(&ctx, key(name), |ui| draw(ui, selected));
+            if gtk {
+                frame(&ctx, key(egui::Key::Space), |ui| draw(ui, selected));
+            }
+        };
+        press(egui::Key::Home, &mut selected);
         assert_eq!(
             selected, 0,
             "{chosen}: Home must select even when the first tab already has focus"
         );
-        frame(&ctx, key(egui::Key::End), |ui| draw(ui, &mut selected));
+        press(egui::Key::End, &mut selected);
         assert_eq!(selected, 2, "{chosen}: End did not reach the last tab");
-        frame(&ctx, key(egui::Key::Home), |ui| draw(ui, &mut selected));
+        press(egui::Key::Home, &mut selected);
         assert_eq!(selected, 0, "{chosen}: Home did not reach the first tab");
     }
 }
@@ -1316,8 +2302,10 @@ fn number_field_integer_steps_and_reversed_bounds_stay_usable() {
                             .width(160.0),
                     )
                 };
-                let rect = frame(&ctx, vec![], |ui| draw(ui, &mut value)).rect;
-                for events in click(rect.right_center() - egui::vec2(8.0, 0.0)) {
+                let (minus, plus) = step_points(&ctx, |ui| {
+                    draw(ui, &mut value);
+                });
+                for events in click(plus) {
                     frame(&ctx, events, |ui| draw(ui, &mut value));
                 }
                 assert_eq!(
@@ -1325,7 +2313,7 @@ fn number_field_integer_steps_and_reversed_bounds_stay_usable() {
                     5 + amount,
                     "{chosen}: the increase step was lost, reversed={reversed}"
                 );
-                for events in click(rect.left_center() + egui::vec2(8.0, 0.0)) {
+                for events in click(minus) {
                     frame(&ctx, events, |ui| draw(ui, &mut value));
                 }
                 assert_eq!(value, 5, "{chosen}: decrease and increase were asymmetric");
@@ -1347,17 +2335,93 @@ fn stepping_an_existing_out_of_range_value_returns_it_to_the_range() {
                     .width(160.0),
             )
         };
-        let rect = frame(&ctx, vec![], |ui| draw(ui, &mut value)).rect;
+        let (minus, plus) = step_points(&ctx, |ui| {
+            draw(ui, &mut value);
+        });
         assert_eq!(value, initial);
-        let at = if initial < 0.0 {
-            rect.right_center() - egui::vec2(8.0, 0.0)
-        } else {
-            rect.left_center() + egui::vec2(8.0, 0.0)
-        };
+        let at = if initial < 0.0 { plus } else { minus };
         for events in click(at) {
             frame(&ctx, events, |ui| draw(ui, &mut value));
         }
         assert_eq!(value, if initial < 0.0 { 0.0 } else { 10.0 });
+    }
+}
+
+#[test]
+fn mac_number_fields_step_with_a_stepper_after_the_field() {
+    let ctx = context(look::Look::Mac, false);
+    let mut value = 9;
+    let draw = |ui: &mut egui::Ui, value: &mut i32| {
+        ui.add(look::NumberField::new(value).range(0..=10).width(120.0))
+    };
+    let field = frame(&ctx, vec![], |ui| draw(ui, &mut value)).rect;
+    let (minus, plus) = step_points(&ctx, |ui| {
+        draw(ui, &mut value);
+    });
+    assert!(
+        plus.y < minus.y && (plus.x - minus.x).abs() < 0.5 && minus.x > field.center().x,
+        "the stepper stacks Increase over Decrease at the end: {minus:?} {plus:?} in {field:?}"
+    );
+    for events in click(plus) {
+        frame(&ctx, events, |ui| draw(ui, &mut value));
+    }
+    assert_eq!(value, 10);
+    // At the maximum Increase is disabled and a click leaves the value alone.
+    for events in click(plus) {
+        frame(&ctx, events, |ui| draw(ui, &mut value));
+    }
+    assert_eq!(value, 10);
+    for events in click(minus) {
+        frame(&ctx, events, |ui| draw(ui, &mut value));
+    }
+    assert_eq!(value, 9);
+}
+
+#[test]
+fn holding_a_step_button_repeats_after_a_delay() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, true);
+        let mut value = 0;
+        let draw = |ui: &mut egui::Ui, value: &mut i32| {
+            ui.add(look::NumberField::new(value).range(0..=100).width(160.0));
+        };
+        let (_, plus) = step_points(&ctx, |ui| draw(ui, &mut value));
+        let at_time = |time: f64, events: Vec<egui::Event>| egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(340.0, 600.0),
+            )),
+            time: Some(time),
+            events,
+            ..Default::default()
+        };
+        let press = |pressed| egui::Event::PointerButton {
+            pos: plus,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        let run = |input: egui::RawInput, value: &mut i32| {
+            let mut output = ctx.run_ui(input, |ui| draw(ui, value));
+            output.textures_delta.clear();
+        };
+        run(
+            at_time(10.0, vec![egui::Event::PointerMoved(plus)]),
+            &mut value,
+        );
+        run(at_time(10.0, vec![press(true)]), &mut value);
+        // Held but not yet repeating.
+        run(at_time(10.4, vec![]), &mut value);
+        assert_eq!(value, 0, "{chosen}: no step before the delay");
+        for step in 1..=15 {
+            run(at_time(10.4 + 0.056 * f64::from(step), vec![]), &mut value);
+        }
+        run(at_time(11.25, vec![press(false)]), &mut value);
+        // Eight repeats from 0.5 s to 1.2 s; egui reports no click after so long a press.
+        assert_eq!(value, 8, "{chosen}: held for 1.25 s");
+        run(at_time(12.0, vec![press(true)]), &mut value);
+        run(at_time(12.1, vec![press(false)]), &mut value);
+        assert_eq!(value, 9, "{chosen}: a short click is one step");
     }
 }
 
@@ -1977,70 +3041,75 @@ fn gtk_slider_pages_respect_steps_boundaries_and_logarithmic_ranges() {
 }
 
 #[test]
-fn gtk_switch_drag_commits_only_on_release_and_uses_the_nearest_state() {
-    for (initial, distances, expected) in [
-        (false, vec![18.0], true),
-        (true, vec![-18.0], false),
-        (false, vec![8.0], false),
-        (true, vec![-8.0], true),
-        (false, vec![18.0, 0.0], false),
-        (true, vec![-18.0, 0.0], true),
-    ] {
-        let ctx = context(look::Look::Gtk, false);
-        let mut on = initial;
-        let draw = |ui: &mut egui::Ui, on: &mut bool| ui.add(look::Switch::new(on));
-        let response = frame(&ctx, vec![], |ui| draw(ui, &mut on));
-        let start = egui::pos2(
-            response.rect.center().x + if initial { 10.0 } else { -10.0 },
-            response.rect.center().y,
-        );
-        frame(&ctx, vec![egui::Event::PointerMoved(start)], |ui| {
-            draw(ui, &mut on)
-        });
-        let response = frame(&ctx, vec![primary_button(start, true)], |ui| {
-            draw(ui, &mut on)
-        });
-        assert!(response.has_focus());
-        let mut end = start;
-        for distance in distances {
-            end = start + egui::vec2(distance, 0.0);
-            let response = frame(&ctx, vec![egui::Event::PointerMoved(end)], |ui| {
+fn switch_drag_commits_only_on_release_and_uses_the_nearest_state() {
+    for chosen in SYSTEM_LOOKS {
+        for (initial, distances, expected) in [
+            (false, vec![18.0], true),
+            (true, vec![-18.0], false),
+            (false, vec![8.0], false),
+            (true, vec![-8.0], true),
+            (false, vec![18.0, 0.0], false),
+            (true, vec![-18.0, 0.0], true),
+        ] {
+            let ctx = context(chosen, false);
+            let mut on = initial;
+            let draw = |ui: &mut egui::Ui, on: &mut bool| ui.add(look::Switch::new(on));
+            let response = frame(&ctx, vec![], |ui| draw(ui, &mut on));
+            let start = egui::pos2(
+                response.rect.center().x + if initial { 10.0 } else { -10.0 },
+                response.rect.center().y,
+            );
+            frame(&ctx, vec![egui::Event::PointerMoved(start)], |ui| {
+                draw(ui, &mut on)
+            });
+            let response = frame(&ctx, vec![primary_button(start, true)], |ui| {
+                draw(ui, &mut on)
+            });
+            assert!(response.has_focus());
+            let mut end = start;
+            for distance in distances {
+                end = start + egui::vec2(distance, 0.0);
+                let response = frame(&ctx, vec![egui::Event::PointerMoved(end)], |ui| {
+                    draw(ui, &mut on)
+                });
+                assert_eq!(on, initial);
+                assert!(!response.changed());
+            }
+            let response = frame(&ctx, vec![primary_button(end, false)], |ui| {
+                draw(ui, &mut on)
+            });
+            assert_eq!(on, expected);
+            assert_eq!(response.changed(), expected != initial);
+        }
+    }
+}
+
+#[test]
+fn switch_does_not_start_a_drag_from_the_empty_half() {
+    for chosen in SYSTEM_LOOKS {
+        for initial in [false, true] {
+            let ctx = context(chosen, false);
+            let mut on = initial;
+            let draw = |ui: &mut egui::Ui, on: &mut bool| ui.add(look::Switch::new(on));
+            let response = frame(&ctx, vec![], |ui| draw(ui, &mut on));
+            let start =
+                response.rect.center() + egui::vec2(if initial { -10.0 } else { 10.0 }, 0.0);
+            frame(&ctx, vec![egui::Event::PointerMoved(start)], |ui| {
+                draw(ui, &mut on)
+            });
+            frame(&ctx, vec![primary_button(start, true)], |ui| {
+                draw(ui, &mut on)
+            });
+            let end = start + egui::vec2(if initial { 18.0 } else { -18.0 }, 0.0);
+            frame(&ctx, vec![egui::Event::PointerMoved(end)], |ui| {
+                draw(ui, &mut on)
+            });
+            let response = frame(&ctx, vec![primary_button(end, false)], |ui| {
                 draw(ui, &mut on)
             });
             assert_eq!(on, initial);
             assert!(!response.changed());
         }
-        let response = frame(&ctx, vec![primary_button(end, false)], |ui| {
-            draw(ui, &mut on)
-        });
-        assert_eq!(on, expected);
-        assert_eq!(response.changed(), expected != initial);
-    }
-}
-
-#[test]
-fn gtk_switch_does_not_start_a_drag_from_the_empty_half() {
-    for initial in [false, true] {
-        let ctx = context(look::Look::Gtk, false);
-        let mut on = initial;
-        let draw = |ui: &mut egui::Ui, on: &mut bool| ui.add(look::Switch::new(on));
-        let response = frame(&ctx, vec![], |ui| draw(ui, &mut on));
-        let start = response.rect.center() + egui::vec2(if initial { -10.0 } else { 10.0 }, 0.0);
-        frame(&ctx, vec![egui::Event::PointerMoved(start)], |ui| {
-            draw(ui, &mut on)
-        });
-        frame(&ctx, vec![primary_button(start, true)], |ui| {
-            draw(ui, &mut on)
-        });
-        let end = start + egui::vec2(if initial { 18.0 } else { -18.0 }, 0.0);
-        frame(&ctx, vec![egui::Event::PointerMoved(end)], |ui| {
-            draw(ui, &mut on)
-        });
-        let response = frame(&ctx, vec![primary_button(end, false)], |ui| {
-            draw(ui, &mut on)
-        });
-        assert_eq!(on, initial);
-        assert!(!response.changed());
     }
 }
 
@@ -2155,45 +3224,47 @@ fn vertical_touch_drags_over_a_gtk_switch_scroll_its_container() {
 }
 
 #[test]
-fn interrupted_gtk_switch_drags_do_not_commit() {
-    for interrupt in 0..3 {
-        let ctx = context(look::Look::Gtk, false);
-        let mut on = false;
-        let draw = |ui: &mut egui::Ui, on: &mut bool, enabled: bool| {
-            ui.add_enabled(enabled, look::Switch::new(on))
-        };
-        let response = frame(&ctx, vec![], |ui| draw(ui, &mut on, true));
-        let start = response.rect.center() - egui::vec2(10.0, 0.0);
-        let end = start + egui::vec2(18.0, 0.0);
-        frame(&ctx, vec![egui::Event::PointerMoved(start)], |ui| {
-            draw(ui, &mut on, true)
-        });
-        frame(&ctx, vec![primary_button(start, true)], |ui| {
-            draw(ui, &mut on, true)
-        });
-        frame(&ctx, vec![egui::Event::PointerMoved(end)], |ui| {
-            draw(ui, &mut on, true)
-        });
-        let events = match interrupt {
-            0 => vec![],
-            1 => vec![egui::Event::WindowFocused(false)],
-            _ => vec![egui::Event::Touch {
-                device_id: egui::TouchDeviceId(1),
-                id: egui::TouchId(1),
-                phase: egui::TouchPhase::Cancel,
-                pos: end,
-                force: None,
-            }],
-        };
-        frame(&ctx, events, |ui| draw(ui, &mut on, interrupt != 0));
-        let response = frame(
-            &ctx,
-            vec![egui::Event::WindowFocused(true), primary_button(end, false)],
-            |ui| draw(ui, &mut on, true),
-        );
-        assert!(!on, "interruption {interrupt}");
-        assert!(!response.changed());
-        assert_ne!(ctx.dragged_id(), Some(response.id));
+fn interrupted_switch_drags_do_not_commit() {
+    for chosen in SYSTEM_LOOKS {
+        for interrupt in 0..3 {
+            let ctx = context(chosen, false);
+            let mut on = false;
+            let draw = |ui: &mut egui::Ui, on: &mut bool, enabled: bool| {
+                ui.add_enabled(enabled, look::Switch::new(on))
+            };
+            let response = frame(&ctx, vec![], |ui| draw(ui, &mut on, true));
+            let start = response.rect.center() - egui::vec2(10.0, 0.0);
+            let end = start + egui::vec2(18.0, 0.0);
+            frame(&ctx, vec![egui::Event::PointerMoved(start)], |ui| {
+                draw(ui, &mut on, true)
+            });
+            frame(&ctx, vec![primary_button(start, true)], |ui| {
+                draw(ui, &mut on, true)
+            });
+            frame(&ctx, vec![egui::Event::PointerMoved(end)], |ui| {
+                draw(ui, &mut on, true)
+            });
+            let events = match interrupt {
+                0 => vec![],
+                1 => vec![egui::Event::WindowFocused(false)],
+                _ => vec![egui::Event::Touch {
+                    device_id: egui::TouchDeviceId(1),
+                    id: egui::TouchId(1),
+                    phase: egui::TouchPhase::Cancel,
+                    pos: end,
+                    force: None,
+                }],
+            };
+            frame(&ctx, events, |ui| draw(ui, &mut on, interrupt != 0));
+            let response = frame(
+                &ctx,
+                vec![egui::Event::WindowFocused(true), primary_button(end, false)],
+                |ui| draw(ui, &mut on, true),
+            );
+            assert!(!on, "interruption {interrupt}");
+            assert!(!response.changed());
+            assert_ne!(ctx.dragged_id(), Some(response.id));
+        }
     }
 }
 
@@ -2289,53 +3360,63 @@ fn switch_keyboard_activation_and_single_frame_clicks_keep_working() {
 }
 
 #[test]
-fn releasing_a_gtk_switch_drag_does_not_rewind_the_thumb_animation() {
-    for initial in [false, true] {
-        let ctx = context(look::Look::Gtk, false);
-        let mut on = initial;
-        let draw = |events: Vec<egui::Event>, on: &mut bool| {
-            let mut response = None;
-            let mut output = ctx.run_ui(
-                egui::RawInput {
-                    screen_rect: Some(egui::Rect::from_min_size(
-                        egui::Pos2::ZERO,
-                        egui::vec2(340.0, 600.0),
-                    )),
-                    events,
-                    ..Default::default()
-                },
-                |ui| {
-                    response = Some(ui.add(look::Switch::new(on)));
-                },
-            );
-            let thumb = output
-                .shapes
-                .iter()
-                .find_map(|shape| match &shape.shape {
-                    egui::Shape::Circle(circle) if circle.fill == egui::Color32::WHITE => {
-                        Some(circle.center.x)
-                    }
-                    _ => None,
-                })
-                .expect("visible white thumb");
-            output.textures_delta.clear();
-            (response.unwrap(), thumb)
-        };
-        let (response, _) = draw(vec![], &mut on);
-        let start = response.rect.center() + egui::vec2(if initial { 10.0 } else { -10.0 }, 0.0);
-        draw(vec![egui::Event::PointerMoved(start)], &mut on);
-        draw(vec![primary_button(start, true)], &mut on);
-        let end = start + egui::vec2(if initial { -18.0 } else { 18.0 }, 0.0);
-        let (_, dragging) = draw(vec![egui::Event::PointerMoved(end)], &mut on);
-        let (_, released) = draw(vec![primary_button(end, false)], &mut on);
-        let (_, settled) = draw(vec![], &mut on);
-        assert_eq!(on, !initial);
-        assert!(if initial {
-            released <= dragging
-        } else {
-            released >= dragging
-        });
-        assert_eq!(released, settled);
+fn releasing_a_switch_drag_does_not_rewind_the_thumb_animation() {
+    for chosen in SYSTEM_LOOKS {
+        for initial in [false, true] {
+            let ctx = context(chosen, false);
+            let mut on = initial;
+            let draw = |events: Vec<egui::Event>, on: &mut bool| {
+                let mut response = None;
+                let mut output = ctx.run_ui(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(340.0, 600.0),
+                        )),
+                        events,
+                        ..Default::default()
+                    },
+                    |ui| {
+                        response = Some(ui.add(look::Switch::new(on)));
+                    },
+                );
+                // The thumb is drawn last: a filled disc, or macOS's narrow pill.
+                let thumb = output
+                    .shapes
+                    .iter()
+                    .filter_map(|shape| match &shape.shape {
+                        egui::Shape::Circle(circle) if circle.fill.a() == 255 => {
+                            Some(circle.center.x)
+                        }
+                        egui::Shape::Rect(rect)
+                            if rect.fill.a() == 255 && rect.rect.width() < 40.0 =>
+                        {
+                            Some(rect.rect.center().x)
+                        }
+                        _ => None,
+                    })
+                    .next_back()
+                    .expect("visible thumb");
+                output.textures_delta.clear();
+                (response.unwrap(), thumb)
+            };
+            let (response, _) = draw(vec![], &mut on);
+            let start =
+                response.rect.center() + egui::vec2(if initial { 10.0 } else { -10.0 }, 0.0);
+            draw(vec![egui::Event::PointerMoved(start)], &mut on);
+            draw(vec![primary_button(start, true)], &mut on);
+            let end = start + egui::vec2(if initial { -18.0 } else { 18.0 }, 0.0);
+            let (_, dragging) = draw(vec![egui::Event::PointerMoved(end)], &mut on);
+            let (_, released) = draw(vec![primary_button(end, false)], &mut on);
+            let (_, settled) = draw(vec![], &mut on);
+            assert_eq!(on, !initial);
+            assert!(if initial {
+                released <= dragging
+            } else {
+                released >= dragging
+            });
+            assert_eq!(released, settled);
+        }
     }
 }
 
@@ -2359,8 +3440,9 @@ fn grabbing_the_edge_of_a_gtk_or_ios_thumb_keeps_the_value() {
             });
             assert_eq!(value, 50.0);
             assert!(!response.changed());
+            // A tenth of the knob's travel: the rail less the knob's width (38 on iOS).
             let delta = if chosen == look::Look::Ios {
-                17.2
+                16.2
             } else {
                 18.0
             };

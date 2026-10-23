@@ -9,7 +9,8 @@ macOS, Windows, GNOME, iOS and Android.
 Keyboard navigation, focus, pointer and touch gestures, and accessibility are part
 of the controls themselves. Platform-specific behavior includes GTK slider
 shortcuts and switch dragging. Everything is rendered by egui, so the library runs
-wherever egui runs, and your app keeps its own palette and layout.
+wherever egui runs. Each look starts from its system's window and text colours
+(`Schemes::for_look`); an app can set its own palette and keeps its layout.
 
 **[Try the gallery in your browser.](https://mojzisekjan.github.io/egui_native_look/)**
 Add `?mac`, `?gtk&light` and so on to the address to open it in a given look.
@@ -42,14 +43,15 @@ look::install(&ctx, look::Theme::system());
 // Every frame.
 look::follow_system(&ctx);
 ui.add(look::Button::new("Save").accent());
-ui.add(look::Switch::new(&mut snap));
-look::Form::new("fillet").show(ui, |form| {
-    form.row("Radius", |ui| ui.add(look::NumberField::new(&mut radius).range(0.0..=1024.0)));
+look::Form::new("settings").show(ui, |form| {
+    form.row("Notifications", |ui| ui.add(look::Switch::new(&mut notifications)));
+    form.row("Retries", |ui| ui.add(look::NumberField::new(&mut retries).range(1.0..=64.0)));
 });
 ```
 
 `Look::system()` picks the look by target, and `Look::touch()` gives finger-sized
-controls on touch screens. The default `system` feature reads the system's accent,
+controls on touch screens. `Metrics::small` and `Metrics::large` give SwiftUI's small and large control sizes in
+the macOS look, for dense or roomy interfaces. The default `system` feature reads the system's accent,
 scheme and fonts; turn it off to get the controls alone. See the
 [documentation](https://docs.rs/egui_native_look) for every control, and run
 `cargo run --example gallery` to try them. `web/build.sh` builds the same gallery for
@@ -69,7 +71,7 @@ Sliders disable invalid or constant ranges. Non-finite endpoints preserve the mo
 
 Typing in an open dropdown focuses the next item matching the prefix, ignoring case.
 Repeated single letters cycle through matching items. The prefix resets after one
-second, keyboard navigation, or closing the list. Enter commits the focused item;
+second, keyboard navigation, or closing the list. Up and Down wrap round at the list's ends. Enter commits the focused item;
 Escape and outside clicks preserve the value. Clicking another input keeps focus
 on that input. Long lists scroll the focused item into view.
 
@@ -113,7 +115,9 @@ keyboard behavior still requires testing on physical Android and iOS devices.
 
 ## Dialog input
 
-Dialogs keep keyboard navigation on their modal layer. Tab and Shift+Tab reach
+Dialogs keep keyboard navigation on their modal layer. An opened dialog focuses its
+first enabled text field, except on a touch screen, where that would raise the
+software keyboard. Tab and Shift+Tab reach
 both body controls and actions. Focused action buttons scroll into view in short
 viewports. Closing restores focus to the enabled opener, including nested dialogs.
 Keep calling `show` when the open flag becomes false so application-driven closes
@@ -134,13 +138,43 @@ to the input method. `close_on_escape(false)` disables Escape dismissal. Call
 
 Windows segmented choices accept all four arrow keys. Selection follows focus without wrapping; Ctrl+arrow moves focus without changing selection, and Space selects the focused option. Tab re-entry restores focus to the selected option. Other modified shortcuts remain available to the application. Assistive technology receives the focused option and its position within the group.
 
-Popup buttons focus the first enabled menu item when opened from the keyboard. Home/End move to the first/last enabled item, and Enter activates a leaf item and closes the menu. Disabled items are skipped. Nested menus use the same Home/End navigation within their own rows. Right opens a submenu, Left returns to its parent item, and activating a leaf closes the menu chain and restores focus to the launcher. Escape dismisses the chain without activating an item. Menus and submenus limit their height to the viewport and scroll long lists by touch, wheel or keyboard focus. Home/End reveal the destination row. Long menu labels use an ellipsis while retaining their full accessible names; touch scrolling cancels row activation.
+Popup buttons focus the ticked menu item, or else the first enabled one, when opened from the keyboard. In the macOS look a popup button's menu opens over the button with the ticked item on the button's text. Home/End move to the first/last enabled item, and Enter activates a leaf item and closes the menu. Disabled items are skipped, and Up and Down wrap round at a menu's ends. Typing moves to the next item starting with what was typed, as in a dropdown's list. Nested menus use the same Home/End navigation within their own rows. Right opens a submenu, Left returns to its parent item, and activating a leaf closes the menu chain and restores focus to the launcher. Escape dismisses the chain without activating an item. Menus and submenus limit their height to the viewport and scroll long lists by touch, wheel or keyboard focus. Home/End reveal the destination row. Long menu labels use an ellipsis while retaining their full accessible names; touch scrolling cancels row activation.
+
+## Tooltips and egui's pop-ups
+
+In the macOS look egui frames tooltips as macOS's tool tip: a light grey box with a hairline edge. This crate's `PopupButton`, `Dropdown`, `submenu` and text field menus keep macOS's menu over it; egui's own `ComboBox` and `menu_button` pop-ups take the tool tip's frame, so prefer this crate's menus in that look.
+
+## More contrast
+
+`Theme::high_contrast(true)` follows a system asking for more contrast: controls take an edge, troughs and separators darken and secondary text comes closer to the text colour, after libadwaita's high-contrast values. egui does not report the setting; the app passes it on. In the gallery, add the word `contrast`.
+
+## Inactive windows
+
+In the macOS look an inactive window (egui's `focused` input is false) draws its accent in grey, as macOS does: the default button looks ordinary, checked marks, switched-on switches, chosen segments, slider fills and progress turn grey, and focus rings hide. `Colors::active` reports it for an app's own drawing.
+
+## Lists
+
+A click on a `ListRow` gives it the keyboard focus. In the macOS look a picked row shows the accent while a row of its list (the same `Ui`) has the focus and the window is active, and grey otherwise; `picked_text` gives the matching text colour.
+
+## Toasts
+
+A toast stays while the pointer is over it and runs out after the pointer leaves. Screen readers announce each toast as a polite status message.
+
+## Radio groups
+
+`RadioGroup` makes radio buttons one control for the keyboard: Tab stops only on the chosen option (the first enabled one while none is chosen), the arrows choose and focus the previous or next enabled option, wrapping round except in the Windows look, and Space chooses the focused option. Assistive technology receives a radio group with the options inside it. `radio_value` remains for single radio buttons laid out independently.
+
+## Sliders, steppers and search fields
+
+Sliders take all four arrows in every look: Up and Right raise the value, Down and Left lower it. Holding a number field's − or + (or a half of macOS's stepper) repeats the step after half a second, ten times a second, until the pointer is released or moves away. A search field shows a clear button while it holds text; the button empties the field, reports a change and keeps the focus in the field. A text field that gains the focus from the keyboard selects its whole text; a click places the caret. A secondary click or a long press on a text field opens Cut, Copy, Paste and Select All; Cut and Copy need a selection and stay off for passwords, and the field keeps its selection and focus for the command. `TextField::context_menu(false)` leaves the menu to the app.
 
 ## GTK interactions
 
+In the GTK look, segmented choices and tabs move only the focus with the arrows and Home/End, as libadwaita's toggle groups do; Space or Enter chooses the focused option.
+
 In the GTK look, slider Left/Right keys follow the rail, while Up/Down and +/− increase or decrease the numeric value. Ctrl changes ten steps at once. Page Up/Down increase or decrease ten steps; Ctrl+Page Up/Down move toward the left/right endpoints. Home/End select the numeric minimum/maximum. A focused slider consumes these shortcuts and keeps focus; unrelated modifiers remain available to the application. Floating sliders without an explicit step use 1% of the rail for one step, including logarithmic ranges.
 
-A GTK switch lets the user drag its thumb and commits the nearest state on release. Vertical gestures remain available to a scrolling container. Disabling the control, cancelling touch or losing window focus cancels the pending change. Switches expose the switch role to assistive technology in every look; indeterminate checkboxes expose a mixed state.
+A switch in any system look lets the user drag its thumb and commits the nearest state on release; the plain look's switch only toggles. Vertical gestures remain available to a scrolling container. Disabling the control, cancelling touch or losing window focus cancels the pending change. Switches expose the switch role to assistive technology in every look; indeterminate checkboxes expose a mixed state.
 
 Slider drags preserve the grab offset on GTK and iOS thumbs. Touch interactions wait for a tap release or horizontal drag before changing the value, leaving vertical gestures to a scrolling container. Cancelling touch, disabling the control or losing window focus stops further pointer updates. In the GTK look, Escape stops an active drag at its current value; Shift reduces sensitivity without moving the thumb when the modifier changes.
 

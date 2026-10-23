@@ -96,8 +96,12 @@ impl Form {
 fn card(x: &Ctx, rect: Rect) -> egui::Shape {
     let c = &x.c;
     let (fill, round) = match x.look {
+        // iOS's cards take its secondary background, which stands out from the window's
+        // white or black; on a window of the app's own colour they keep white.
         Look::Ios => (
-            if c.dark {
+            if c.surface != c.bg {
+                c.surface
+            } else if c.dark {
                 crate::lerp_color(c.bg, Color32::WHITE, 0.1)
             } else {
                 Color32::WHITE
@@ -158,8 +162,15 @@ pub struct FormUi<'a> {
 }
 
 impl FormUi<'_> {
-    /// The gap between the label column and the controls.
-    const GAP: f32 = 12.0;
+    /// The gap between the label column and the controls: eight points in macOS's
+    /// two-column form, as SwiftUI sets it.
+    fn gap(&self) -> f32 {
+        if self.x.look == Look::Mac {
+            8.0
+        } else {
+            12.0
+        }
+    }
     /// How far a boxed row's label and control sit from the card's edges.
     const INSET: f32 = 14.0;
 
@@ -170,7 +181,7 @@ impl FormUi<'_> {
         if self.boxed {
             (width / 3.0).max(120.0)
         } else {
-            (width - self.label_width - Self::GAP).max(80.0)
+            (width - self.label_width - self.gap()).max(80.0)
         }
     }
 
@@ -195,7 +206,7 @@ impl FormUi<'_> {
         if self.boxed {
             return self.row_with("", None, contents);
         }
-        let indent = self.label_width + Self::GAP;
+        let indent = self.label_width + self.gap();
         self.rows += 1;
         self.ui
             .horizontal(|ui| {
@@ -238,7 +249,12 @@ impl FormUi<'_> {
         let first = self.rows == 0;
         self.rows += 1;
         if self.boxed {
-            let row: f32 = if x.look == Look::Ios { 44.0 } else { 50.0 };
+            // libadwaita's rows: a 50-point header in 2 points of padding.
+            let row: f32 = match x.look {
+                Look::Ios => 44.0,
+                Look::Gtk => 54.0,
+                _ => 50.0,
+            };
             let height = row.max(self.ui.spacing().interact_size.y + 12.0);
             let (rect, response) = self.ui.allocate_exact_size(
                 egui::vec2(self.ui.available_width(), height),
@@ -263,7 +279,7 @@ impl FormUi<'_> {
             let used = self.ui.ctx().data(|d| d.get_temp::<f32>(id)).unwrap_or(0.0);
             // A label too long for what the control leaves is cut short, whole under the
             // pointer.
-            let room = (rect.width() - 2.0 * Self::INSET - Self::GAP - used).max(40.0);
+            let room = (rect.width() - 2.0 * Self::INSET - self.gap() - used).max(40.0);
             let (galley, cut) = super::truncated(self.ui, label, font, x.c.fg, room);
             let shown_width = galley.size().x;
             let top = crate::galley_top(self.ui.ctx(), &galley, rect.center().y);
@@ -281,7 +297,7 @@ impl FormUi<'_> {
             let end = rect.right() - Self::INSET;
             // Unmeasured, it has the whole room after the label, which a control that fills
             // its row keeps.
-            let after_label = rect.left() + Self::INSET + text_width + Self::GAP;
+            let after_label = rect.left() + Self::INSET + text_width + self.gap();
             let start = if used > 0.0 {
                 (end - used).max(after_label)
             } else {
@@ -291,12 +307,17 @@ impl FormUi<'_> {
                 egui::pos2(start, rect.top()),
                 egui::pos2(end, rect.bottom()),
             );
+            // Aligned to the end, which a control drawing less than its width (iOS's
+            // picker) keeps its content against.
             let mut child = self.ui.new_child(
                 UiBuilder::new()
                     .max_rect(room)
-                    .layout(Layout::left_to_right(Align::Center)),
+                    .layout(Layout::left_to_right(Align::Center).with_main_align(Align::Max)),
             );
+            let outer = in_boxed_row(child.ctx());
+            child.data_mut(|d| d.insert_temp(boxed_row_id(), true));
             let inner = control(&mut child);
+            child.data_mut(|d| d.insert_temp(boxed_row_id(), outer));
             let width = child.min_rect().width();
             if (width - used).abs() > 0.5 {
                 self.ui.ctx().data_mut(|d| d.insert_temp(id, width));
@@ -313,9 +334,10 @@ impl FormUi<'_> {
         let label_width = self.label_width.max(text_width).min(most);
         let right = matches!(x.look, Look::Mac | Look::Plain);
         let colour = x.c.fg;
+        let gap = self.gap();
         self.ui
             .horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = Self::GAP;
+                ui.spacing_mut().item_spacing.x = gap;
                 let (rect, response) = ui.allocate_exact_size(
                     egui::vec2(label_width, ui.spacing().interact_size.y),
                     Sense::hover(),
@@ -335,6 +357,17 @@ impl FormUi<'_> {
             })
             .inner
     }
+}
+
+fn boxed_row_id() -> egui::Id {
+    egui::Id::unique("egui_native_look::Form boxed row")
+}
+
+/// Whether the control being added ends a boxed list's row, where libadwaita draws its
+/// spin and combo rows without a field.
+pub(super) fn in_boxed_row(ctx: &egui::Context) -> bool {
+    ctx.data(|d| d.get_temp::<bool>(boxed_row_id()))
+        .unwrap_or(false)
 }
 
 fn row_label_id() -> egui::Id {

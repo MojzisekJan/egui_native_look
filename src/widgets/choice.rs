@@ -2,11 +2,12 @@
 
 use egui::{Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, Widget};
 
-use super::{truncated, Ctx};
+use super::{menu_label_inset, truncated, Ctx};
 use crate::Look;
 
 /// A choice of one of `items` in equal segments: in the system looks a grey track with the
-/// chosen segment raised out of it; in the plain look the chosen segment in the accent.
+/// chosen segment raised out of it, on macOS filled with the accent; in the plain look the
+/// chosen segment in the accent.
 /// `response.changed()` when the choice changed. Empty choices are inactive and
 /// leave the index unchanged. An out-of-range index shows no selection until input
 /// chooses a valid item.
@@ -63,14 +64,50 @@ impl<'a> Segmented<'a> {
 
 impl Widget for Segmented<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Segmented<'_> {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let name = super::form::accessible_name(ui, &self.label);
         let c = &x.c;
         let before = *self.selected;
         let height = ui.spacing().interact_size.y.max(super::minimum_target(ui));
+        // macOS and libadwaita size their segments to the longest label rather than filling
+        // the row.
         let width = self
             .width
-            .unwrap_or_else(|| ui.available_width())
+            .unwrap_or_else(|| {
+                if matches!(x.look, Look::Mac | Look::Gtk) && !self.items.is_empty() {
+                    let font = if x.look == Look::Gtk {
+                        x.m.bold.clone()
+                    } else {
+                        x.m.body.clone()
+                    };
+                    let longest = self
+                        .items
+                        .iter()
+                        .map(|(label, _)| {
+                            ui.fonts_mut(|f| {
+                                f.layout_no_wrap(label.clone(), font.clone(), x.c.fg)
+                                    .size()
+                                    .x
+                            })
+                        })
+                        .fold(0.0, f32::max);
+                    if x.look == Look::Gtk {
+                        // libadwaita's toggles: 8 points either side of the label, at least
+                        // 34 wide, in 3 points of the group's padding.
+                        (longest + 16.0).max(34.0) * self.items.len() as f32 + 6.0
+                    } else {
+                        (longest + (24.0 * super::mac_scale(ui)).round()) * self.items.len() as f32
+                    }
+                } else {
+                    ui.available_width()
+                }
+            })
             .max(super::minimum_target(ui) * self.items.len() as f32);
         let enabled = ui.is_enabled() && !self.items.is_empty();
         // The control as a whole takes the focus, and the arrows move the choice inside it.
@@ -114,18 +151,55 @@ impl Widget for Segmented<'_> {
             return response;
         }
         let system = x.look.native();
+        let mac = x.look == Look::Mac;
+        let ios = x.look == Look::Ios;
         if system {
-            ui.painter()
-                .rect_filled(rect, CornerRadius::same(r.saturating_add(1)), c.track);
-            for i in 1..n {
+            // macOS lays its segments on a button's grey, iOS 26 on a capsule; the others on
+            // a darker track.
+            let (round, fill) = if mac || x.look == Look::Gtk {
+                // libadwaita's toggle group too: the buttons' fill and radius.
+                (CornerRadius::same(r), c.button)
+            } else if ios {
+                (
+                    CornerRadius::same((rect.height() / 2.0) as u8),
+                    crate::ink(c, 0.11, 0.066),
+                )
+            } else {
+                (CornerRadius::same(r.saturating_add(1)), c.track)
+            };
+            ui.painter().rect_filled(rect, round, fill);
+            if c.high_contrast {
+                ui.painter().rect_stroke(
+                    rect,
+                    round,
+                    Stroke::new(1.0, c.control_border),
+                    egui::StrokeKind::Inside,
+                );
+            }
+            // macOS's separators are taller and darker, the text's ink at about a third.
+            let (inset, line) = if mac {
+                let ink = if c.dark {
+                    Color32::WHITE
+                } else {
+                    Color32::BLACK
+                };
+                (
+                    5.0,
+                    crate::lerp_color(c.bg, ink, if c.dark { 0.345 } else { 0.26 }),
+                )
+            } else {
+                (7.0, c.control_border)
+            };
+            // iOS 26 and libadwaita separate their segments with nothing but space.
+            for i in (1..n).filter(|_| !ios && x.look != Look::Gtk) {
                 if i != *self.selected && i != self.selected.saturating_add(1) {
                     let left = (rect.left() + each * i as f32).round() + 0.5;
                     ui.painter().line_segment(
                         [
-                            egui::pos2(left, rect.top() + 7.0),
-                            egui::pos2(left, rect.bottom() - 7.0),
+                            egui::pos2(left, rect.top() + inset),
+                            egui::pos2(left, rect.bottom() - inset),
                         ],
-                        Stroke::new(1.0, c.control_border),
+                        Stroke::new(1.0, line),
                     );
                 }
             }
@@ -146,7 +220,51 @@ impl Widget for Segmented<'_> {
             );
             let segment = super::click_response(ui, segment);
             let on = i == *self.selected;
-            let colour = if system {
+            let colour = if ios {
+                if on {
+                    // A capsule two points inside the track, lifted by a faint shadow.
+                    let body = slot.shrink(2.0);
+                    let round = CornerRadius::same((body.height() / 2.0) as u8);
+                    ui.painter()
+                        .add(super::basic::mac_shadow(c.dark).as_shape(body, round));
+                    // Opaque, so the shadow beneath does not show through.
+                    let fill = if c.dark {
+                        crate::lerp_color(c.bg, Color32::WHITE, 0.35)
+                    } else {
+                        Color32::WHITE
+                    };
+                    ui.painter().rect_filled(
+                        body,
+                        round,
+                        if enabled {
+                            fill
+                        } else {
+                            fill.gamma_multiply(0.6)
+                        },
+                    );
+                }
+                if enabled {
+                    c.fg
+                } else {
+                    c.disabled
+                }
+            } else if mac {
+                if on {
+                    ui.painter()
+                        .rect_filled(slot, CornerRadius::same(r), mac_chosen(c, enabled));
+                    c.on_accent
+                } else {
+                    if segment.hovered() && enabled {
+                        ui.painter()
+                            .rect_filled(slot, CornerRadius::same(r), c.button_hover);
+                    }
+                    if enabled {
+                        c.fg
+                    } else {
+                        c.disabled
+                    }
+                }
+            } else if system {
                 if on {
                     let fill = if enabled {
                         c.raised
@@ -160,12 +278,21 @@ impl Widget for Segmented<'_> {
                             crate::paint::fluent(ui.painter(), &x.c, body, inner, fill, enabled)
                         }
                         Look::Gtk => {
-                            // libadwaita's toggle group raises its active toggle without an edge.
-                            ui.painter().rect_filled(
-                                body.translate(egui::vec2(0.0, 1.0)),
-                                inner,
-                                Color32::from_black_alpha(if c.dark { 50 } else { 20 }),
-                            );
+                            // libadwaita's toggle group raises its active toggle three points
+                            // in, without an edge, on two soft shadows.
+                            let body = slot.shrink(3.0);
+                            let inner = CornerRadius::same(r.saturating_sub(3));
+                            for (y, blur, spread, alpha) in [(1, 3, 1, 18), (2, 6, 2, 8)] {
+                                ui.painter().add(
+                                    egui::Shadow {
+                                        offset: [0, y],
+                                        blur,
+                                        spread,
+                                        color: Color32::from_rgba_unmultiplied(0, 0, 6, alpha),
+                                    }
+                                    .as_shape(body, inner),
+                                );
+                            }
                             ui.painter().rect_filled(body, inner, fill);
                         }
                         _ => {
@@ -214,7 +341,11 @@ impl Widget for Segmented<'_> {
                     c.fg
                 }
             };
-            let font = if on && system {
+            // iOS 26 sets its segments in 13-point text, every one alike; libadwaita all
+            // of them in bold.
+            let font = if ios {
+                egui::FontId::new(13.0, x.m.body.family.clone())
+            } else if x.look == Look::Gtk || on && system {
                 x.m.bold.clone()
             } else {
                 x.m.body.clone()
@@ -337,10 +468,22 @@ fn material_segments(
                 .rect_filled(slot, round, c.fg.gamma_multiply(0.08));
         }
         let colour = if enabled { c.fg } else { c.disabled };
-        let (galley, _) = truncated(ui, label, x.m.body.clone(), colour, slot.width() - 30.0);
-        let tick = if on { 18.0 } else { 0.0 };
+        // Labels in the medium weight, twelve points in from either side; the chosen one
+        // after its tick, unless only leaving the tick out keeps the label whole.
+        let room = slot.width() - 24.0;
+        let whole = ui.fonts_mut(|f| {
+            f.layout_no_wrap(label.clone(), x.m.bold.clone(), colour)
+                .size()
+                .x
+        });
+        let tick = if on && (whole + 18.0 <= room || whole > room) {
+            18.0
+        } else {
+            0.0
+        };
+        let (galley, _) = truncated(ui, label, x.m.bold.clone(), colour, room - tick);
         let left = slot.center().x - (galley.size().x + tick) / 2.0;
-        if on {
+        if tick > 0.0 {
             super::basic::check_mark(
                 ui.painter(),
                 egui::pos2(left + 7.0, slot.center().y),
@@ -482,6 +625,7 @@ fn choice_keys(ui: &Ui, response: &Response, n: usize, selected: &mut usize, loo
     focus.index = focus.index.min(n - 1);
     if has_focus {
         let windows = look == Look::Windows;
+        let gtk = look == Look::Gtk;
         ui.memory_mut(|memory| {
             memory.set_focus_lock_filter(
                 response.id,
@@ -504,18 +648,27 @@ fn choice_keys(ui: &Ui, response: &Response, n: usize, selected: &mut usize, loo
                 else {
                     return true;
                 };
-                let Some(action) = choice_key(*key, *modifiers, windows) else {
+                // libadwaita's toggle groups move only the focus with the keys, and Space
+                // or Enter chooses the focused toggle.
+                let enter = gtk && *key == egui::Key::Enter && modifiers.is_none();
+                let Some(action) = choice_key(*key, *modifiers, windows)
+                    .or_else(|| enter.then_some(ChoiceKey::Select))
+                else {
                     return true;
                 };
                 handled = true;
                 match action {
                     ChoiceKey::First => {
                         focus.index = 0;
-                        *selected = focus.index;
+                        if !gtk {
+                            *selected = focus.index;
+                        }
                     }
                     ChoiceKey::Last => {
                         focus.index = n - 1;
-                        *selected = focus.index;
+                        if !gtk {
+                            *selected = focus.index;
+                        }
                     }
                     ChoiceKey::Move { forward, select } => {
                         focus.index = if forward {
@@ -523,7 +676,7 @@ fn choice_keys(ui: &Ui, response: &Response, n: usize, selected: &mut usize, loo
                         } else {
                             focus.index.saturating_sub(1)
                         };
-                        if select {
+                        if select && !gtk {
                             *selected = focus.index;
                         }
                     }
@@ -686,17 +839,29 @@ impl DropdownSearch {
 
 impl Widget for Dropdown<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Dropdown<'_> {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let c = x.c;
         let before = *self.selected;
-        let height = ui.spacing().interact_size.y;
-        let font = x.m.body.clone();
+        // Material's list rows are 48 points high, as its menus' are; libadwaita's 32.
+        let height = match x.look {
+            Look::Material => 48.0,
+            Look::Gtk => 32.0,
+            _ => ui.spacing().interact_size.y,
+        };
+        let font = popup_font(&x);
+        let bold = x.m.bold.clone();
         let longest = self
             .items
             .iter()
             .map(|t| ui.fonts_mut(|f| f.layout_no_wrap(t.clone(), font.clone(), c.fg).size().x))
             .fold(0.0, f32::max);
-        let width = self.width.unwrap_or(longest + 44.0);
+        let width = self.width.unwrap_or(longest + popup_room(ui, x.look));
         let text = self.items.get(*self.selected).cloned().unwrap_or_default();
         let row_height = height.max(20.0);
         let selected = &mut *self.selected;
@@ -738,7 +903,27 @@ impl Widget for Dropdown<'_> {
                                 )
                             });
                             let hot = hit.hovered() || hit.has_focus();
-                            if hot {
+                            if look == Look::Material {
+                                // Material lays a state layer over the row under the pointer
+                                // and a stronger one over the chosen row, without a tick.
+                                let layer = if i == *selected {
+                                    0.12
+                                } else if hot {
+                                    0.08
+                                } else {
+                                    0.0
+                                };
+                                if layer > 0.0 {
+                                    ui.painter().rect_filled(
+                                        row,
+                                        CornerRadius::ZERO,
+                                        c.fg.gamma_multiply(layer),
+                                    );
+                                }
+                            } else if hot && look == Look::Gtk {
+                                ui.painter()
+                                    .rect_filled(row, CornerRadius::same(9), c.button);
+                            } else if hot {
                                 ui.painter().rect_filled(
                                     row,
                                     CornerRadius::same(4),
@@ -756,19 +941,32 @@ impl Widget for Dropdown<'_> {
                                     .rect_filled(bar, CornerRadius::same(2), c.accent);
                             }
                             let colour = if hot && accent_row { c.on_accent } else { c.fg };
-                            if i == *selected && look != Look::Windows {
+                            if i == *selected && !matches!(look, Look::Windows | Look::Material) {
+                                // libadwaita ticks the chosen item after its label, at the end.
+                                let tick = if look == Look::Gtk {
+                                    row.right() - 18.0
+                                } else {
+                                    row.left() + 12.0
+                                };
                                 super::basic::check_mark(
                                     ui.painter(),
-                                    egui::pos2(row.left() + 12.0, row.center().y),
+                                    egui::pos2(tick, row.center().y),
                                     colour,
                                 );
                             }
+                            // Material's rows line their labels up with the field's text, in
+                            // the menus' medium weight.
+                            let (inset, row_font) = match look {
+                                Look::Material => (16.0, bold.clone()),
+                                Look::Gtk => (12.0, font.clone()),
+                                _ => (26.0, font.clone()),
+                            };
                             crate::text(
                                 ui.painter(),
-                                egui::pos2(row.left() + 26.0, row.center().y),
+                                egui::pos2(row.left() + inset, row.center().y),
                                 egui::Align2::LEFT_CENTER,
                                 item,
-                                font.clone(),
+                                row_font,
                                 colour,
                             );
                             if hit.clicked() {
@@ -787,11 +985,13 @@ impl Widget for Dropdown<'_> {
                                 } else if input
                                     .consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown)
                                 {
-                                    Some((current + 1).min(ids.len() - 1))
+                                    // The list wraps round at its ends, as GTK's and
+                                    // Material's do.
+                                    Some((current + 1) % ids.len())
                                 } else if input
                                     .consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp)
                                 {
-                                    Some(current.saturating_sub(1))
+                                    Some((current + ids.len() - 1) % ids.len())
                                 } else {
                                     None
                                 }
@@ -853,9 +1053,13 @@ impl Widget for Dropdown<'_> {
 struct MenuFocus {
     pass: u64,
     items: Vec<(egui::Id, Rect)>,
+    /// The items' labels, for typing to find one.
+    labels: Vec<String>,
+    /// The ticked row, which the menu opens on.
+    checked: Option<(egui::Id, Rect)>,
 }
 
-pub(super) fn register_menu_item(ui: &Ui, response: &Response) -> bool {
+pub(super) fn register_menu_item(ui: &Ui, response: &Response, checked: bool, label: &str) -> bool {
     if !response.enabled() {
         return false;
     }
@@ -865,6 +1069,10 @@ pub(super) fn register_menu_item(ui: &Ui, response: &Response) -> bool {
         if let Some(mut menu) = data.get_temp::<MenuFocus>(key) {
             if menu.pass == pass {
                 menu.items.push((response.id, response.rect));
+                menu.labels.push(label.to_owned());
+                if checked && menu.checked.is_none() {
+                    menu.checked = Some((response.id, response.rect));
+                }
                 data.insert_temp(key, menu);
                 return true;
             }
@@ -887,12 +1095,36 @@ pub(super) fn menu_contents<R>(
             MenuFocus {
                 pass,
                 items: Vec::new(),
+                labels: Vec::new(),
+                checked: None,
             },
         )
     });
     let bounds = ui.ctx().content_rect();
     let max_width = (bounds.width() - 24.0).max(1.0);
     ui.set_max_width(ui.available_width().min(max_width));
+    // macOS's and libadwaita's menu rows touch, and macOS's separators are faint.
+    let x = Ctx::of(ui);
+    if x.look == Look::Gtk {
+        ui.spacing_mut().item_spacing.y = 0.0;
+    }
+    // WinUI's items keep two points above and below them.
+    if x.look == Look::Windows {
+        ui.spacing_mut().item_spacing.y = 4.0;
+    }
+    if x.look == Look::Mac {
+        ui.spacing_mut().item_spacing.y = 0.0;
+        let ink = if x.c.dark {
+            Color32::WHITE
+        } else {
+            Color32::BLACK
+        };
+        ui.visuals_mut().widgets.noninteractive.bg_stroke.color = crate::lerp_color(
+            crate::mac_menu_fill(x.c.dark),
+            ink,
+            if x.c.dark { 0.17 } else { 0.09 },
+        );
+    }
     egui::ScrollArea::vertical()
         .id_salt("menu-rows")
         .max_height((bounds.height() - 32.0).max(1.0))
@@ -916,23 +1148,71 @@ fn menu_keys(ui: &Ui, launcher: egui::Id) {
     }
     let focused = ui.memory(|memory| memory.focused());
     let in_menu = focused.is_some_and(|focused| menu.items.iter().any(|(id, _)| *id == focused));
+    let at = |id| menu.items.iter().position(|(item, _)| Some(*item) == id);
+    let (first, last) = (Some(0), Some(menu.items.len() - 1));
     let target = if in_menu || focused.is_none() {
-        ui.input_mut(|input| {
+        let wrap = ui.input_mut(|input| {
             if input.consume_key(egui::Modifiers::NONE, egui::Key::Home) {
                 menu.items.first().copied()
             } else if input.consume_key(egui::Modifiers::NONE, egui::Key::End) {
                 menu.items.last().copied()
+            } else if at(focused) == last
+                && input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown)
+            {
+                // Down from the last row wraps to the first, and Up from the first to the
+                // last, as every system's menus do.
+                menu.items.first().copied()
+            } else if at(focused) == first
+                && input.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp)
+            {
+                menu.items.last().copied()
             } else {
                 None
             }
-        })
+        });
+        if wrap.is_some() {
+            // egui already read the arrow as a move; the wrap replaces it.
+            ui.memory_mut(|memory| memory.move_focus(egui::FocusDirection::None));
+        }
+        wrap
     } else if focused == Some(launcher)
         && !ui.input(|input| input.pointer.any_down() || input.pointer.any_click())
     {
-        menu.items.first().copied()
+        menu.checked.or_else(|| menu.items.first().copied())
     } else {
         None
     };
+    // Typing moves to the next item starting with what was typed, as in a dropdown's list.
+    let target = target.or_else(|| {
+        if !in_menu {
+            return None;
+        }
+        let search_id = key.with("search");
+        let frame = ui.ctx().cumulative_frame_nr();
+        let mut search = ui
+            .data(|data| data.get_temp::<DropdownSearch>(search_id))
+            .unwrap_or_default();
+        if frame.saturating_sub(search.frame) > 1 {
+            search.prefix.clear();
+        }
+        search.frame = frame;
+        let current = at(focused).unwrap_or(0);
+        let mut found = None;
+        ui.input_mut(|input| {
+            input.events.retain(|event| {
+                if let egui::Event::Text(text) = event {
+                    found = search
+                        .find(text, &menu.labels, found.unwrap_or(current), input.time)
+                        .or(found);
+                    false
+                } else {
+                    true
+                }
+            });
+        });
+        ui.data_mut(|data| data.insert_temp(search_id, search));
+        found.map(|index| menu.items[index])
+    });
     if let Some((target, rect)) = target {
         ui.memory_mut(|memory| memory.request_focus(target));
         ui.scroll_to_rect_animation(rect, None, egui::style::ScrollAnimation::none());
@@ -1010,15 +1290,21 @@ impl PopupButton {
     ) -> egui::InnerResponse<Option<R>> {
         let x = Ctx::of(ui);
         let c = x.c;
-        let height = ui.spacing().interact_size.y;
-        let font = x.m.body.clone();
-        let width = self.width.unwrap_or_else(|| {
-            ui.fonts_mut(|f| {
-                f.layout_no_wrap(self.text.clone(), font.clone(), c.fg)
-                    .size()
-                    .x
-            }) + 44.0
+        let height = popup_height(ui, x.look);
+        let font = popup_font(&x);
+        // In a boxed list's row libadwaita's combo row shows only its value and arrow.
+        let flat = x.look == Look::Gtk && super::form::in_boxed_row(ui.ctx());
+        let text_width = ui.fonts_mut(|f| {
+            f.layout_no_wrap(self.text.clone(), font.clone(), c.fg)
+                .size()
+                .x
         });
+        let width = if flat {
+            text_width + GTK_ROW_ARROW
+        } else {
+            self.width
+                .unwrap_or_else(|| text_width + popup_room(ui, x.look))
+        };
         let enabled = ui.is_enabled() && self.enabled;
         let (rect, mut response) = super::allocate_control(
             ui,
@@ -1037,22 +1323,124 @@ impl PopupButton {
             egui::Popup::close_id(ui.ctx(), popup);
         }
         let open = egui::Popup::is_id_open(ui.ctx(), popup);
-        let arrows =
-            crate::paint::popup_button(ui.painter(), &x.paint(), rect, &response, enabled, open);
-        let colour = if enabled { c.fg } else { c.disabled };
-        let (galley, _) = truncated(ui, &self.text, font, colour, rect.width() - 10.0 - arrows);
+        // iOS draws no body, so its value and chevrons keep together at the end the layout
+        // grows from, however wide the button.
+        let shown = if x.look == Look::Ios {
+            let natural = ui.fonts_mut(|f| {
+                f.layout_no_wrap(self.text.clone(), font.clone(), c.fg)
+                    .size()
+                    .x
+            }) + popup_room(ui, x.look);
+            let natural = natural.min(rect.width());
+            let layout = ui.layout();
+            if layout.prefer_right_to_left() || layout.horizontal_align() == egui::Align::Max {
+                Rect::from_min_max(egui::pos2(rect.right() - natural, rect.top()), rect.max)
+            } else {
+                Rect::from_min_max(rect.min, egui::pos2(rect.left() + natural, rect.bottom()))
+            }
+        } else {
+            rect
+        };
+        let arrows = if flat {
+            let m = egui::pos2(rect.right() - 8.0, rect.center().y);
+            ui.painter().add(egui::Shape::line(
+                vec![
+                    m + egui::vec2(-4.0, -2.0),
+                    m + egui::vec2(0.0, 2.0),
+                    m + egui::vec2(4.0, -2.0),
+                ],
+                Stroke::new(2.0, if enabled { c.fg } else { c.disabled }),
+            ));
+            if response.has_focus() {
+                crate::paint::ring(ui.painter(), &x.paint(), rect, x.radius());
+            }
+            GTK_ROW_ARROW
+        } else {
+            crate::paint::popup_button(ui.painter(), &x.paint(), shown, &response, enabled, open)
+        };
+        // iOS's menu picker is its value in the accent, without a body.
+        let colour = match (enabled, x.look) {
+            (false, _) => c.disabled,
+            (true, Look::Ios) => c.accent,
+            (true, _) => c.fg,
+        };
+        let inset = match x.look {
+            _ if flat => 0.0,
+            Look::Ios => 12.0,
+            Look::Material => 16.0,
+            _ => 10.0,
+        };
+        let (galley, _) = truncated(ui, &self.text, font, colour, shown.width() - inset - arrows);
         let top = crate::galley_top(ui.ctx(), &galley, rect.center().y);
         ui.painter()
-            .galley(egui::pos2(rect.left() + 10.0, top), galley, colour);
-        let inner = egui::Popup::menu(&response)
+            .galley(egui::pos2(shown.left() + inset, top), galley, colour);
+        // macOS's menu is wider than its button, so it covers the button it opens over.
+        // Material's menus are at least 112 points wide; every menu is as wide as its
+        // widest item was.
+        let list_width = match x.look {
+            Look::Mac => width + 40.0,
+            Look::Material => width.max(112.0),
+            // libadwaita's popover menus are at least 120 wide.
+            Look::Gtk => width.max(120.0),
+            _ => width,
+        };
+        let list_width = list_width.max(
+            ui.data(|d| d.get_temp::<f32>(super::containers::menu_needed_id(popup)))
+                .unwrap_or(0.0),
+        );
+        let mut list = egui::Popup::menu(&response)
+            .style(menu_style(x.look))
             .id(popup)
-            .width(width.min((ui.ctx().content_rect().width() - 16.0).max(1.0)))
-            .show(|ui| {
-                ui.set_min_width(
-                    (width - 8.0).min((ui.ctx().content_rect().width() - 24.0).max(1.0)),
-                );
-                menu_contents(ui, response.id, add)
+            .width(list_width.min((ui.ctx().content_rect().width() - 16.0).max(1.0)));
+        // Material's menu hangs from the field's indicator line.
+        if x.look == Look::Material {
+            list = list.gap(0.0);
+        }
+        // macOS opens a pop-up button's menu over the button, its ticked row on the
+        // button's text, from where that row sat in the menu the last time it was drawn.
+        let over_key = popup.with("over-button");
+        if x.look == Look::Mac {
+            if let Some(offset) = ui.data(|data| data.get_temp::<egui::Vec2>(over_key)) {
+                // Kept on screen here: a corner past the edge would make egui flip the
+                // menu beside the button instead.
+                let bounds = ui.ctx().content_rect().shrink(4.0);
+                let corner =
+                    (egui::pos2(rect.left() + 10.0, rect.center().y) - offset).max(bounds.min);
+                list = list
+                    .anchor(Rect::from_min_size(corner, egui::vec2(rect.width(), 0.0)))
+                    .align(egui::RectAlign::BOTTOM_START)
+                    .align_alternatives(&[])
+                    .gap(0.0);
+            }
+        }
+        let inner = list.show(|ui| {
+            ui.set_min_width(
+                (list_width - 8.0).min((ui.ctx().content_rect().width() - 24.0).max(1.0)),
+            );
+            menu_contents(ui, response.id, add)
+        });
+        if x.look == Look::Mac {
+            let offset = inner.as_ref().and_then(|inner| {
+                let menu = inner.response.layer_id.id.with("menu-focus");
+                let checked = ui.data(|data| data.get_temp::<MenuFocus>(menu))?.checked?.1;
+                Some(
+                    egui::pos2(
+                        checked.left() + menu_label_inset(x.look),
+                        checked.center().y,
+                    ) - inner.response.rect.left_top(),
+                )
             });
+            let before = ui.data(|data| data.get_temp::<egui::Vec2>(over_key));
+            match offset {
+                Some(offset) if before.is_none_or(|before| (before - offset).length() > 0.5) => {
+                    ui.data_mut(|data| data.insert_temp(over_key, offset));
+                    ui.ctx()
+                        .request_discard("egui_native_look::PopupButton over the button");
+                }
+                None if !open => ui.data_mut(|data| data.remove::<egui::Vec2>(over_key)),
+                _ => {}
+            }
+        }
         let expanded = egui::Popup::is_id_open(ui.ctx(), popup);
         let outside_click = ui.input(|input| {
             input.pointer.any_click()
@@ -1104,28 +1492,21 @@ pub fn combo_icon(ui: &Ui, rect: Rect, visuals: &egui::style::WidgetVisuals, ope
     let c = &x.c;
     let m = rect.center();
     if x.look == Look::Mac {
-        let side = rect.height().clamp(12.0, 16.0);
-        let square = Rect::from_center_size(m, egui::vec2(side, side));
-        ui.painter()
-            .rect_filled(square, CornerRadius::same(4), c.accent);
-        let m = square.center();
-        let stroke = Stroke::new(1.4, Color32::WHITE);
-        ui.painter().add(egui::Shape::line(
-            vec![
-                m + egui::vec2(-2.8, -1.5),
-                m + egui::vec2(0.0, -4.2),
-                m + egui::vec2(2.8, -1.5),
-            ],
-            stroke,
-        ));
-        ui.painter().add(egui::Shape::line(
-            vec![
-                m + egui::vec2(-2.8, 1.5),
-                m + egui::vec2(0.0, 4.2),
-                m + egui::vec2(2.8, 1.5),
-            ],
-            stroke,
-        ));
+        let colour = if ui.is_enabled() {
+            visuals.fg_stroke.color
+        } else {
+            c.disabled
+        };
+        for sign in [-1.0, 1.0] {
+            ui.painter().add(egui::Shape::line(
+                vec![
+                    m + egui::vec2(-3.0, sign * 1.5),
+                    m + egui::vec2(0.0, sign * 4.5),
+                    m + egui::vec2(3.0, sign * 1.5),
+                ],
+                Stroke::new(1.3, colour),
+            ));
+        }
     } else {
         let flip = if open { -1.0 } else { 1.0 };
         let chevron = vec![
@@ -1336,7 +1717,13 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
 }
 
 impl<T: egui::emath::Numeric> Widget for Slider<'_, T> {
-    fn ui(mut self, ui: &mut Ui) -> Response {
+    fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl<T: egui::emath::Numeric> Slider<'_, T> {
+    fn add_contents(mut self, ui: &mut Ui) -> Response {
         let (lo, hi) = (*self.range.start(), *self.range.end());
         let invalid = !lo.is_finite() || !hi.is_finite();
         if invalid {
@@ -1659,8 +2046,12 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
         let (rect, mut response) =
             super::allocate_touch(ui, egui::vec2(width, height), Sense::click());
         let knob_r: f32 = match x.look {
-            Look::Windows | Look::Gtk | Look::Material => 10.0,
-            Look::Ios => 14.0,
+            Look::Mac => 10.0 * super::mac_scale(ui),
+            // WinUI's thumb is 18 points across.
+            Look::Windows => 9.0,
+            Look::Gtk | Look::Material => 10.0,
+            // iOS 26's knob is a pill 38 points wide.
+            Look::Ios => 19.0,
             _ => 8.0,
         };
         let knob_r = knob_r.min((rect.width() * 0.5 - 0.5).max(0.0));
@@ -1673,9 +2064,10 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
         response = super::click_response(ui, response);
         if response.has_focus() && response.enabled() {
             let gtk = x.look == Look::Gtk;
+            // Every look's slider takes all four arrows, Up and Right raising the value.
             let filter = egui::EventFilter {
                 horizontal_arrows: true,
-                vertical_arrows: gtk,
+                vertical_arrows: true,
                 escape: gtk && dragging,
                 ..Default::default()
             };
@@ -1711,8 +2103,10 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 }
             } else {
                 let steps = ui.input(|i| {
-                    f64::from(u8::from(i.key_pressed(egui::Key::ArrowRight)))
-                        - f64::from(u8::from(i.key_pressed(egui::Key::ArrowLeft)))
+                    let pressed = |key| f64::from(u8::from(i.key_pressed(key)));
+                    pressed(egui::Key::ArrowRight) + pressed(egui::Key::ArrowUp)
+                        - pressed(egui::Key::ArrowLeft)
+                        - pressed(egui::Key::ArrowDown)
                 });
                 if steps != 0.0 {
                     self.set(self.nudged(steps, true), &mut response);
@@ -1723,30 +2117,138 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
         let t = self.fraction(self.value.to_f64()) as f32;
         let painter = ui.painter();
         let at = egui::pos2(egui::lerp(rail.left()..=rail.right(), t), rail.center().y);
-        let accent = if enabled { c.accent } else { c.disabled };
-        painter.rect_filled(rail, CornerRadius::same(2), c.track);
-        painter.rect_filled(
-            Rect::from_min_max(rail.min, egui::pos2(at.x, rail.max.y)),
-            CornerRadius::same(2),
-            accent,
-        );
-        match x.look {
-            Look::Windows => {
-                // WinUI's thumb: a ring in the button's fill round an accent dot that
-                // grows under the pointer.
-                painter.circle_filled(at, knob_r, c.button);
-                painter.circle_stroke(at, knob_r, Stroke::new(1.0, c.control_border));
-                painter.circle_filled(
-                    at,
-                    if response.hovered() || response.dragged() {
-                        7.0
-                    } else {
-                        5.0
-                    },
-                    accent,
-                );
+        let accent = match (enabled, x.look) {
+            // An inactive macOS window greys the fill.
+            (true, Look::Mac) if !c.active => {
+                let ink = if c.dark {
+                    Color32::WHITE
+                } else {
+                    Color32::BLACK
+                };
+                crate::lerp_color(c.bg, ink, if c.dark { 0.27 } else { 0.2 })
             }
-            Look::Plain | Look::Material => {
+            (true, _) => c.accent,
+            // macOS greys a disabled slider's fill just past its rail.
+            (false, Look::Mac) => {
+                let ink = if c.dark {
+                    Color32::WHITE
+                } else {
+                    Color32::BLACK
+                };
+                crate::lerp_color(c.bg, ink, if c.dark { 0.17 } else { 0.12 })
+            }
+            (false, _) => c.disabled,
+        };
+        if matches!(x.look, Look::Mac | Look::Ios) {
+            // A six-point rail across the whole width, under the knob's travel.
+            let half = if x.look == Look::Ios {
+                3.0
+            } else {
+                (3.0 * super::mac_scale(ui)).round()
+            };
+            let wide = Rect::from_min_max(
+                egui::pos2(rect.left(), rail.center().y - half),
+                egui::pos2(rect.right(), rail.center().y + half),
+            );
+            painter.rect_filled(wide, CornerRadius::same(half as u8), c.track);
+            painter.rect_filled(
+                Rect::from_min_max(wide.min, egui::pos2(at.x, wide.max.y)),
+                CornerRadius::same(half as u8),
+                accent,
+            );
+            // A slider in steps marks each with a dot under the rail, where the knob's
+            // centre stops; a dense one leaves them out.
+            let (lo, hi) = (*self.range.start(), *self.range.end());
+            let steps = self
+                .step
+                .filter(|step| *step > 0.0 && !self.log() && x.look == Look::Mac)
+                .map(|step| ((hi - lo).abs() / step).round())
+                .filter(|steps| (1.0..=50.0).contains(steps));
+            if let Some(steps) = steps {
+                let ink = if c.dark {
+                    Color32::WHITE
+                } else {
+                    Color32::BLACK
+                };
+                let dot = crate::lerp_color(c.bg, ink, 0.25);
+                for i in 0..=steps as usize {
+                    let x = egui::lerp(rail.left()..=rail.right(), i as f32 / steps as f32);
+                    painter.rect_filled(
+                        Rect::from_center_size(
+                            egui::pos2(x.round(), wide.bottom() + 5.0),
+                            egui::Vec2::splat(2.0),
+                        ),
+                        CornerRadius::same(1),
+                        dot,
+                    );
+                }
+            }
+        } else {
+            // WinUI's track is the strong fill, as dark as its strokes.
+            let track = if x.look == Look::Windows {
+                c.control_strong
+            } else {
+                c.track
+            };
+            painter.rect_filled(rail, CornerRadius::same(2), track);
+            painter.rect_filled(
+                Rect::from_min_max(rail.min, egui::pos2(at.x, rail.max.y)),
+                CornerRadius::same(2),
+                accent,
+            );
+        }
+        match x.look {
+            Look::Mac | Look::Ios => {
+                // A pill wider than it is tall, with a soft shadow.
+                let tall = if x.look == Look::Ios {
+                    24.0
+                } else {
+                    (16.0 * super::mac_scale(ui)).round()
+                };
+                let pill = Rect::from_center_size(at, egui::vec2(knob_r * 2.0, tall));
+                let round = CornerRadius::same((tall / 2.0) as u8);
+                // A disabled knob looks the same; only the fill greys.
+                painter.add(super::basic::mac_shadow(c.dark).as_shape(pill, round));
+                let fill = if c.dark && x.look == Look::Mac {
+                    crate::colors::rgb(0xe1e1e1)
+                } else {
+                    Color32::WHITE
+                };
+                painter.rect_filled(pill, round, fill);
+            }
+            Look::Windows => {
+                // WinUI's thumb: a ring in the solid control fill round a 12-point accent
+                // dot, 14 under the pointer and 10 while pressed.
+                let solid = if c.dark {
+                    crate::colors::rgb(0x454545)
+                } else {
+                    Color32::WHITE
+                };
+                painter.circle_filled(at, knob_r, solid);
+                painter.circle_stroke(at, knob_r, Stroke::new(1.0, c.control_border));
+                let dot = if response.dragged() || response.is_pointer_button_down_on() {
+                    5.0
+                } else if response.hovered() {
+                    7.0
+                } else {
+                    6.0
+                };
+                painter.circle_filled(at, dot, accent);
+            }
+            Look::Material => {
+                // Material keeps the handle's colour and rings it with a 40-point state
+                // layer under the pointer, stronger while dragged.
+                let dragged = response.dragged() || response.is_pointer_button_down_on();
+                if enabled && (response.hovered() || dragged) {
+                    painter.circle_filled(
+                        at,
+                        20.0,
+                        c.accent.gamma_multiply(if dragged { 0.1 } else { 0.08 }),
+                    );
+                }
+                painter.circle_filled(at, knob_r, accent);
+            }
+            Look::Plain => {
                 painter.circle_filled(
                     at,
                     knob_r,
@@ -1757,7 +2259,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                     },
                 );
             }
-            Look::Mac | Look::Gtk | Look::Ios => {
+            Look::Gtk => {
                 painter.circle_filled(
                     at + egui::vec2(0.0, 1.0),
                     knob_r + 0.5,
@@ -1899,6 +2401,12 @@ impl<'a> Tabs<'a> {
 
 impl Widget for Tabs<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Tabs<'_> {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         if self.labels.is_empty() {
             return ui
                 .add_enabled_ui(false, |ui| {
@@ -1944,8 +2452,19 @@ impl Widget for Tabs<'_> {
         let before = *self.selected;
         let mut whole: Option<Response> = None;
         let (mut ids, mut focused) = (Vec::new(), None);
+        let full = ui.available_width();
+        let material = x.look == Look::Material;
+        // The divider goes under the tabs' indicators, so its place is taken first.
+        let divider = ui.painter().add(egui::Shape::Noop);
+        // A row as high as the tabs, so they sit centred where `ui` puts them.
+        let controls = ui.spacing().interact_size.y;
+        if material {
+            ui.spacing_mut().interact_size.y = 48.0;
+        }
         let group = ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 4.0;
+            ui.spacing_mut().interact_size.y = controls;
+            // Material's tabs touch.
+            ui.spacing_mut().item_spacing.x = if material { 0.0 } else { 4.0 };
             for (i, label) in self.labels.iter().enumerate() {
                 let response = pivot_tab(ui, &x, label, i == *self.selected);
                 if response.clicked() {
@@ -1961,6 +2480,19 @@ impl Widget for Tabs<'_> {
                 });
             }
         });
+        ui.spacing_mut().interact_size.y = controls;
+        if material {
+            // A divider runs the row's width under Material's tabs.
+            let rect = group.response.rect;
+            ui.painter().set(
+                divider,
+                egui::Shape::hline(
+                    rect.left()..=rect.left() + full,
+                    rect.bottom() - 0.5,
+                    Stroke::new(1.0, x.c.border),
+                ),
+            );
+        }
         arrow_keys(ui, focused, &ids, self.selected);
         ui.ctx().accesskit_node_builder(group.response.id, |node| {
             node.set_role(egui::Role::TabList);
@@ -2024,6 +2556,12 @@ impl Tab {
 
 impl Widget for Tab {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Tab {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         if segmented_tabs(x.look) {
             segment_tab(ui, &x, &self.label, self.selected)
@@ -2066,13 +2604,14 @@ impl TabBar {
             add(&mut TabBarUi { ui, x })
         });
         if segmented && inner.response.rect.width() > 0.0 {
+            let (round, fill) = if x.look == Look::Mac {
+                (CornerRadius::same(x.m.radius), x.c.button)
+            } else {
+                (CornerRadius::same(x.m.radius.saturating_add(1)), x.c.track)
+            };
             ui.painter().set(
                 track,
-                egui::epaint::RectShape::filled(
-                    inner.response.rect,
-                    CornerRadius::same(x.m.radius.saturating_add(1)),
-                    x.c.track,
-                ),
+                egui::epaint::RectShape::filled(inner.response.rect, round, fill),
             );
         }
         inner
@@ -2101,6 +2640,65 @@ impl TabBarUi<'_> {
     }
 }
 
+/// The style a menu of this crate takes in `look`: macOS's menu over the tooltip the
+/// macOS style frames pop-ups as, and egui's own menu style elsewhere.
+pub(super) fn menu_style(look: Look) -> egui::style::StyleModifier {
+    if look == Look::Mac {
+        crate::style::mac_menu_style()
+    } else {
+        egui::containers::menu::menu_style.into()
+    }
+}
+
+/// The room for a libadwaita combo row's arrow: its 16-point icon six points after the
+/// value.
+const GTK_ROW_ARROW: f32 = 22.0;
+
+/// A pop-up button's height: Material's exposed dropdown is a 56-point field.
+fn popup_height(ui: &Ui, look: Look) -> f32 {
+    if look == Look::Material {
+        ui.spacing().interact_size.y.max(56.0)
+    } else {
+        ui.spacing().interact_size.y
+    }
+}
+
+/// A pop-up button's text: the 16-point body in Material's field, the look's body elsewhere.
+fn popup_font(x: &Ctx) -> egui::FontId {
+    if x.look == Look::Material {
+        egui::FontId::new(16.0, x.m.body.family.clone())
+    } else {
+        x.m.body.clone()
+    }
+}
+
+/// The room a pop-up button leaves beside its text for its padding and arrows.
+fn popup_room(ui: &Ui, look: Look) -> f32 {
+    match look {
+        Look::Mac => (48.0 * super::mac_scale(ui)).round(),
+        Look::Ios => 36.0,
+        Look::Material => 52.0,
+        _ => 44.0,
+    }
+}
+
+/// macOS's chosen segment: the accent, faded into the window when disabled.
+fn mac_chosen(c: &crate::Colors, enabled: bool) -> Color32 {
+    if enabled && !c.active {
+        // An inactive window's chosen segment, a step darker than its other greys.
+        let ink = if c.dark {
+            Color32::WHITE
+        } else {
+            Color32::BLACK
+        };
+        crate::lerp_color(c.bg, ink, if c.dark { 0.24 } else { 0.165 })
+    } else if enabled {
+        c.accent
+    } else {
+        crate::mac_disabled_accent(c)
+    }
+}
+
 /// Whether the look's tabs are a segmented control.
 fn segmented_tabs(look: Look) -> bool {
     matches!(look, Look::Mac | Look::Gtk | Look::Ios)
@@ -2110,19 +2708,30 @@ fn segmented_tabs(look: Look) -> bool {
 /// bar under it when chosen.
 fn pivot_tab(ui: &mut Ui, x: &Ctx, label: &str, on: bool) -> Response {
     let c = &x.c;
-    let height = ui.spacing().interact_size.y + 4.0;
-    let font = if on {
+    // Material's primary tabs: 48 points high, every label in the medium weight 16 points
+    // in from either side, the pointer's tab under a square state layer.
+    let material = x.look == Look::Material;
+    let height = if material {
+        48.0
+    } else {
+        ui.spacing().interact_size.y + 4.0
+    };
+    let font = if on || material {
         x.m.bold.clone()
     } else {
         x.m.body.clone()
     };
-    let width = ui.fonts_mut(|f| {
+    let text_width = ui.fonts_mut(|f| {
         f.layout_no_wrap(label.to_string(), font.clone(), c.fg)
             .size()
             .x
-    }) + 20.0;
+    });
+    let width = text_width + if material { 32.0 } else { 20.0 };
     let (rect, response) = super::allocate_control(ui, egui::vec2(width, height), Sense::click());
-    if response.hovered() && !on {
+    if response.hovered() && material {
+        ui.painter()
+            .rect_filled(rect, CornerRadius::ZERO, c.fg.gamma_multiply(0.08));
+    } else if response.hovered() && !on {
         ui.painter()
             .rect_filled(rect.shrink(2.0), CornerRadius::same(4), c.row_hover);
     }
@@ -2134,26 +2743,40 @@ fn pivot_tab(ui: &mut Ui, x: &Ctx, label: &str, on: bool) -> Response {
     } else {
         c.dim
     };
+    // Material centres its label above the indicator's row.
+    let middle = if material {
+        rect.center() - egui::vec2(0.0, 1.5)
+    } else {
+        rect.center()
+    };
     crate::text(
         ui.painter(),
-        rect.center(),
+        middle,
         egui::Align2::CENTER_CENTER,
         label,
         font,
         colour,
     );
     if on {
-        let bar_width = if x.look == Look::Windows {
-            16.0
-        } else {
-            width - 12.0
+        // Material's indicator is as wide as the label and rounded above only.
+        let (bar_width, round) = match x.look {
+            Look::Windows => (16.0, CornerRadius::same(2)),
+            Look::Material => (
+                text_width,
+                CornerRadius {
+                    nw: 3,
+                    ne: 3,
+                    sw: 0,
+                    se: 0,
+                },
+            ),
+            _ => (width - 12.0, CornerRadius::same(2)),
         };
         let bar = Rect::from_center_size(
             egui::pos2(rect.center().x, rect.bottom() - 1.5),
             egui::vec2(bar_width, 3.0),
         );
-        ui.painter()
-            .rect_filled(bar, CornerRadius::same(2), c.accent);
+        ui.painter().rect_filled(bar, round, c.accent);
     }
     if response.has_focus() {
         crate::paint::ring(
@@ -2198,9 +2821,19 @@ fn segment_tab(ui: &mut Ui, x: &Ctx, label: &str, on: bool) -> Response {
             Sense::hover()
         },
     );
-    let inner = CornerRadius::same(x.m.radius.saturating_sub(1));
-    let body = slot.shrink(2.0);
-    if on {
+    let mac = x.look == Look::Mac;
+    let (inner, body) = if mac {
+        (CornerRadius::same(x.m.radius), slot)
+    } else {
+        (
+            CornerRadius::same(x.m.radius.saturating_sub(1)),
+            slot.shrink(2.0),
+        )
+    };
+    if on && mac {
+        ui.painter()
+            .rect_filled(body, inner, mac_chosen(c, enabled));
+    } else if on {
         let fill = if enabled {
             c.raised
         } else {
@@ -2219,7 +2852,13 @@ fn segment_tab(ui: &mut Ui, x: &Ctx, label: &str, on: bool) -> Response {
     } else if response.hovered() && enabled {
         ui.painter().rect_filled(body, inner, c.row_hover);
     }
-    let colour = if enabled { c.fg } else { c.disabled };
+    let colour = if on && mac {
+        c.on_accent
+    } else if enabled {
+        c.fg
+    } else {
+        c.disabled
+    };
     crate::text(
         ui.painter(),
         slot.center(),

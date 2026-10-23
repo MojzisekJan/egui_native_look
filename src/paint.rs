@@ -25,8 +25,9 @@ impl Paint {
     }
 }
 
-/// A raised macOS control's body in `rect`: on the light scheme a soft shadow under it and
-/// a hairline round it, on the dark a lighter top edge, then the fill.
+/// A raised control's body in `rect`, as macOS drew its controls before macOS 26 and iOS
+/// draws a chosen segment: on the light scheme a soft shadow under it and a hairline round
+/// it, on the dark a lighter top edge, then the fill.
 pub fn paint_raised(
     painter: &egui::Painter,
     rect: Rect,
@@ -130,8 +131,8 @@ pub(crate) fn fluent(
     }
 }
 
-/// The body of a control in the look: raised on macOS, Fluent on Windows, flat in
-/// libadwaita and the plain look (the plain look adds its own edge).
+/// The body of a control in the look: Fluent on Windows, flat on macOS, in libadwaita and
+/// the plain look (the plain look adds its own edge).
 pub(crate) fn paint_body(
     painter: &egui::Painter,
     p: &Paint,
@@ -141,10 +142,18 @@ pub(crate) fn paint_body(
     enabled: bool,
 ) {
     match p.look {
-        Look::Mac => raised(painter, p.c.dark, rect, radius, fill, enabled),
         Look::Windows => fluent(painter, &p.c, rect, radius, fill, enabled),
-        Look::Gtk | Look::Ios | Look::Material | Look::Plain => {
+        Look::Mac | Look::Gtk | Look::Ios | Look::Material | Look::Plain => {
             painter.rect_filled(rect, radius, fill);
+            // With more contrast every control takes an edge, as libadwaita's do.
+            if p.c.high_contrast {
+                painter.rect_stroke(
+                    rect,
+                    radius,
+                    Stroke::new(1.0, p.c.control_border),
+                    egui::StrokeKind::Inside,
+                );
+            }
         }
     }
 }
@@ -203,11 +212,22 @@ pub(crate) fn ring(painter: &egui::Painter, p: &Paint, rect: Rect, radius: Corne
                 egui::StrokeKind::Outside,
             );
         }
+        // An inactive macOS window shows no focus.
+        Look::Mac if !c.active => {}
         Look::Mac => {
+            // Three points outside the control and its edge's point within, about half strength,
+            // as macOS's keyboard focus indicator is.
             painter.rect_stroke(
-                rect.expand(0.5),
-                grown,
-                Stroke::new(3.0, c.accent.gamma_multiply(0.5)),
+                rect.shrink(2.0),
+                radius,
+                Stroke::new(
+                    4.0,
+                    mac_focus_colour(c.accent, c.dark).gamma_multiply(if c.dark {
+                        0.55
+                    } else {
+                        0.5
+                    }),
+                ),
                 egui::StrokeKind::Outside,
             );
         }
@@ -220,6 +240,39 @@ pub(crate) fn ring(painter: &egui::Painter, p: &Paint, rect: Rect, radius: Corne
             );
         }
     }
+}
+
+/// macOS's keyboard focus colour from its accent: the hue turned toward violet and a
+/// little darker on the light scheme, toward cyan on the dark, as measured from AppKit
+/// with the blue accent.
+fn mac_focus_colour(accent: Color32, dark: bool) -> Color32 {
+    let [r, g, b] = [accent.r(), accent.g(), accent.b()].map(|v| f32::from(v) / 255.0);
+    let (max, min) = (r.max(g).max(b), r.min(g).min(b));
+    let span = max - min;
+    let mut h = if span == 0.0 {
+        0.0
+    } else if max == r {
+        ((g - b) / span).rem_euclid(6.0)
+    } else if max == g {
+        (b - r) / span + 2.0
+    } else {
+        (r - g) / span + 4.0
+    } / 6.0;
+    let (mut s, mut v) = (if max == 0.0 { 0.0 } else { span / max }, max);
+    if dark {
+        h -= 0.019;
+        s *= 0.89;
+    } else {
+        h += 0.02;
+        s *= 0.85;
+        v *= 0.96;
+    }
+    let channel = |n: f32| {
+        let k = (n + h.rem_euclid(1.0) * 6.0).rem_euclid(6.0);
+        let value = v - v * s * k.min(4.0 - k).clamp(0.0, 1.0);
+        (value * 255.0).round() as u8
+    };
+    Color32::from_rgb(channel(5.0), channel(3.0), channel(1.0))
 }
 
 /// Paints a push button in `rect` with `label` in `font`. `accent` is a toggle that is
@@ -257,7 +310,10 @@ pub(crate) fn button(
     accent: bool,
 ) {
     let (look, c, r) = (p.look, p.c, p.radius);
-    let radius = if look == Look::Material {
+    // An inactive macOS window shows its default button as an ordinary one.
+    let accent = accent && (look != Look::Mac || c.active);
+    // Material and iOS 26 draw their buttons as capsules.
+    let radius = if matches!(look, Look::Material | Look::Ios) {
         CornerRadius::same((rect.height() / 2.0) as u8)
     } else {
         CornerRadius::same(r)
@@ -266,6 +322,11 @@ pub(crate) fn button(
     let hovered = response.hovered();
     let fill = match (enabled, accent) {
         (false, _) => c.button_disabled,
+        (true, true) if down && look == Look::Mac => crate::mac_pressed_accent(&c),
+        // Material's pressed state layer: 10 % of the primary's text colour.
+        (true, true) if down && look == Look::Material => {
+            crate::lerp_color(c.accent, c.on_accent, 0.1)
+        }
         (true, true) if down => c
             .accent
             .gamma_multiply(if look == Look::Windows { 0.8 } else { 0.85 })
@@ -305,10 +366,13 @@ pub(crate) fn button(
         ring(painter, p, rect, radius);
     }
     // WinUI dims a pressed button's text rather than darkening its fill much.
+    // iOS sets an ordinary (bordered) button's text in the accent.
     let color = if !enabled {
         c.disabled
     } else if accent {
         c.on_accent
+    } else if look == Look::Ios {
+        c.accent
     } else if down && look == Look::Windows {
         c.dim
     } else {
@@ -325,8 +389,8 @@ pub(crate) fn button(
     }
 }
 
-/// Paints a pop-up button's body and arrows in `rect`: on macOS the up and down chevrons
-/// white in a square of the accent, elsewhere a chevron down. `open` while its list
+/// Paints a pop-up button's body and arrows in `rect`: on macOS small up and down
+/// chevrons, on iOS the same in the accent without a body, elsewhere a chevron down. `open` while its list
 /// shows. Returns the width the arrows take at the right end, for the label to keep clear
 /// of.
 pub fn paint_popup_button(
@@ -363,40 +427,68 @@ pub(crate) fn popup_button(
     } else {
         c.button
     };
-    paint_body(painter, p, rect, radius, fill, enabled);
-    if look == Look::Mac {
-        let side = (rect.height() - 6.0).clamp(12.0, 16.0);
-        let square = Rect::from_center_size(
-            egui::pos2(rect.max.x - 4.0 - side / 2.0, rect.center().y),
-            egui::vec2(side, side),
-        );
+    if look == Look::Material {
+        // Material 3's exposed dropdown: a filled field rounded above its indicator line,
+        // with a small triangle.
+        let round = CornerRadius {
+            nw: 4,
+            ne: 4,
+            sw: 0,
+            se: 0,
+        };
         painter.rect_filled(
-            square,
-            CornerRadius::same(4),
-            if enabled {
-                c.accent
-            } else {
-                c.accent.gamma_multiply(0.45)
-            },
+            rect,
+            round,
+            if enabled { c.entry } else { c.button_disabled },
         );
-        let m = square.center();
-        let stroke = Stroke::new(1.4, Color32::WHITE);
-        painter.add(egui::Shape::line(
+        let active = open || response.has_focus();
+        let (width, line) = match (enabled, active) {
+            (false, _) => (1.0, c.disabled),
+            (true, true) => (2.0, c.accent),
+            (true, false) => (1.0, c.dim),
+        };
+        let y = rect.bottom() - width / 2.0;
+        painter.line_segment(
+            [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
+            Stroke::new(width, line),
+        );
+        let m = egui::pos2(rect.right() - 24.0, rect.center().y);
+        let (up, down) = (-2.5, 2.5);
+        let tip = if open { up } else { down };
+        let base = if open { down } else { up };
+        painter.add(egui::Shape::convex_polygon(
             vec![
-                m + egui::vec2(-2.8, -1.5),
-                m + egui::vec2(0.0, -4.2),
-                m + egui::vec2(2.8, -1.5),
+                m + egui::vec2(-5.0, base),
+                m + egui::vec2(5.0, base),
+                m + egui::vec2(0.0, tip),
             ],
-            stroke,
+            if enabled { c.dim } else { c.disabled },
+            Stroke::NONE,
         ));
-        painter.add(egui::Shape::line(
-            vec![
-                m + egui::vec2(-2.8, 1.5),
-                m + egui::vec2(0.0, 4.2),
-                m + egui::vec2(2.8, 1.5),
-            ],
-            stroke,
-        ));
+        return 52.0 - 16.0;
+    }
+    // iOS's menu picker has no body: its value and chevrons in the accent.
+    if look != Look::Ios {
+        paint_body(painter, p, rect, radius, fill, enabled);
+    }
+    if matches!(look, Look::Mac | Look::Ios) {
+        let m = egui::pos2(rect.max.x - 13.0, rect.center().y);
+        let ink = match (enabled, look) {
+            (false, _) => c.disabled,
+            (true, Look::Ios) => c.accent,
+            (true, _) => c.fg,
+        };
+        let stroke = Stroke::new(1.3, ink);
+        for sign in [-1.0, 1.0] {
+            painter.add(egui::Shape::line(
+                vec![
+                    m + egui::vec2(-3.0, sign * 1.5),
+                    m + egui::vec2(0.0, sign * 4.5),
+                    m + egui::vec2(3.0, sign * 1.5),
+                ],
+                stroke,
+            ));
+        }
     } else {
         if look == Look::Plain {
             painter.rect_stroke(
@@ -412,10 +504,13 @@ pub(crate) fn popup_button(
             m + egui::vec2(0.0, 2.0),
             m + egui::vec2(4.0, -2.0),
         ];
-        painter.add(egui::Shape::line(
-            chevron,
-            Stroke::new(1.5, if enabled { c.dim } else { c.disabled }),
-        ));
+        // GTK's pan-down arrow is in the text colour, heavier than the others' chevron.
+        let (width, ink) = match (enabled, look) {
+            (false, _) => (1.5, c.disabled),
+            (true, Look::Gtk) => (2.0, c.fg),
+            (true, _) => (1.5, c.dim),
+        };
+        painter.add(egui::Shape::line(chevron, Stroke::new(width, ink)));
     }
     if response.has_focus() && look.native() {
         ring(painter, p, rect, radius);
@@ -431,13 +526,19 @@ pub fn underline(painter: &egui::Painter, rect: Rect, focused: bool) {
     if !matches!(look, Look::Windows | Look::Material) {
         return;
     }
-    let (width, colour) = if focused {
-        (2.0, c.accent)
-    } else {
-        (1.0, c.control_strong)
+    // Material's indicator is the variant text colour, WinUI's the strong stroke.
+    let (width, colour) = match (focused, look) {
+        (true, _) => (2.0, c.accent),
+        (false, Look::Material) => (1.0, c.dim),
+        (false, _) => (1.0, c.control_strong),
     };
     let y = rect.bottom() - width / 2.0;
-    let r = f32::from(r);
+    // Material's filled field is square below, its line full width.
+    let r = if look == Look::Material {
+        0.0
+    } else {
+        f32::from(r)
+    };
     painter.line_segment(
         [
             egui::pos2(rect.left() + r * 0.5, y),
@@ -445,4 +546,21 @@ pub fn underline(painter: &egui::Painter, rect: Rect, focused: bool) {
         ],
         Stroke::new(width, colour),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mac_focus_colour_matches_appkit_for_the_blue_accent() {
+        // Measured from AppKit's focus ring over white and over the dark window, with the
+        // blue accent.
+        let close = |a: Color32, [r, g, b]: [u8; 3]| {
+            a.r().abs_diff(r) <= 3 && a.g().abs_diff(g) <= 3 && a.b().abs_diff(b) <= 3
+        };
+        let blue = Color32::from_rgb(0x00, 0x7a, 0xff);
+        assert!(close(mac_focus_colour(blue, false), [37, 111, 245]));
+        assert!(close(mac_focus_colour(blue, true), [28, 166, 255]));
+    }
 }

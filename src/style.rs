@@ -20,6 +20,22 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
     visuals.window_fill = c.surface;
     visuals.extreme_bg_color = c.entry;
     visuals.weak_text_color = Some(c.dim);
+    // The caret: the accent on Apple's systems and in Material, the text colour in WinUI
+    // and GTK.
+    visuals.text_cursor.stroke = match look {
+        Look::Mac | Look::Ios | Look::Material => Stroke::new(2.0, c.accent),
+        Look::Windows | Look::Gtk => Stroke::new(1.0, c.fg),
+        Look::Plain => visuals.text_cursor.stroke,
+    };
+    // Apple's disabled text is the tertiary label, about a third of the label's ink; egui's
+    // own disabled widgets fade to it. This crate's controls carry their own disabled colours.
+    if matches!(look, Look::Mac | Look::Ios) {
+        visuals.disabled_alpha = 0.32;
+    }
+    // Material 3 shows disabled content at 38 % of the text colour.
+    if look == Look::Material {
+        visuals.disabled_alpha = 0.38;
+    }
     visuals.hyperlink_color = c.accent;
     visuals.selection.bg_fill = c.accent.gamma_multiply(if dark { 0.55 } else { 0.35 });
     visuals.selection.stroke = if look == Look::Mac {
@@ -35,13 +51,41 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
         Look::Material => 28,
         Look::Plain => 6,
     });
-    visuals.menu_corner_radius = CornerRadius::same(if look.native() { 8 } else { 6 });
-    visuals.window_stroke = Stroke::new(1.0, c.border);
+    visuals.menu_corner_radius = CornerRadius::same(match look {
+        Look::Mac => 5,
+        Look::Material => 4,
+        // libadwaita's popovers: its menus' radius and six more.
+        Look::Gtk => 15,
+        Look::Plain => 6,
+        _ => 8,
+    });
+    // Material's surfaces stand out by their tone and shadow, without an edge.
+    visuals.window_stroke = if look == Look::Material {
+        Stroke::NONE
+    } else {
+        Stroke::new(1.0, c.border)
+    };
+    if look == Look::Mac {
+        // egui frames its tooltips (and any pop-up without a style of its own) with these:
+        // macOS's tool tip, a light grey box with a hairline edge. This crate's menus
+        // restore macOS's menu with `mac_menu_style`; its windows draw their own frames.
+        visuals.window_fill = crate::colors::rgb(if dark { 0x2b2b2b } else { 0xe7e7e7 });
+        visuals.popup_shadow = egui::Shadow {
+            offset: [0, 2],
+            blur: 6,
+            spread: 0,
+            color: egui::Color32::from_black_alpha(if dark { 70 } else { 30 }),
+        };
+        visuals.window_stroke = Stroke::new(
+            1.0,
+            egui::Color32::from_black_alpha(if dark { 230 } else { 56 }),
+        );
+    }
     let edge = match look {
-        // libadwaita draws no edge round its controls; the other system looks keep theirs
+        // macOS 26 and libadwaita draw no edge round their controls; WinUI keeps its own
         // still under the pointer.
-        Look::Gtk | Look::Ios | Look::Material => Stroke::NONE,
-        Look::Mac | Look::Windows => Stroke::new(1.0, c.control_border),
+        Look::Mac | Look::Gtk | Look::Ios | Look::Material => Stroke::NONE,
+        Look::Windows => Stroke::new(1.0, c.control_border),
         Look::Plain => Stroke::new(1.0, c.border),
     };
     let w = &mut visuals.widgets;
@@ -70,10 +114,74 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
         Look::Windows | Look::Gtk | Look::Ios | Look::Material => {}
     }
     style.spacing.interact_size.y = metrics.control_height;
+    match look {
+        Look::Mac => style.spacing.menu_margin = egui::Margin::symmetric(8, 4),
+        // Material's menus run their items edge to edge, eight points from top and bottom.
+        Look::Material => style.spacing.menu_margin = egui::Margin::symmetric(0, 8),
+        // WinUI's flyouts: items four points in, the list two points from top and bottom.
+        Look::Windows => style.spacing.menu_margin = egui::Margin::same(4),
+        // libadwaita's leave six points round them, on a light shadow.
+        Look::Gtk => {
+            style.spacing.menu_margin = egui::Margin::same(6);
+            style.visuals.popup_shadow = egui::Shadow {
+                offset: [0, 1],
+                blur: 5,
+                spread: 1,
+                color: egui::Color32::from_black_alpha(23),
+            };
+        }
+        _ => {}
+    }
+    if look == Look::Mac {
+        // macOS's overlay scrollers: a six-point rounded handle three points in from the
+        // edge, in the text colour at about half strength, hidden while the pointer is
+        // elsewhere and eleven points wide with a faint track under the pointer.
+        let handle = if dark { 0.7 } else { 0.53 };
+        style.spacing.scroll = egui::style::ScrollStyle {
+            floating: true,
+            bar_width: 11.0,
+            floating_width: 6.0,
+            floating_allocated_width: 0.0,
+            handle_min_length: 20.0,
+            bar_inner_margin: 3.0,
+            bar_outer_margin: 3.0,
+            foreground_color: true,
+            dormant_background_opacity: 0.0,
+            active_background_opacity: 0.0,
+            interact_background_opacity: 0.1,
+            dormant_handle_opacity: 0.0,
+            active_handle_opacity: handle,
+            interact_handle_opacity: handle,
+            ..style.spacing.scroll
+        };
+    }
     style
         .text_styles
         .insert(egui::TextStyle::Button, metrics.body.clone());
     style
         .text_styles
         .insert(egui::TextStyle::Body, metrics.body.clone());
+}
+
+/// macOS's menu, for a pop-up menu in the macOS look, over the tooltip the style frames
+/// pop-ups as: near-white or mid-grey, an edge, twelve-point corners, and egui's own menu
+/// adjustments.
+pub(crate) fn mac_menu_style() -> egui::style::StyleModifier {
+    egui::style::StyleModifier::new(|style: &mut egui::Style| {
+        egui::containers::menu::menu_style(style);
+        let dark = style.visuals.dark_mode;
+        style.visuals.window_fill = crate::mac_menu_fill(dark);
+        style.visuals.window_stroke = Stroke::new(
+            1.0,
+            egui::Color32::from_black_alpha(if dark { 220 } else { 40 }),
+        );
+        style.visuals.menu_corner_radius = CornerRadius::same(12);
+        style.visuals.popup_shadow = egui::Shadow {
+            offset: [0, 6],
+            blur: 20,
+            spread: 0,
+            color: egui::Color32::from_black_alpha(if dark { 110 } else { 45 }),
+        };
+        style.spacing.menu_margin = egui::Margin::same(6);
+    })
 }

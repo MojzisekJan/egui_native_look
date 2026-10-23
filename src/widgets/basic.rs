@@ -77,6 +77,12 @@ impl Button {
 
 impl Widget for Button {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Button {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let icon = self.icon.as_ref().map(|(glyph, font)| {
             ui.fonts_mut(|fonts| fonts.layout_no_wrap(glyph.clone(), font.clone(), x.c.fg))
@@ -94,14 +100,58 @@ impl Widget for Button {
             0.0
         };
         let icon_width = icon.as_ref().map_or(0.0, |icon| icon.size().x);
+        // Material sets its button labels in the medium weight, libadwaita in bold.
+        let font = if matches!(x.look, Look::Material | Look::Gtk) {
+            x.m.bold.clone()
+        } else {
+            x.m.body.clone()
+        };
         let text_width = ui.fonts_mut(|f| {
-            f.layout_no_wrap(self.label.clone(), x.m.body.clone(), x.c.fg)
+            f.layout_no_wrap(self.label.clone(), font.clone(), x.c.fg)
                 .size()
                 .x
         });
-        let width = self.width.unwrap_or(
-            (text_width + icon_width + gap + 2.0 * ui.spacing().button_padding.x.max(10.0))
-                .max(height),
+        // macOS pads its push buttons a little wider than WinUI and GTK, Material 3 its
+        // capsules wider still.
+        // A Material dialog's actions are text buttons: the label in the primary, without a
+        // container, twelve points in.
+        let text_button = x.look == Look::Material && super::window::in_dialog_actions(ui.ctx());
+        let padding = match x.look {
+            Look::Mac => (12.0 * super::mac_scale(ui)).round(),
+            // WinUI's ButtonPadding: 11 either side.
+            Look::Windows => 11.0,
+            Look::Material if text_button => 12.0,
+            Look::Material => 24.0,
+            // libadwaita's text buttons.
+            Look::Gtk => 17.0,
+            _ => 10.0,
+        };
+        // Material 3's buttons are at least 64 points wide.
+        let least = if x.look == Look::Material {
+            height.max(64.0)
+        } else {
+            height
+        };
+        // A libadwaita alert's responses: 44 points high, sharing the row equally, as a
+        // WinUI dialog's buttons do.
+        let in_actions = super::window::in_dialog_actions(ui.ctx());
+        let gtk_response = x.look == Look::Gtk && in_actions;
+        let response_width = (in_actions
+            && matches!(x.look, Look::Gtk | Look::Windows | Look::Ios))
+        .then(|| super::window::shared_action_width(ui))
+        .flatten();
+        // iOS 26's alert buttons: 48-point capsules, every one alike.
+        let ios_alert = x.look == Look::Ios && in_actions;
+        let height = if gtk_response {
+            height.max(44.0)
+        } else if ios_alert {
+            height.max(48.0)
+        } else {
+            height
+        };
+        let width = self.width.or(response_width).unwrap_or(
+            (text_width + icon_width + gap + 2.0 * ui.spacing().button_padding.x.max(padding))
+                .max(least),
         );
         let enabled = ui.is_enabled();
         let (rect, mut response) = super::allocate_control(
@@ -114,14 +164,75 @@ impl Widget for Button {
             },
         );
         super::window::dialog_button(ui, &mut response, self.default_action);
-        if ui.is_rect_visible(rect) {
+        if text_button && icon.is_none() && ui.is_rect_visible(rect) {
+            let round = egui::CornerRadius::same((rect.height() / 2.0) as u8);
+            let layer = if !enabled {
+                0.0
+            } else if response.is_pointer_button_down_on() {
+                0.1
+            } else if response.hovered() {
+                0.08
+            } else {
+                0.0
+            };
+            if layer > 0.0 {
+                ui.painter()
+                    .rect_filled(rect, round, x.c.accent.gamma_multiply(layer));
+            }
+            let colour = if enabled { x.c.accent } else { x.c.disabled };
+            let (galley, _) =
+                super::truncated(ui, &self.label, font.clone(), colour, rect.width() - 8.0);
+            let top = crate::galley_top(ui.ctx(), &galley, rect.center().y);
+            ui.painter().galley(
+                egui::pos2(rect.center().x - galley.size().x / 2.0, top),
+                galley,
+                colour,
+            );
+            if response.has_focus() {
+                crate::paint::ring(ui.painter(), &x.paint(), rect, round);
+            }
+        } else if ios_alert && icon.is_none() && ui.is_rect_visible(rect) {
+            // Grey capsules in the text colour, the default one too: black at an eighth or
+            // white at a twelfth over the alert, darker pressed.
+            let round = egui::CornerRadius::same((rect.height() / 2.0) as u8);
+            let share = match (x.c.dark, response.is_pointer_button_down_on() && enabled) {
+                (false, false) => 0.126,
+                (false, true) => 0.2,
+                (true, false) => 0.084,
+                (true, true) => 0.16,
+            };
+            let ink = if x.c.dark {
+                Color32::WHITE
+            } else {
+                Color32::BLACK
+            };
+            ui.painter()
+                .rect_filled(rect, round, ink.gamma_multiply(share));
+            let colour = if enabled { x.c.fg } else { x.c.disabled };
+            let (galley, _) =
+                super::truncated(ui, &self.label, font.clone(), colour, rect.width() - 16.0);
+            let top = crate::galley_top(ui.ctx(), &galley, rect.center().y);
+            ui.painter().galley(
+                egui::pos2(rect.center().x - galley.size().x / 2.0, top),
+                galley,
+                colour,
+            );
+            if response.has_focus() {
+                crate::paint::ring(ui.painter(), &x.paint(), rect, round);
+            }
+        } else if ui.is_rect_visible(rect) {
+            let mut paint = x.paint();
+            if gtk_response {
+                // libadwaita rounds an alert's responses by 12 points.
+                paint.radius = 12;
+            }
             crate::paint::button(
                 ui.painter(),
-                &x.paint(),
+                &paint,
                 rect,
                 &response,
                 if icon.is_some() { "" } else { &self.label },
-                x.m.body.clone(),
+                font.clone(),
                 enabled,
                 self.accent,
             );
@@ -130,6 +241,8 @@ impl Widget for Button {
                     x.c.disabled
                 } else if self.accent {
                     x.c.on_accent
+                } else if x.look == Look::Ios {
+                    x.c.accent
                 } else if response.is_pointer_button_down_on() && x.look == Look::Windows {
                     x.c.dim
                 } else {
@@ -141,7 +254,7 @@ impl Widget for Button {
                 let (label, _) = super::truncated(
                     ui,
                     &self.label,
-                    x.m.body.clone(),
+                    font.clone(),
                     color,
                     available - glyph_width - gap,
                 );
@@ -193,19 +306,23 @@ impl<'a> Switch<'a> {
     }
 }
 
-/// The width a [`Switch`] takes in `look`, for a row that leaves room for one at its end.
+/// The width a [`Switch`] takes in `look` at the look's regular size, for a row that leaves
+/// room for one at its end. macOS's switch sits flush; the others keep a point either side.
+/// macOS's small and large controls ([`crate::Metrics::small`]) scale it in proportion.
 #[must_use]
 pub fn switch_width(look: Look) -> f32 {
-    switch_size(look).x + 2.0
+    switch_size(look).x + if look == Look::Mac { 0.0 } else { 2.0 }
 }
 
 /// The size of a switch's pill in `look`.
 pub(crate) fn switch_size(look: Look) -> egui::Vec2 {
     match look {
-        Look::Mac => egui::vec2(32.0, 18.0),
-        Look::Windows => egui::vec2(36.0, 18.0),
-        Look::Gtk => egui::vec2(40.0, 22.0),
-        Look::Ios => egui::vec2(51.0, 31.0),
+        Look::Mac => egui::vec2(54.0, 24.0),
+        // WinUI's toggle switch: 40 by 20.
+        Look::Windows => egui::vec2(40.0, 20.0),
+        // libadwaita: two 20-point sliders in 3 points of padding.
+        Look::Gtk => egui::vec2(46.0, 26.0),
+        Look::Ios => egui::vec2(63.0, 28.0),
         Look::Material => egui::vec2(52.0, 32.0),
         Look::Plain => egui::vec2(34.0, 18.0),
     }
@@ -213,16 +330,29 @@ pub(crate) fn switch_size(look: Look) -> egui::Vec2 {
 
 impl Widget for Switch<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Switch<'_> {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let c = &x.c;
-        let size = switch_size(x.look);
+        let size = if x.look == Look::Mac {
+            (switch_size(x.look) * super::mac_scale(ui)).round()
+        } else {
+            switch_size(x.look)
+        };
         let height = ui.spacing().interact_size.y.max(size.y);
+        // macOS's switch starts flush with its row; the others keep a point either side.
+        let margin = if x.look == Look::Mac { 0.0 } else { 2.0 };
         let (outer, mut response) =
-            super::allocate_touch(ui, egui::vec2(size.x + 2.0, height), Sense::click());
+            super::allocate_touch(ui, egui::vec2(size.x + margin, height), Sense::click());
         response = super::click_response(ui, response);
         let rect = Rect::from_center_size(outer.center(), size);
         let before = *self.on;
-        let preview = if x.look == Look::Gtk {
+        // Every system's switch lets its thumb be dragged; the plain look's only toggles.
+        let preview = if x.look.native() {
             switch_drag(ui, &response, rect, self.on)
         } else {
             if response.clicked() {
@@ -246,25 +376,62 @@ impl Widget for Switch<'_> {
         let hovered = enabled && response.hovered();
         match x.look {
             Look::Gtk => {
-                // A pill in a tint of the text colour, the accent when on, with a white
-                // knob inset by three points and a soft shadow under it.
-                let off = if hovered { c.button_hover } else { c.track };
-                let mut fill = lerp_color(off, c.accent, t);
-                if !enabled {
-                    fill = fill.gamma_multiply(0.5);
+                // libadwaita's switch: the trough colour, the accent when on, a 20-point
+                // slider three points in with a soft shadow, white when on or hovered and a
+                // fifth of the view behind it otherwise.
+                let pressed = enabled && response.is_pointer_button_down_on();
+                // Twice as dark with more contrast, as libadwaita's high-contrast troughs.
+                let more = if c.high_contrast { 2.0 } else { 1.0 };
+                let off = c.fg.gamma_multiply(
+                    more * match (pressed, hovered) {
+                        (true, _) => 0.25,
+                        (false, true) => 0.2,
+                        (false, false) => 0.15,
+                    },
+                );
+                let on_fill = if hovered {
+                    lerp_color(c.accent, c.on_accent, 0.1)
+                } else {
+                    c.accent
+                };
+                painter.rect_filled(rect, round, lerp_color(off, on_fill, t));
+                let r = 10.0;
+                let centre = egui::pos2(
+                    egui::lerp((rect.left() + 3.0 + r)..=(rect.right() - 3.0 - r), t),
+                    rect.center().y,
+                );
+                let slider = Rect::from_center_size(centre, egui::vec2(2.0 * r, 2.0 * r));
+                if enabled {
+                    painter.add(
+                        egui::Shadow {
+                            offset: [0, 2],
+                            blur: 4,
+                            spread: 0,
+                            color: Color32::from_rgba_unmultiplied(0, 0, 6, 51),
+                        }
+                        .as_shape(slider, CornerRadius::same(10)),
+                    );
                 }
-                painter.rect_filled(rect, round, fill);
-                knob(painter, rect, t, 3.0, enabled, c.dark, 1.0);
+                let view = if c.dark { c.surface } else { Color32::WHITE };
+                let rest = lerp_color(view, Color32::WHITE, 0.8);
+                let fill = if hovered || pressed {
+                    Color32::WHITE
+                } else {
+                    lerp_color(rest, Color32::WHITE, t)
+                };
+                painter.circle_filled(centre, r, fill);
             }
             Look::Ios => {
-                // UIKit's switch: systemGreen when on, a white knob inset by two points.
+                // iOS 26's switch: a grey track, systemGreen when on, and a white pill knob
+                // inset by two points.
                 let green = crate::colors::rgb(if c.dark { 0x30d158 } else { 0x34c759 });
-                let mut fill = lerp_color(c.track, green, t);
+                let off = crate::ink(c, 0.275, 0.23);
+                let mut fill = lerp_color(off, green, t);
                 if !enabled {
                     fill = fill.gamma_multiply(0.5);
                 }
                 painter.rect_filled(rect, round, fill);
-                knob(painter, rect, t, 2.0, enabled, c.dark, 1.5);
+                pill_knob(painter, rect, t, c.dark, Color32::WHITE);
             }
             Look::Material => {
                 // Material 3: an outlined track whose thumb grows from 16 to 24 points and
@@ -282,36 +449,55 @@ impl Widget for Switch<'_> {
                         egui::StrokeKind::Inside,
                     );
                 }
-                let r = egui::lerp(8.0..=12.0, t) + if hovered { 1.0 } else { 0.0 };
+                // Pressed, the thumb grows to 28 points; under the pointer a 40-point state
+                // layer rings it and the thumb darkens.
+                let pressed = enabled && response.is_pointer_button_down_on();
+                let r = if pressed {
+                    14.0
+                } else {
+                    egui::lerp(8.0..=12.0, t)
+                };
                 let x = egui::lerp((rect.left() + 16.0)..=(rect.right() - 16.0), t);
-                painter.circle_filled(
-                    egui::pos2(x, rect.center().y),
-                    r,
-                    lerp_color(c.control_strong, c.on_accent, t),
-                );
-            }
-            Look::Mac => {
-                // A white knob all but filling the height, over a light grey track when
-                // off and the accent when on.
-                let mut fill = lerp_color(c.track, c.accent, t);
-                if !enabled {
-                    fill = fill.gamma_multiply(0.55);
-                }
-                painter.rect_filled(rect, round, fill);
-                if t < 1.0 {
-                    let edge = if c.dark {
-                        Color32::from_white_alpha(14)
-                    } else {
-                        Color32::from_black_alpha(14)
-                    };
-                    painter.rect_stroke(
-                        rect,
-                        round,
-                        Stroke::new(1.0, edge.gamma_multiply(1.0 - t)),
-                        egui::StrokeKind::Inside,
+                let centre = egui::pos2(x, rect.center().y);
+                if hovered || pressed {
+                    let layer = lerp_color(c.fg, c.accent, t);
+                    painter.circle_filled(
+                        centre,
+                        20.0,
+                        layer.gamma_multiply(if pressed { 0.1 } else { 0.08 }),
                     );
                 }
-                knob(painter, rect, t, 1.5, enabled, c.dark, 0.5);
+                let (off_thumb, on_thumb) = if hovered || pressed {
+                    (c.dim, lerp_color(c.on_accent, c.accent, 0.12))
+                } else {
+                    (c.control_strong, c.on_accent)
+                };
+                painter.circle_filled(centre, r, lerp_color(off_thumb, on_thumb, t));
+            }
+            Look::Mac => {
+                // A grey track, the accent when on, and a wide pill-shaped knob inset by
+                // two points. A disabled switch fades its track into the window.
+                let (off, on_fill) = if enabled && response.is_pointer_button_down_on() {
+                    (c.button_pressed, crate::mac_pressed_accent(c))
+                } else if enabled {
+                    (c.track, c.accent)
+                } else {
+                    (
+                        lerp_color(c.bg, c.track, 0.5),
+                        crate::mac_disabled_accent(c),
+                    )
+                };
+                painter.rect_filled(rect, round, lerp_color(off, on_fill, t));
+                let knob = if c.dark {
+                    lerp_color(
+                        crate::colors::rgb(0xe5e5e5),
+                        lerp_color(Color32::WHITE, c.accent, 0.13),
+                        t,
+                    )
+                } else {
+                    Color32::WHITE
+                };
+                pill_knob(painter, rect, t, c.dark, knob);
             }
             Look::Windows => {
                 // An outlined pill with a small knob in the strong stroke's colour when
@@ -331,7 +517,9 @@ impl Widget for Switch<'_> {
                     );
                 }
                 if t < 1.0 {
-                    painter.rect_filled(rect, round, c.track.gamma_multiply(1.0 - t));
+                    // ControlAltFillColorSecondary: a faint shade inside the stroke.
+                    let off = Color32::from_black_alpha(if c.dark { 25 } else { 6 });
+                    painter.rect_filled(rect, round, off.gamma_multiply(1.0 - t));
                     painter.rect_stroke(
                         rect,
                         round,
@@ -340,7 +528,7 @@ impl Widget for Switch<'_> {
                     );
                 }
                 let r = if hovered { 7.0 } else { 6.0 };
-                let x = egui::lerp((rect.left() + 9.0)..=(rect.right() - 9.0), t);
+                let x = egui::lerp((rect.left() + 10.0)..=(rect.right() - 10.0), t);
                 painter.circle_filled(
                     egui::pos2(x, rect.center().y),
                     r,
@@ -496,33 +684,28 @@ fn switch_drag(ui: &mut Ui, response: &Response, rect: Rect, on: &mut bool) -> O
     preview
 }
 
-/// A white switch knob inset by `inset`, with a shadow `drop` points below it.
-fn knob(
-    painter: &egui::Painter,
-    rect: Rect,
-    t: f32,
-    inset: f32,
-    enabled: bool,
-    dark: bool,
-    drop: f32,
-) {
-    let r = rect.height() / 2.0 - inset;
-    let x = egui::lerp((rect.left() + inset + r)..=(rect.right() - inset - r), t);
-    let c = egui::pos2(x, rect.center().y);
-    painter.circle_filled(
-        c + egui::vec2(0.0, drop),
-        r + 0.5,
-        Color32::from_black_alpha(if enabled { 48 } else { 20 }),
+/// The pill-shaped knob of macOS's and iOS 26's switches, two points inside the track, in
+/// `fill`, with a soft shadow.
+fn pill_knob(painter: &egui::Painter, rect: Rect, t: f32, dark: bool, fill: Color32) {
+    let size = egui::vec2(rect.width() * 16.0 / 27.0, rect.height() - 4.0);
+    let x = egui::lerp(
+        (rect.left() + 2.0 + size.x / 2.0)..=(rect.right() - 2.0 - size.x / 2.0),
+        t,
     );
-    painter.circle_filled(
-        c,
-        r,
-        if enabled {
-            Color32::WHITE
-        } else {
-            Color32::from_gray(if dark { 145 } else { 245 })
-        },
-    );
+    let pill = Rect::from_center_size(egui::pos2(x, rect.center().y), size);
+    let round = CornerRadius::same((size.y / 2.0) as u8);
+    painter.add(mac_shadow(dark).as_shape(pill, round));
+    painter.rect_filled(pill, round, fill);
+}
+
+/// The soft shadow under macOS's switch and slider knobs.
+pub(crate) fn mac_shadow(dark: bool) -> egui::Shadow {
+    egui::Shadow {
+        offset: [0, 2],
+        blur: 4,
+        spread: 0,
+        color: Color32::from_black_alpha(if dark { 90 } else { 40 }),
+    }
 }
 
 /// A check box with its label: on macOS a small rounded box, on Windows WinUI's larger
@@ -561,6 +744,12 @@ impl<'a> Checkbox<'a> {
 
 impl Widget for Checkbox<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Checkbox<'_> {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         if !x.look.native() {
             let label = self.text.text().to_owned();
@@ -600,8 +789,14 @@ impl Widget for Checkbox<'_> {
             });
             return response;
         }
-        let (mut response, mark, mut info) =
-            mark_row(ui, &x, self.text, egui::Role::CheckBox, *self.checked);
+        let (mut response, mark, mut info) = mark_row(
+            ui,
+            &x,
+            self.text,
+            egui::Role::CheckBox,
+            *self.checked,
+            Sense::click(),
+        );
         if response.clicked() {
             *self.checked = !*self.checked;
             response.mark_changed();
@@ -612,11 +807,24 @@ impl Widget for Checkbox<'_> {
         let round = match x.look {
             Look::Ios => CornerRadius::same((mark.width() / 2.0) as u8),
             Look::Material => CornerRadius::same(2),
+            Look::Gtk => CornerRadius::same(6),
             _ => CornerRadius::same(4),
         };
         let enabled = ui.is_enabled();
         let c = &x.c;
-        if *self.checked || self.indeterminate {
+        if (*self.checked || self.indeterminate) && !enabled && x.look == Look::Mac {
+            // macOS greys out a disabled mark rather than fading its accent.
+            painter.rect_filled(mark, round, mac_disabled_mark(c));
+            if self.indeterminate {
+                let m = mark.center();
+                painter.line_segment(
+                    [m - egui::vec2(3.5, 0.0), m + egui::vec2(3.5, 0.0)],
+                    Stroke::new(1.8, c.disabled),
+                );
+            } else {
+                check_mark(painter, mark.center(), c.disabled);
+            }
+        } else if *self.checked || self.indeterminate {
             painter.rect_filled(
                 mark,
                 round,
@@ -659,6 +867,10 @@ impl Widget for Checkbox<'_> {
 pub struct Radio {
     selected: bool,
     text: WidgetText,
+    /// Whether Tab stops on it; a [`RadioGroup`] stops only on its chosen option.
+    focusable: bool,
+    /// Drawn by this crate in every look, as a group's options are.
+    grouped: bool,
 }
 
 impl Radio {
@@ -668,14 +880,23 @@ impl Radio {
         Radio {
             selected,
             text: text.into(),
+            focusable: true,
+            grouped: false,
         }
     }
 }
 
 impl Widget for Radio {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Radio {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
-        if !x.look.native() {
+        // egui's own radio is always a Tab stop, so a group's options draw their own.
+        if !x.look.native() && !self.grouped {
             let events_before = ui.ctx().output(|output| output.events.len());
             let target = super::minimum_target(ui);
             let response = ui
@@ -693,8 +914,19 @@ impl Widget for Radio {
             }
             return response;
         }
-        let (response, mark, info) =
-            mark_row(ui, &x, self.text, egui::Role::RadioButton, self.selected);
+        let sense = if self.focusable {
+            Sense::click()
+        } else {
+            Sense::CLICK
+        };
+        let (response, mark, info) = mark_row(
+            ui,
+            &x,
+            self.text,
+            egui::Role::RadioButton,
+            self.selected,
+            sense,
+        );
         response.widget_info(|| info.clone());
         let painter = ui.painter();
         let round = CornerRadius::same((mark.width() / 2.0) as u8);
@@ -709,6 +941,9 @@ impl Widget for Radio {
                 Stroke::new(2.0, colour),
             );
             painter.circle_filled(mark.center(), 5.0, colour);
+        } else if self.selected && !enabled && x.look == Look::Mac {
+            painter.circle_filled(mark.center(), mark.width() / 2.0, mac_disabled_mark(c));
+            painter.circle_filled(mark.center(), 3.0, c.disabled);
         } else if self.selected && x.look == Look::Ios {
             // iOS marks a chosen option with a tick in an accent circle.
             painter.circle_filled(
@@ -731,12 +966,15 @@ impl Widget for Radio {
                     c.accent.gamma_multiply(0.5)
                 },
             );
-            // WinUI's dot is wide and grows under the pointer; the others keep a small one.
+            // WinUI's dot is 12 points wide, 14 under the pointer and 10 pressed; the others
+            // keep a small one.
             let dot = if x.look == Look::Windows {
-                if response.hovered() {
+                if response.is_pointer_button_down_on() {
                     5.0
+                } else if response.hovered() {
+                    7.0
                 } else {
-                    4.5
+                    6.0
                 }
             } else {
                 3.0
@@ -767,6 +1005,208 @@ pub fn radio_value<T: PartialEq>(
     response
 }
 
+/// Radio buttons choosing one value for `current`, as one control for the keyboard: Tab
+/// stops only on the chosen option (the first enabled one while none is chosen), the
+/// arrows choose and focus the previous or next enabled option, wrapping round at the
+/// ends except on Windows, and Space chooses the focused one. Lay the options out with
+/// the `Ui` the closure gets, in a row or a column.
+///
+/// ```no_run
+/// # fn demo(ui: &mut egui::Ui, mode: &mut u8) {
+/// use egui_native_look as look;
+/// look::RadioGroup::new("mode", mode).accessible_label("Mode").show(ui, |group| {
+///     group.option(0, "Automatic");
+///     group.option(1, "Manual");
+/// });
+/// # }
+/// ```
+///
+/// The builder must be shown to have an effect.
+/// ```compile_fail
+/// #![deny(unused_must_use)]
+/// use egui_native_look::RadioGroup;
+/// RadioGroup::new("mode", &mut 0);
+/// ```
+#[must_use = "call its show method"]
+pub struct RadioGroup<'a, T> {
+    id: egui::IdSalt,
+    current: &'a mut T,
+    label: String,
+}
+
+impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
+    /// A group setting `current`; `id` tells it from other groups in the same `Ui`.
+    pub fn new(id: impl egui::AsIdSalt, current: &'a mut T) -> Self {
+        RadioGroup {
+            id: egui::IdSalt::new(id),
+            current,
+            label: String::new(),
+        }
+    }
+    /// The group's name for a screen reader.
+    pub fn accessible_label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
+        self
+    }
+
+    /// Lays out the options `add` adds. The response is the group's, changed when the
+    /// choice changed.
+    pub fn show<R>(
+        self,
+        ui: &mut Ui,
+        add: impl FnOnce(&mut RadioGroupUi<'_, T>) -> R,
+    ) -> egui::InnerResponse<R> {
+        let x = Ctx::of(ui);
+        let id = ui.make_persistent_id(self.id);
+        // Whether an option matched the model last frame; while none does, the first
+        // enabled option is the group's Tab stop.
+        let matched = ui.data(|data| data.get_temp::<bool>(id)).unwrap_or(true);
+        let current = self.current;
+        let scope = ui.scope(|ui| {
+            let mut group = RadioGroupUi {
+                ui,
+                current: &mut *current,
+                matched,
+                options: Vec::new(),
+            };
+            let inner = add(&mut group);
+            (inner, group.options)
+        });
+        let (inner, options) = scope.inner;
+        let mut response = scope.response;
+        ui.data_mut(|data| {
+            data.insert_temp(id, options.iter().any(|option| option.value == *current))
+        });
+        let focused = ui.memory(|memory| memory.focused());
+        if let Some(at) = options.iter().position(|option| Some(option.id) == focused) {
+            let wrap = x.look != Look::Windows;
+            let (step, space) = ui.input_mut(|input| {
+                let mut take = |key| input.consume_key(egui::Modifiers::NONE, key);
+                let forward = take(egui::Key::ArrowDown) | take(egui::Key::ArrowRight);
+                let back = take(egui::Key::ArrowUp) | take(egui::Key::ArrowLeft);
+                (i32::from(forward) - i32::from(back), take(egui::Key::Space))
+            });
+            let target = if step != 0 {
+                next_enabled(&options, at, step, wrap)
+            } else if space {
+                Some(at)
+            } else {
+                None
+            };
+            if let Some(target) = target {
+                let option = &options[target];
+                if *current != option.value {
+                    *current = option.value.clone();
+                    response.mark_changed();
+                }
+                ui.memory_mut(|memory| memory.request_focus(option.id));
+            }
+        }
+        if options.iter().any(|option| option.changed) {
+            response.mark_changed();
+        }
+        let name = super::form::accessible_name(ui, &self.label);
+        ui.ctx().accesskit_node_builder(response.id, |node| {
+            node.set_role(egui::Role::RadioGroup);
+            if !name.is_empty() {
+                node.set_label(name.as_str());
+            }
+        });
+        egui::InnerResponse::new(inner, response)
+    }
+}
+
+/// The option after (`step` 1) or before (-1) `at` that is enabled, wrapping round when
+/// `wrap`; none at an end without wrapping.
+fn next_enabled<T>(options: &[GroupOption<T>], at: usize, step: i32, wrap: bool) -> Option<usize> {
+    let n = options.len() as i32;
+    let mut i = at as i32;
+    for _ in 1..n {
+        i += step;
+        if !(0..n).contains(&i) {
+            if !wrap {
+                return None;
+            }
+            i = i.rem_euclid(n);
+        }
+        if options[i as usize].enabled {
+            return Some(i as usize);
+        }
+    }
+    None
+}
+
+struct GroupOption<T> {
+    id: egui::Id,
+    value: T,
+    enabled: bool,
+    changed: bool,
+}
+
+/// The options of a [`RadioGroup`] being laid out.
+pub struct RadioGroupUi<'a, T> {
+    ui: &'a mut Ui,
+    current: &'a mut T,
+    matched: bool,
+    options: Vec<GroupOption<T>>,
+}
+
+impl<T: PartialEq + Clone> RadioGroupUi<'_, T> {
+    /// An option choosing `value`, reading `text`.
+    pub fn option(&mut self, value: T, text: impl Into<WidgetText>) -> Response {
+        self.option_enabled(true, value, text)
+    }
+
+    /// An option that can be disabled; the arrows pass over a disabled one.
+    pub fn option_enabled(
+        &mut self,
+        enabled: bool,
+        value: T,
+        text: impl Into<WidgetText>,
+    ) -> Response {
+        let selected = *self.current == value;
+        let enabled = enabled && self.ui.is_enabled();
+        let first_enabled = enabled && !self.options.iter().any(|option| option.enabled);
+        let focusable = selected || (!self.matched && first_enabled);
+        let mut response = self.ui.add_enabled(
+            enabled,
+            Radio {
+                selected,
+                text: text.into(),
+                focusable,
+                grouped: true,
+            },
+        );
+        let changed = response.clicked() && !selected;
+        if changed {
+            *self.current = value.clone();
+            response.mark_changed();
+        }
+        if response.has_focus() {
+            // The group moves the focus with the arrows itself.
+            let filter = egui::EventFilter {
+                horizontal_arrows: true,
+                vertical_arrows: true,
+                ..Default::default()
+            };
+            self.ui
+                .memory_mut(|memory| memory.set_focus_lock_filter(response.id, filter));
+        }
+        self.options.push(GroupOption {
+            id: response.id,
+            value,
+            enabled,
+            changed,
+        });
+        response
+    }
+
+    /// The `Ui` the options go in, for anything else between them.
+    pub fn ui(&mut self) -> &mut Ui {
+        self.ui
+    }
+}
+
 /// A tick centred on `c`.
 pub fn check_mark(painter: &egui::Painter, c: egui::Pos2, color: Color32) {
     painter.add(egui::Shape::line(
@@ -779,7 +1219,7 @@ pub fn check_mark(painter: &egui::Painter, c: egui::Pos2, color: Color32) {
     ));
 }
 
-/// The row of a check box or radio button: the mark (14 points, 18 on Windows), then the
+/// The row of a check box or radio button: the mark (14 points, 20 on Windows), then the
 /// label, all of it one click target. The label wraps as the `Ui` wraps its text, the mark
 /// beside its first line. Returns the response and the mark's square.
 fn mark_row(
@@ -788,33 +1228,47 @@ fn mark_row(
     text: WidgetText,
     kind: egui::Role,
     selected: bool,
+    sense: Sense,
 ) -> (Response, Rect, egui::WidgetInfo) {
     let (side, gap) = match x.look {
-        Look::Windows => (18.0, 8.0),
+        // 14, 16 and 18 points for small, regular and large controls.
+        Look::Mac => ((16.0 + (super::mac_scale(ui) - 1.0) * 12.0).round(), 5.0),
+        Look::Windows => (20.0, 8.0),
         Look::Ios => (22.0, 10.0),
         Look::Material => (18.0, 12.0),
+        // libadwaita: a 14-point icon in 3 points of padding, 4 points from its label.
+        Look::Gtk => (20.0, 4.0),
         _ => (14.0, 6.0),
     };
+    // libadwaita pads the whole check button by 3 points.
+    let pad = if x.look == Look::Gtk { 3.0 } else { 0.0 };
     let galley = text.into_galley(
         ui,
         None,
-        ui.available_width() - side - gap,
+        ui.available_width() - side - gap - 2.0 * pad,
         egui::FontSelection::FontId(x.m.body.clone()),
     );
-    let width = side + gap + galley.size().x;
+    let width = side + gap + galley.size().x + 2.0 * pad;
     let line = ui.spacing().interact_size.y.max(side);
     let first_row = galley
         .rows
         .first()
         .map_or(galley.size().y, |row| row.height());
     let height = line.max(galley.size().y + line - first_row);
-    let (rect, response) = super::allocate_control(ui, egui::vec2(width, height), Sense::click());
+    let (rect, response) = super::allocate_control(ui, egui::vec2(width, height), sense);
     let middle = rect.top() + line / 2.0;
     let mark = Rect::from_center_size(
-        egui::pos2(rect.left() + side / 2.0, middle),
+        egui::pos2(rect.left() + pad + side / 2.0, middle),
         egui::vec2(side, side),
     );
     let enabled = ui.is_enabled();
+    // Material lays a 40-point state layer round the mark under the pointer: the primary's
+    // when it is on, the text colour's when off.
+    if x.look == Look::Material && enabled && response.hovered() {
+        let layer = if selected { x.c.accent } else { x.c.fg };
+        ui.painter()
+            .circle_filled(mark.center(), 20.0, layer.gamma_multiply(0.08));
+    }
     let colour = if enabled { x.c.fg } else { x.c.disabled };
     let top = crate::galley_top(ui.ctx(), &galley, middle);
     let info = egui::WidgetInfo::selected(kind, enabled, selected, galley.text());
@@ -823,8 +1277,13 @@ fn mark_row(
     (response, mark, info)
 }
 
-/// An unchecked mark: on macOS raised and white on the light scheme, a faint well on the
-/// dark; on Windows a faint fill inside the strong stroke; in libadwaita a two-point
+/// A disabled chosen mark on macOS: a grey a step darker than an unchecked one.
+fn mac_disabled_mark(c: &crate::Colors) -> Color32 {
+    lerp_color(c.bg, c.track, 0.7)
+}
+
+/// An unchecked mark: on macOS a grey fill without an edge, fading into the window when
+/// disabled; on Windows a faint fill inside the strong stroke; in libadwaita a two-point
 /// outline in a tint of the text colour.
 fn paint_mark_box(
     painter: &egui::Painter,
@@ -836,11 +1295,20 @@ fn paint_mark_box(
 ) {
     let c = &x.c;
     match x.look {
-        Look::Gtk => {
-            let tint = if hovered {
-                c.button_pressed
+        Look::Mac => {
+            let fill = if enabled {
+                c.track
             } else {
-                c.button_hover
+                lerp_color(c.bg, c.track, 0.5)
+            };
+            painter.rect_filled(mark, round, fill);
+        }
+        Look::Gtk => {
+            // libadwaita's trough colour, a step stronger under the pointer.
+            let tint = if hovered {
+                c.fg.gamma_multiply(0.2)
+            } else {
+                c.track
             };
             painter.rect_stroke(
                 mark,
@@ -850,21 +1318,19 @@ fn paint_mark_box(
             );
         }
         Look::Ios | Look::Material => {
-            // An outline in the strong stroke: two points thick in Material, one and a half
-            // on iOS; Material lays a state layer over it under the pointer.
-            if hovered && x.look == Look::Material {
-                painter.circle_filled(mark.center(), mark.width() * 1.1, c.fg.gamma_multiply(0.08));
-            }
+            // An outline: two points thick in Material, in the variant text colour; one and a
+            // half on iOS in the strong stroke. Material lays a state layer over it under the
+            // pointer.
             let width = if x.look == Look::Material { 2.0 } else { 1.5 };
             painter.rect_stroke(
                 mark,
                 round,
                 Stroke::new(
                     width,
-                    if enabled {
-                        c.control_strong
-                    } else {
-                        c.disabled
+                    match (enabled, x.look) {
+                        (false, _) => c.disabled,
+                        (true, Look::Material) => c.dim,
+                        (true, _) => c.control_strong,
                     },
                 ),
                 egui::StrokeKind::Inside,
@@ -891,33 +1357,19 @@ fn paint_mark_box(
                 egui::StrokeKind::Inside,
             );
         }
-        _ if c.dark => {
+        // The plain look's own mark, for the options of a radio group.
+        Look::Plain => {
             painter.rect_filled(
                 mark,
                 round,
-                Color32::from_white_alpha(if enabled { 22 } else { 10 }),
+                if enabled { c.button } else { c.button_disabled },
             );
             painter.rect_stroke(
                 mark,
                 round,
-                Stroke::new(
-                    1.0,
-                    Color32::from_white_alpha(if enabled { 30 } else { 14 }),
-                ),
+                Stroke::new(1.0, if hovered { c.grid } else { c.border }),
                 egui::StrokeKind::Inside,
             );
         }
-        _ => crate::paint::raised(
-            painter,
-            x.c.dark,
-            mark,
-            round,
-            if enabled {
-                Color32::WHITE
-            } else {
-                c.button_disabled
-            },
-            enabled,
-        ),
     }
 }

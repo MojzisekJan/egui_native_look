@@ -14,14 +14,14 @@
 //! ctx.set_fonts(fonts);
 //! look::install(ctx, look::Theme::system());
 //! # }
-//! # fn frame(ui: &mut egui::Ui, on: &mut bool, radius: &mut f64) {
+//! # fn frame(ui: &mut egui::Ui, notifications: &mut bool, retries: &mut f64) {
 //! # use egui_native_look as look;
 //! // Every frame.
 //! look::follow_system(ui.ctx());
-//! ui.add(look::Switch::new(on));
 //! ui.add(look::Button::new("Save").accent());
 //! look::Form::new("settings").show(ui, |form| {
-//!     form.row("Radius", |ui| ui.add(look::NumberField::new(radius).range(0.0..=1024.0)));
+//!     form.row("Notifications", |ui| ui.add(look::Switch::new(notifications)));
+//!     form.row("Retries", |ui| ui.add(look::NumberField::new(retries).range(1.0..=64.0)));
 //! });
 //! look::show_toasts(ui.ctx());
 //! # }
@@ -97,8 +97,9 @@ use egui::{Color32, FontId};
 pub enum Look {
     /// The app's own controls in its palette, the same on every system.
     Plain,
-    /// SwiftUI / AppKit: raised push buttons, white switch knobs, accent check boxes,
-    /// pop-up buttons with the accent's arrows, a raised segment, soft focus rings.
+    /// SwiftUI / AppKit as of macOS 26: flat grey buttons, tracks and marks, pill-shaped
+    /// switch and slider knobs, the accent on chosen segments and check boxes, pop-up
+    /// buttons with up and down chevrons, steppers, sheets, soft focus rings.
     Mac,
     /// WinUI 3 / Fluent 2: darker bottom edges, underlined entries, outlined switches and
     /// check boxes, two-tone focus rings, black text on the dark scheme's light accent.
@@ -134,8 +135,9 @@ impl Look {
     }
 
     /// The touch look of the system this runs on: iOS on Apple's systems (an iPad's or an
-    /// iPhone's browser too), Material elsewhere. Its controls are a finger tall (40 to 44
-    /// points) where the desktop looks' are 22 to 34. Pair it with [`touch_screen`]:
+    /// iPhone's browser too), Material elsewhere. On a touch screen every control reserves a
+    /// target at least 48 points across, whatever its drawn size (iOS draws 34-point
+    /// controls, Material 40). Pair it with [`touch_screen`]:
     ///
     /// ```
     /// use egui_native_look::{touch_screen, Look};
@@ -307,6 +309,105 @@ impl Palette {
     }
 }
 
+impl Palette {
+    /// The palette `look`'s system draws its windows with, in the dark or the light scheme:
+    /// its window, surface and text colours, its separators and its default accent. The
+    /// plain look takes [`Palette::of`].
+    pub fn for_look(look: Look, dark: bool) -> Palette {
+        let rgb = colors::rgb;
+        let base = Palette::of(dark);
+        // (dark, light) pairs.
+        let pick = |(d, l): (u32, u32)| rgb(if dark { d } else { l });
+        let with =
+            |fg, dim, disabled, bg, surface, border, accent: (u32, u32), hover: Color32| Palette {
+                fg: pick(fg),
+                dim: pick(dim),
+                disabled: pick(disabled),
+                bg: pick(bg),
+                surface: pick(surface),
+                border: pick(border),
+                grid: pick(border),
+                accent: pick(accent),
+                accent_hover: pick(accent),
+                row_hover: hover,
+                ..base
+            };
+        let hover = if dark {
+            Color32::from_white_alpha(15)
+        } else {
+            Color32::from_black_alpha(10)
+        };
+        match look {
+            // SwiftUI's window, labels and separators on macOS 26.
+            Look::Mac => with(
+                (0xe0e0e0, 0x262626),
+                (0x969696, 0x808080),
+                (0x5b5b5b, 0xc6c6c6),
+                (0x1e1e1e, 0xffffff),
+                (0x1e1e1e, 0xffffff),
+                (0x353535, 0xe6e6e6),
+                (0x007aff, 0x007aff),
+                hover,
+            ),
+            // WinUI's base and layer fills and its text and card stroke colours.
+            Look::Windows => with(
+                (0xffffff, 0x1b1b1b),
+                (0xcccccc, 0x5c5c5c),
+                (0x717171, 0x9b9b9b),
+                (0x202020, 0xf3f3f3),
+                (0x2c2c2c, 0xfbfbfb),
+                (0x2a2a2a, 0xe5e5e5),
+                (0x60cdff, 0x005fb8),
+                hover,
+            ),
+            // libadwaita's window, popover and text colours, its dimmed and disabled text.
+            Look::Gtk => with(
+                (0xffffff, 0x323237),
+                (0x9c9c9d, 0x8c8c8f),
+                (0x909192, 0x969699),
+                (0x222226, 0xfafafb),
+                (0x36363a, 0xffffff),
+                (0x434347, 0xdcdcde),
+                (0x3584e4, 0x3584e4),
+                hover,
+            ),
+            // iOS's system and secondary system backgrounds, labels and separators.
+            Look::Ios => with(
+                (0xffffff, 0x000000),
+                (0x8d8d93, 0x8a8a8e),
+                (0x58585e, 0xbcbcc0),
+                (0x000000, 0xffffff),
+                (0x1c1c1e, 0xf2f2f7),
+                (0x38383a, 0xc6c6c8),
+                (0x0091ff, 0x0088ff),
+                hover,
+            ),
+            // Material 3's baseline surface, its containers, text and outline variant.
+            Look::Material => with(
+                (0xe6e0e9, 0x1d1b20),
+                (0xcac4d0, 0x49454f),
+                (0x67636d, 0xa9a5ad),
+                (0x141218, 0xfef7ff),
+                (0x211f26, 0xf3edf7),
+                (0x49454f, 0xcac4d0),
+                (0xd0bcff, 0x6750a4),
+                hover,
+            ),
+            Look::Plain => base,
+        }
+    }
+}
+
+impl Schemes {
+    /// Both schemes of [`Palette::for_look`].
+    pub fn for_look(look: Look) -> Schemes {
+        Schemes {
+            dark: Palette::for_look(look, true),
+            light: Palette::for_look(look, false),
+        }
+    }
+}
+
 impl Default for Schemes {
     fn default() -> Self {
         Schemes {
@@ -343,15 +444,15 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    /// The system's own sizes for `look`: macOS's regular controls are 22 points tall in
-    /// 13-point text, WinUI's 32 in 14, libadwaita's 34 in 14.67 (11 pt), iOS's 44 (a
-    /// finger) in 17, Material's 40 in 14; the plain look's 28 in 13.
+    /// The system's own sizes for `look`: macOS's regular controls are 24 points tall in
+    /// 13-point text, WinUI's 32 in 14, libadwaita's 34 in 14.67 (11 pt), iOS 26's 34 in
+    /// 17, Material's 40 in 14; the plain look's 28 in 13.
     pub fn of(look: Look) -> Metrics {
         let (height, radius, size) = match look {
-            Look::Mac => (22.0, 6, 13.0),
+            Look::Mac => (24.0, 6, 13.0),
             Look::Windows => (32.0, 4, 14.0),
-            Look::Gtk => (34.0, 6, 14.67),
-            Look::Ios => (44.0, 10, 17.0),
+            Look::Gtk => (34.0, 9, 14.67),
+            Look::Ios => (34.0, 8, 17.0),
             Look::Material => (40.0, 8, 14.0),
             Look::Plain => (28.0, 4, 13.0),
         };
@@ -361,6 +462,38 @@ impl Metrics {
             body: FontId::proportional(size),
             bold: FontId::proportional(size),
         }
+    }
+
+    /// Smaller controls, as SwiftUI's `.small` control size draws them on macOS: 20 points
+    /// tall in 11-point text, the switches, marks and knobs in proportion. The other looks
+    /// take five sixths of their size.
+    pub fn small(look: Look) -> Metrics {
+        if look == Look::Mac {
+            Metrics {
+                control_height: 20.0,
+                radius: 5,
+                body: FontId::proportional(11.0),
+                bold: FontId::proportional(11.0),
+            }
+        } else {
+            Self::of(look).scaled(5.0 / 6.0)
+        }
+    }
+
+    /// Larger controls, as SwiftUI's `.large` control size draws them on macOS: 28 points
+    /// tall in the regular 13-point text. The other looks grow by a sixth and keep their
+    /// text.
+    pub fn large(look: Look) -> Metrics {
+        let mut metrics = Self::of(look);
+        let height = if look == Look::Mac {
+            28.0
+        } else {
+            (metrics.control_height * 7.0 / 6.0).round()
+        };
+        metrics.radius =
+            (f32::from(metrics.radius) * height / metrics.control_height).round() as u8;
+        metrics.control_height = height;
+        metrics
     }
 
     pub(crate) fn sanitized(mut self, look: Look) -> Self {
@@ -428,6 +561,10 @@ pub struct Theme {
     /// The system's accent for the dark and the light scheme, as 0xRRGGBB; `None` keeps
     /// the palette's. [`install`] fills it in unless it was set.
     pub accent: Option<[u32; 2]>,
+    /// Whether the system asks for more contrast: controls take an edge, troughs and
+    /// separators darken and secondary text comes closer to the text colour, as
+    /// libadwaita, macOS and iOS draw them then. Off by default.
+    pub high_contrast: bool,
 }
 
 impl Default for Theme {
@@ -437,19 +574,27 @@ impl Default for Theme {
 }
 
 impl Theme {
-    /// This system's look, the default palette and the system's sizes.
+    /// This system's look, with its palette and sizes.
     pub fn system() -> Theme {
         Theme::new(Look::system())
     }
 
-    /// `look` with the default palette and its system's sizes.
+    /// `look` with its system's palette ([`Schemes::for_look`]) and sizes.
     pub fn new(look: Look) -> Theme {
         Theme {
             look,
-            schemes: Schemes::default(),
+            schemes: Schemes::for_look(look),
             metrics: Metrics::of(look),
             accent: None,
+            high_contrast: false,
         }
+    }
+
+    /// With more contrast, as the system's accessibility setting asks; see
+    /// [`Theme::high_contrast`](Theme#structfield.high_contrast).
+    pub fn high_contrast(mut self, on: bool) -> Theme {
+        self.high_contrast = on;
+        self
     }
 
     /// With the app's palette.
@@ -491,10 +636,15 @@ impl Resolved {
 
     /// The colours for `ctx`'s scheme of the moment.
     pub fn colors(&self, ctx: &egui::Context) -> Colors {
-        if ctx.theme() == egui::Theme::Dark {
+        let colors = if ctx.theme() == egui::Theme::Dark {
             self.dark
         } else {
             self.light
+        };
+        if ctx.input(|input| input.focused) {
+            colors
+        } else {
+            colors.inactive(self.theme.look)
         }
     }
 }
@@ -647,6 +797,37 @@ pub fn install_fonts(fonts: &mut egui::FontDefinitions, look: Look) -> bool {
     found
 }
 
+/// macOS's menus and pop-overs: near white, or a mid grey on the dark scheme, whatever the
+/// window behind them.
+pub(crate) fn mac_menu_fill(dark: bool) -> Color32 {
+    colors::rgb(if dark { 0x3e3e3e } else { 0xfcfcfc })
+}
+
+/// A translucent ink, as Apple's system fills are: white at `dark` opacity on the dark
+/// scheme, black at `light` on the light one, so a fill reads the same over a card.
+pub(crate) fn ink(c: &Colors, dark: f32, light: f32) -> Color32 {
+    let alpha = |share: f32| (share * 255.0).round() as u8;
+    if c.dark {
+        Color32::from_white_alpha(alpha(dark))
+    } else {
+        Color32::from_black_alpha(alpha(light))
+    }
+}
+
+/// macOS's accent under a pressed pointer: darker on the light scheme, lighter on the dark.
+pub(crate) fn mac_pressed_accent(c: &Colors) -> Color32 {
+    if c.dark {
+        lerp_color(c.accent, Color32::WHITE, 0.17)
+    } else {
+        lerp_color(c.accent, Color32::BLACK, 0.1)
+    }
+}
+
+/// macOS's accent on a disabled control: faded most of the way from the window.
+pub(crate) fn mac_disabled_accent(c: &Colors) -> Color32 {
+    lerp_color(c.bg, c.accent, if c.dark { 0.75 } else { 0.68 })
+}
+
 /// `c` a fraction `t` of the way to white.
 pub(crate) fn lighten(c: Color32, t: f32) -> Color32 {
     let up = |v: u8| (f32::from(v) + (255.0 - f32::from(v)) * t).round() as u8;
@@ -656,7 +837,8 @@ pub(crate) fn lighten(c: Color32, t: f32) -> Color32 {
 /// `a` a fraction `t` of the way to `b`, alpha too.
 pub(crate) fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
     let l = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
-    Color32::from_rgba_unmultiplied(
+    // Premultiplied components lerp as they are, translucent inks included.
+    Color32::from_rgba_premultiplied(
         l(a.r(), b.r()),
         l(a.g(), b.g()),
         l(a.b(), b.b()),

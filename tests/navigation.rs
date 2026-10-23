@@ -301,6 +301,314 @@ fn popup_home_and_end_skip_disabled_rows_and_do_not_activate_them() {
     }
 }
 
+#[test]
+fn a_menu_opened_from_the_keyboard_starts_on_its_ticked_row() {
+    for chosen in LOOKS {
+        let ctx = context(chosen);
+        let mut current = 2;
+        let mut ticked = egui::Id::NULL;
+        let mut draw = |ui: &mut egui::Ui| {
+            look::PopupButton::new("startup", "Choice").show(ui, |ui| {
+                for (i, label) in ["Last session", "Home", "Blank document"]
+                    .iter()
+                    .enumerate()
+                {
+                    let response = look::menu_value(ui, &mut current, i, *label);
+                    if i == 2 {
+                        ticked = response.id;
+                    }
+                }
+            });
+            ticked
+        };
+        frame(&ctx, vec![], &mut draw);
+        frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), &mut draw);
+        frame(
+            &ctx,
+            key(egui::Key::Enter, egui::Modifiers::NONE),
+            &mut draw,
+        );
+        let (ticked, _) = frame(&ctx, vec![], &mut draw);
+        assert_eq!(
+            ctx.memory(|memory| memory.focused()),
+            Some(ticked),
+            "{chosen}"
+        );
+        assert_eq!(current, 2, "{chosen}: opening chose nothing");
+    }
+}
+
+#[test]
+fn typing_in_a_menu_moves_to_the_matching_item() {
+    for chosen in LOOKS {
+        let ctx = context(chosen);
+        let mut chosen_item = None;
+        let mut ids = Vec::new();
+        let mut draw = |ui: &mut egui::Ui| {
+            ids.clear();
+            look::PopupButton::new("typing", "Open").show(ui, |ui| {
+                for (i, label) in ["Last session", "Home", "Blank document", "Browse"]
+                    .iter()
+                    .enumerate()
+                {
+                    let response = ui.add(look::MenuItem::new(*label));
+                    if response.clicked() {
+                        chosen_item = Some(i);
+                    }
+                    ids.push(response.id);
+                }
+            });
+            ids.clone()
+        };
+        let text = |text: &str| vec![egui::Event::Text(text.into())];
+        frame(&ctx, vec![], &mut draw);
+        frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), &mut draw);
+        frame(
+            &ctx,
+            key(egui::Key::Enter, egui::Modifiers::NONE),
+            &mut draw,
+        );
+        frame(&ctx, vec![], &mut draw);
+        frame(&ctx, text("b"), &mut draw);
+        let (ids, _) = frame(&ctx, vec![], &mut draw);
+        assert_eq!(ctx.memory(|m| m.focused()), Some(ids[2]), "{chosen}: b");
+        frame(&ctx, text("b"), &mut draw);
+        frame(&ctx, vec![], &mut draw);
+        assert_eq!(
+            ctx.memory(|m| m.focused()),
+            Some(ids[3]),
+            "{chosen}: b again"
+        );
+        frame(
+            &ctx,
+            key(egui::Key::Enter, egui::Modifiers::NONE),
+            &mut draw,
+        );
+        assert_eq!(chosen_item, Some(3), "{chosen}");
+    }
+}
+
+#[test]
+fn the_menu_row_the_keyboard_is_on_is_lit() {
+    for chosen in LOOKS {
+        let ctx = context(chosen);
+        let mut current = 1;
+        let mut row = egui::Rect::NOTHING;
+        let mut draw = |ui: &mut egui::Ui| {
+            look::PopupButton::new("lit", "Home").show(ui, |ui| {
+                look::menu_value(ui, &mut current, 0, "Last session");
+                row = look::menu_value(ui, &mut current, 1, "Home").rect;
+            });
+            row
+        };
+        frame(&ctx, vec![], &mut draw);
+        frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), &mut draw);
+        frame(
+            &ctx,
+            key(egui::Key::Enter, egui::Modifiers::NONE),
+            &mut draw,
+        );
+        // Past the menu's fade-in.
+        for _ in 0..20 {
+            frame(&ctx, vec![], &mut draw);
+        }
+        let (row, output) = frame(&ctx, vec![], &mut draw);
+        // A fill about the row's size lies under it (not the menu's own): each look lights
+        // it in its own colour.
+        let lit = output.shapes.iter().any(|shape| {
+            matches!(&shape.shape, egui::Shape::Rect(rect)
+                if rect.fill != egui::Color32::TRANSPARENT
+                    && rect.rect.contains(row.center())
+                    && rect.rect.height() <= row.height() + 4.0)
+        });
+        assert!(lit, "{chosen}: the focused row is not lit");
+    }
+}
+
+#[test]
+fn a_mac_menu_opens_with_its_ticked_row_over_the_button() {
+    let ctx = context(look::Look::Mac);
+    let mut current = 1;
+    let mut rows = (egui::Rect::NOTHING, egui::Rect::NOTHING);
+    let mut draw = |ui: &mut egui::Ui| {
+        ui.add_space(200.0);
+        let shown = look::PopupButton::new("startup", "Home").show(ui, |ui| {
+            look::menu_value(ui, &mut current, 0, "Last session");
+            look::menu_value(ui, &mut current, 1, "Home").rect
+        });
+        rows = (
+            shown.response.rect,
+            shown.inner.unwrap_or(egui::Rect::NOTHING),
+        );
+    };
+    frame(&ctx, vec![], &mut draw);
+    frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), &mut draw);
+    frame(
+        &ctx,
+        key(egui::Key::Enter, egui::Modifiers::NONE),
+        &mut draw,
+    );
+    frame(&ctx, vec![], &mut draw);
+    let (button, row) = rows;
+    assert!(
+        (row.center().y - button.center().y).abs() < 1.0,
+        "the ticked row {row:?} sits on the button {button:?}"
+    );
+}
+
+#[test]
+fn menu_arrows_wrap_round_at_the_ends() {
+    for chosen in LOOKS {
+        let ctx = context(chosen);
+        let mut ids = Vec::new();
+        let mut draw = |ui: &mut egui::Ui| {
+            ids.clear();
+            look::PopupButton::new("wrap", "Actions").show(ui, |ui| {
+                for label in ["First", "Middle", "Last"] {
+                    ids.push(ui.add(look::MenuItem::new(label)).id);
+                }
+            });
+            ids.clone()
+        };
+        frame(&ctx, vec![], &mut draw);
+        frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), &mut draw);
+        frame(
+            &ctx,
+            key(egui::Key::Enter, egui::Modifiers::NONE),
+            &mut draw,
+        );
+        let (ids, _) = frame(&ctx, vec![], &mut draw);
+        assert_eq!(ctx.memory(|m| m.focused()), Some(ids[0]), "{chosen}");
+        frame(
+            &ctx,
+            key(egui::Key::ArrowUp, egui::Modifiers::NONE),
+            &mut draw,
+        );
+        frame(&ctx, vec![], &mut draw);
+        assert_eq!(
+            ctx.memory(|m| m.focused()),
+            Some(ids[2]),
+            "{chosen}: up from the first"
+        );
+        frame(
+            &ctx,
+            key(egui::Key::ArrowDown, egui::Modifiers::NONE),
+            &mut draw,
+        );
+        frame(&ctx, vec![], &mut draw);
+        assert_eq!(
+            ctx.memory(|m| m.focused()),
+            Some(ids[0]),
+            "{chosen}: down from the last"
+        );
+        assert!(
+            egui::Popup::is_any_open(&ctx),
+            "{chosen}: wrapping keeps the menu open"
+        );
+    }
+}
+
+struct Radios {
+    ids: Vec<egui::Id>,
+    after: egui::Id,
+}
+
+fn radios(ui: &mut egui::Ui, current: &mut u8) -> Radios {
+    let mut ids = Vec::new();
+    look::RadioGroup::new("letters", current)
+        .accessible_label("Letter")
+        .show(ui, |group| {
+            ids.push(group.option(0, "A").id);
+            ids.push(group.option(1, "B").id);
+            ids.push(group.option_enabled(false, 2, "C").id);
+            ids.push(group.option(3, "D").id);
+        });
+    let after = ui.add(look::Button::new("After")).id;
+    Radios { ids, after }
+}
+
+#[test]
+fn a_radio_group_is_one_tab_stop_moved_through_by_the_arrows() {
+    for chosen in LOOKS {
+        let ctx = context(chosen);
+        let mut current = 1;
+        let focused = |ctx: &egui::Context| ctx.memory(|memory| memory.focused());
+        let (r, _) = frame(&ctx, vec![], |ui| radios(ui, &mut current));
+        frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), |ui| {
+            radios(ui, &mut current)
+        });
+        frame(&ctx, vec![], |ui| radios(ui, &mut current));
+        assert_eq!(
+            focused(&ctx),
+            Some(r.ids[1]),
+            "{chosen}: Tab enters at the choice"
+        );
+        frame(
+            &ctx,
+            key(egui::Key::ArrowDown, egui::Modifiers::NONE),
+            |ui| radios(ui, &mut current),
+        );
+        frame(&ctx, vec![], |ui| radios(ui, &mut current));
+        assert_eq!(current, 3, "{chosen}: Down chooses the next enabled option");
+        assert_eq!(focused(&ctx), Some(r.ids[3]), "{chosen}");
+        frame(
+            &ctx,
+            key(egui::Key::ArrowDown, egui::Modifiers::NONE),
+            |ui| radios(ui, &mut current),
+        );
+        frame(&ctx, vec![], |ui| radios(ui, &mut current));
+        if chosen == look::Look::Windows {
+            assert_eq!(current, 3, "{chosen}: no wrapping");
+        } else {
+            assert_eq!(current, 0, "{chosen}: Down from the last wraps");
+        }
+        frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), |ui| {
+            radios(ui, &mut current)
+        });
+        frame(&ctx, vec![], |ui| radios(ui, &mut current));
+        assert_eq!(
+            focused(&ctx),
+            Some(r.after),
+            "{chosen}: Tab leaves the group"
+        );
+
+        // With no option chosen, the first enabled one takes Tab and Space chooses it.
+        let ctx = context(chosen);
+        let mut current = 9;
+        let (r, _) = frame(&ctx, vec![], |ui| radios(ui, &mut current));
+        frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), |ui| {
+            radios(ui, &mut current)
+        });
+        frame(&ctx, vec![], |ui| radios(ui, &mut current));
+        assert_eq!(
+            focused(&ctx),
+            Some(r.ids[0]),
+            "{chosen}: first enabled option"
+        );
+        frame(&ctx, key(egui::Key::Space, egui::Modifiers::NONE), |ui| {
+            radios(ui, &mut current)
+        });
+        assert_eq!(current, 0, "{chosen}: Space chooses");
+    }
+}
+
+#[test]
+fn a_radio_group_names_itself_to_assistive_technology() {
+    let ctx = context(look::Look::Gtk);
+    ctx.enable_accesskit();
+    let mut current = 1;
+    let (_, output) = frame(&ctx, vec![], |ui| radios(ui, &mut current));
+    let nodes = output.platform_output.accesskit_update.unwrap().nodes;
+    assert!(nodes
+        .iter()
+        .any(|(_, node)| node.role() == egui::Role::RadioGroup && node.label() == Some("Letter")));
+    let options = nodes
+        .iter()
+        .filter(|(_, node)| node.role() == egui::Role::RadioButton)
+        .count();
+    assert_eq!(options, 4);
+}
+
 struct NestedMenu {
     launcher: egui::Id,
     branch: egui::Id,

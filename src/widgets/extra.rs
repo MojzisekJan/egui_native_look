@@ -69,13 +69,34 @@ impl IconButton {
 
 impl Widget for IconButton {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl IconButton {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let c = &x.c;
         let side = ui.spacing().interact_size.y;
+        let font = self
+            .font
+            .clone()
+            .unwrap_or_else(|| egui::FontId::new(x.m.body.size + 3.0, x.m.body.family.clone()));
+        // macOS's borderless buttons are as wide as their glyph and a little room.
+        let width = if x.look == Look::Mac {
+            let glyph = ui.fonts_mut(|f| {
+                f.layout_no_wrap(self.glyph.clone(), font.clone(), c.fg)
+                    .size()
+                    .x
+            });
+            (glyph + 6.0).max(18.0)
+        } else {
+            side
+        };
         let enabled = ui.is_enabled();
         let (rect, response) = super::allocate_control(
             ui,
-            egui::vec2(side, side),
+            egui::vec2(width, side),
             if enabled {
                 Sense::click()
             } else {
@@ -95,14 +116,10 @@ impl Widget for IconButton {
                 Some(if hovered { c.accent_hover } else { c.accent }),
                 c.on_accent,
             ),
-            (true, Look::Mac) => (
-                Some(if down {
-                    c.button_pressed
-                } else {
-                    c.button_hover
-                }),
-                c.accent,
-            ),
+            // macOS's borderless buttons show only their glyph: in the accent when on,
+            // darker while pressed.
+            (true, Look::Mac) => (None, c.accent),
+            (false, Look::Mac) => (None, if down { c.fg } else { c.dim }),
             (true, _) => (Some(tint(if hovered { 0.32 } else { 0.24 })), c.accent),
             (false, _) if down => (Some(c.button_pressed), c.fg),
             (false, _) if hovered => (Some(c.button_hover), c.fg),
@@ -113,9 +130,6 @@ impl Widget for IconButton {
                 ui.painter().rect_filled(rect, round, fill);
             }
             let colour = if enabled { colour } else { c.disabled };
-            let font = self
-                .font
-                .unwrap_or_else(|| egui::FontId::new(x.m.body.size + 3.0, x.m.body.family.clone()));
             crate::text(
                 ui.painter(),
                 rect.center(),
@@ -196,10 +210,21 @@ impl<'a> ColorWell<'a> {
 
 impl Widget for ColorWell<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl ColorWell<'_> {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let c = &x.c;
         let height = ui.spacing().interact_size.y;
-        let width = (height * 1.75).round();
+        // macOS's colour well is a capsule twice as wide as it is tall.
+        let width = if x.look == Look::Mac {
+            height * 2.0
+        } else {
+            (height * 1.75).round()
+        };
         let enabled = ui.is_enabled();
         let (rect, mut response) = super::allocate_control(
             ui,
@@ -223,7 +248,7 @@ impl Widget for ColorWell<'_> {
             } else {
                 c.button
             };
-            let round = if x.look == Look::Material {
+            let round = if matches!(x.look, Look::Material | Look::Mac) {
                 CornerRadius::same((height / 2.0) as u8)
             } else {
                 x.radius()
@@ -237,10 +262,10 @@ impl Widget for ColorWell<'_> {
                     egui::StrokeKind::Inside,
                 );
             }
-            let swatch = rect.shrink(if x.look == Look::Material {
-                height * 0.25
-            } else {
-                4.0
+            let swatch = rect.shrink(match x.look {
+                Look::Material => height * 0.25,
+                Look::Mac => 3.0,
+                _ => 4.0,
             });
             let inner = CornerRadius::same(round.nw.saturating_sub(3).max(2));
             if self.color.a() < 255 {
@@ -336,10 +361,21 @@ fn card_fill(c: &crate::Colors) -> Color32 {
 const TOAST_SECONDS: f64 = 4.0;
 const TOAST_FADE: f64 = 0.2;
 
-/// The toasts asked for: each one's text, when it was asked for, and the viewport it shows
-/// in.
+/// The toasts asked for, and how many have been.
 #[derive(Clone, Default)]
-struct Toasts(Vec<(String, f64, egui::ViewportId)>);
+struct Toasts(Vec<Toast>, u64);
+
+#[derive(Clone)]
+struct Toast {
+    text: String,
+    /// When it was asked for, moved on while it is paused under the pointer.
+    start: f64,
+    viewport: egui::ViewportId,
+    /// Its number, which keeps its id while it is shown.
+    serial: u64,
+    /// Where it was drawn last frame.
+    rect: Option<Rect>,
+}
 
 fn toasts_id() -> egui::Id {
     egui::Id::unique("egui_native_look::Toasts")
@@ -351,9 +387,16 @@ pub fn toast(ctx: &egui::Context, text: impl Into<String>) {
     let now = ctx.input(|i| i.time);
     let viewport = ctx.viewport_id();
     ctx.data_mut(|d| {
-        d.get_temp_mut_or_default::<Toasts>(toasts_id())
-            .0
-            .push((text.into(), now, viewport))
+        let toasts = d.get_temp_mut_or_default::<Toasts>(toasts_id());
+        toasts.1 += 1;
+        let serial = toasts.1;
+        toasts.0.push(Toast {
+            text: text.into(),
+            start: now,
+            viewport,
+            serial,
+            rect: None,
+        });
     });
     ctx.request_repaint();
 }
@@ -361,28 +404,76 @@ pub fn toast(ctx: &egui::Context, text: impl Into<String>) {
 /// Draws the toasts [`toast`] asked for, once a frame, over everything else: a dark pill
 /// in libadwaita, a HUD on macOS and iOS, Material's snackbar, a raised card on Windows and
 /// in the plain look. The newest is at the bottom; a long text wraps. Each viewport draws
-/// its own toasts.
+/// its own toasts. A toast under the pointer waits there, and screen readers announce each
+/// one as a status message.
 pub fn show_toasts(ctx: &egui::Context) {
-    let now = ctx.input(|i| i.time);
+    let (now, dt, hover) = ctx.input(|i| (i.time, f64::from(i.unstable_dt), i.pointer.hover_pos()));
     let viewport = ctx.viewport_id();
-    let mut toasts = ctx
+    let mut all = ctx
         .data(|d| d.get_temp::<Toasts>(toasts_id()))
         .unwrap_or_default();
-    toasts.0.retain(|(_, start, _)| now - start < TOAST_SECONDS);
-    ctx.data_mut(|d| d.insert_temp(toasts_id(), toasts.clone()));
-    toasts.0.retain(|(_, _, shown_in)| *shown_in == viewport);
-    if toasts.0.is_empty() {
+    for toast in &mut all.0 {
+        // Paused once fully shown, so it neither fades nor runs out while being read.
+        let shown = now - toast.start >= TOAST_FADE;
+        if toast.viewport == viewport
+            && shown
+            && hover.is_some_and(|at| toast.rect.is_some_and(|rect| rect.contains(at)))
+        {
+            toast.start = (toast.start + dt).min(now - TOAST_FADE);
+        }
+    }
+    all.0.retain(|toast| now - toast.start < TOAST_SECONDS);
+    let mut toasts: Vec<Toast> = all
+        .0
+        .iter()
+        .filter(|toast| toast.viewport == viewport)
+        .cloned()
+        .collect();
+    if toasts.is_empty() {
+        ctx.data_mut(|d| d.insert_temp(toasts_id(), all));
         return;
     }
     let resolved = crate::resolved(ctx);
     let look = resolved.theme.look;
     let c = resolved.colors(ctx);
     let font = resolved.theme.metrics.body.clone();
-    let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, toasts_id()));
     let screen = ctx.content_rect();
+    egui::Area::new(toasts_id().with(viewport))
+        .order(egui::Order::Tooltip)
+        .fixed_pos(screen.min)
+        .show(ctx, |ui| {
+            ui.set_clip_rect(screen);
+            draw_toasts(ui, &mut toasts, now, look, &c, &font, screen);
+        });
+    for toast in toasts {
+        if let Some(stored) = all
+            .0
+            .iter_mut()
+            .find(|stored| stored.serial == toast.serial)
+        {
+            stored.rect = toast.rect;
+        }
+    }
+    ctx.data_mut(|d| d.insert_temp(toasts_id(), all));
+    ctx.request_repaint();
+}
+
+/// Lays out and paints `toasts` in `ui`, newest at the bottom, and keeps where each went.
+fn draw_toasts(
+    ui: &mut egui::Ui,
+    toasts: &mut [Toast],
+    now: f64,
+    look: Look,
+    c: &crate::Colors,
+    font: &egui::FontId,
+    screen: Rect,
+) {
+    let ctx = ui.ctx().clone();
+    let painter = ui.painter().clone();
     let mut bottom = screen.bottom() - 24.0;
-    for (text, start, _) in toasts.0.iter().rev() {
-        let age = now - start;
+    for toast in toasts.iter_mut().rev() {
+        let text = &toast.text;
+        let age = now - toast.start;
         let shown =
             ((age / TOAST_FADE).min((TOAST_SECONDS - age) / TOAST_FADE)).clamp(0.0, 1.0) as f32;
         let (fill, colour, height, round, stroke) = match look {
@@ -416,13 +507,13 @@ pub fn show_toasts(ctx: &egui::Context) {
                 Stroke::NONE,
             ),
             Look::Windows => (
-                card_fill(&c),
+                card_fill(c),
                 c.fg,
                 44.0,
                 8,
                 Stroke::new(1.0, c.control_border),
             ),
-            Look::Plain => (card_fill(&c), c.fg, 36.0, 4, Stroke::new(1.0, c.border)),
+            Look::Plain => (card_fill(c), c.fg, 36.0, 4, Stroke::new(1.0, c.border)),
         };
         let galley = painter.layout(
             text.clone(),
@@ -458,7 +549,7 @@ pub fn show_toasts(ctx: &egui::Context) {
         ));
         // The first line's capitals centred where a one-line toast has them.
         let top = crate::galley_top(
-            ctx,
+            &ctx,
             &galley,
             rect.center().y - (galley.size().y - first_row) / 2.0,
         );
@@ -467,7 +558,12 @@ pub fn show_toasts(ctx: &egui::Context) {
             galley,
             colour.gamma_multiply(shown),
         );
+        let response = ui.interact(rect, toasts_id().with(toast.serial), Sense::hover());
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Status, true, text));
+        ctx.accesskit_node_builder(response.id, |node| {
+            node.set_live(egui::accesskit::Live::Polite);
+        });
+        toast.rect = Some(rect);
         bottom = rect.top() - 8.0;
     }
-    ctx.request_repaint();
 }

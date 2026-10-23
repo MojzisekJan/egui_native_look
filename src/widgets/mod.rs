@@ -13,7 +13,9 @@ mod status;
 mod window;
 
 pub use basic::check_mark;
-pub use basic::{radio_value, switch_width, Button, Checkbox, Radio, Switch};
+pub use basic::{
+    radio_value, switch_width, Button, Checkbox, Radio, RadioGroup, RadioGroupUi, Switch,
+};
 pub use choice::{
     combo_icon, menu_value, Dropdown, PopupButton, Segmented, Slider, Tab, TabBar, TabBarUi, Tabs,
 };
@@ -25,6 +27,21 @@ pub use status::{ProgressBar, Spinner};
 pub use window::{window_frame, Dialog, TitleBar, ToolWindow, WindowAction};
 
 use crate::{paint, Colors, Look, Metrics};
+
+/// How large the macOS look's controls are drawn against its regular 24-point size, so a
+/// switch, a mark or a knob follows [`crate::Metrics::small`] and [`crate::Metrics::large`].
+pub(crate) fn mac_scale(ui: &egui::Ui) -> f32 {
+    (ui.spacing().interact_size.y / 24.0).clamp(0.5, 3.0)
+}
+
+/// Where a menu item's label starts, after the column for its tick or icon.
+pub(crate) fn menu_label_inset(look: Look) -> f32 {
+    if look == Look::Mac {
+        24.0
+    } else {
+        28.0
+    }
+}
 
 /// What a control needs to know to draw itself: the look, its colours and its sizes.
 pub(crate) struct Ctx {
@@ -263,6 +280,82 @@ pub(crate) fn pointer_position(ui: &egui::Ui, response: &egui::Response) -> Opti
                 .layer_transform_from_global(response.layer_id)
                 .map_or(position, |transform| transform * position)
         })
+}
+
+/// How long a step button is held before it repeats, and how often it then repeats.
+const REPEAT_DELAY: f64 = 0.5;
+const REPEAT_INTERVAL: f64 = 0.1;
+
+/// The steps a held step button adds this frame beyond its click: none for the first
+/// half second, then ten a second while the pointer stays pressed on it without moving
+/// away, as spin buttons and steppers repeat. egui hands a press longer than a click to
+/// dragging, so the hold is followed here from the press that began on the button.
+pub(crate) fn held_repeats(ui: &egui::Ui, response: &egui::Response) -> u32 {
+    #[derive(Clone, Copy)]
+    struct Held {
+        start: f64,
+        done: u32,
+    }
+    let key = response.id.with("held-repeats");
+    let (start, now, down, at, travel) = ui.input(|input| {
+        let pointer = &input.pointer;
+        let travel = pointer
+            .press_origin()
+            .zip(pointer.interact_pos())
+            .map_or(0.0, |(origin, at)| origin.distance(at));
+        (
+            pointer.press_start_time(),
+            input.time,
+            pointer.primary_down(),
+            pointer.interact_pos(),
+            travel,
+        )
+    });
+    let mut held = ui.data(|data| data.get_temp::<Held>(key));
+    if held.is_none() && response.is_pointer_button_down_on() {
+        held = start.map(|start| Held { start, done: 0 });
+    }
+    let still = down
+        && response.enabled()
+        && travel <= 6.0
+        && at.is_some_and(|at| response.interact_rect.contains(at));
+    let Some(mut state) = held.filter(|held| still && start == Some(held.start)) else {
+        ui.data_mut(|data| data.remove::<Held>(key));
+        return 0;
+    };
+    let elapsed = now - state.start;
+    let total = if elapsed < REPEAT_DELAY {
+        0
+    } else {
+        ((elapsed - REPEAT_DELAY) / REPEAT_INTERVAL) as u32 + 1
+    };
+    let new = total.saturating_sub(state.done);
+    state.done = total;
+    ui.data_mut(|data| data.insert_temp(key, state));
+    ui.ctx()
+        .request_repaint_after(std::time::Duration::from_secs_f64(REPEAT_INTERVAL));
+    new
+}
+
+/// Runs `add` with the opacity `ui` had before egui faded it for being disabled, in the
+/// macOS, iOS and Material looks: their controls carry their own disabled colours, as Apple
+/// and Material 3 draw them, and would otherwise be faded twice. The other looks keep egui's
+/// fading.
+pub(crate) fn unfaded<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    let before = ui.opacity();
+    let restore = !ui.is_enabled()
+        && matches!(
+            crate::look(ui.ctx()),
+            Look::Mac | Look::Ios | Look::Material
+        );
+    if restore {
+        ui.set_opacity((before / ui.visuals().disabled_alpha().max(0.01)).min(1.0));
+    }
+    let result = add(ui);
+    if restore {
+        ui.set_opacity(before);
+    }
+    result
 }
 
 #[cfg(test)]

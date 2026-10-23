@@ -1,6 +1,6 @@
 //! Progress: bars and spinners.
 
-use egui::{CornerRadius, Rect, Response, Sense, Stroke, Ui, Widget};
+use egui::{Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, Widget};
 
 use super::Ctx;
 use crate::Look;
@@ -52,13 +52,26 @@ impl ProgressBar {
 
 impl Widget for ProgressBar {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl ProgressBar {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let width = self.width.unwrap_or_else(|| ui.available_width());
-        let thickness = if matches!(
-            x.look,
-            Look::Windows | Look::Gtk | Look::Material | Look::Ios
-        ) {
+        let thickness = if x.look == Look::Gtk {
+            // libadwaita's progress bar is as thick as its scale's trough is wide.
+            8.0
+        } else if matches!(x.look, Look::Windows | Look::Material | Look::Ios) {
             4.0
+        } else if x.look == Look::Mac {
+            // SwiftUI's small progress bar is six points, the others eight.
+            if super::mac_scale(ui) < 0.95 {
+                6.0
+            } else {
+                8.0
+            }
         } else {
             6.0
         };
@@ -68,7 +81,21 @@ impl Widget for ProgressBar {
         );
         let rail = Rect::from_center_size(outer.center(), egui::vec2(width, thickness));
         let round = CornerRadius::same((thickness / 2.0) as u8);
-        ui.painter().rect_filled(rail, round, x.c.track);
+        // macOS's progress rail is a step lighter than its other tracks; Material's is the
+        // secondary container, the tonal buttons' fill.
+        let track = match x.look {
+            Look::Mac => {
+                let ink = if x.c.dark {
+                    Color32::WHITE
+                } else {
+                    Color32::BLACK
+                };
+                crate::lerp_color(x.c.bg, ink, if x.c.dark { 0.1 } else { 0.05 })
+            }
+            Look::Material => x.c.button,
+            _ => x.c.track,
+        };
+        ui.painter().rect_filled(rail, round, track);
         let filled = Rect::from_min_max(
             rail.min,
             egui::pos2(
@@ -76,7 +103,13 @@ impl Widget for ProgressBar {
                 rail.max.y,
             ),
         );
-        ui.painter().rect_filled(filled, round, x.c.accent);
+        // An inactive macOS window shows progress in a mid grey.
+        let fill = if x.look == Look::Mac && !x.c.active {
+            crate::colors::rgb(0xaaaaaa)
+        } else {
+            x.c.accent
+        };
+        ui.painter().rect_filled(filled, round, fill);
         response.widget_info(|| {
             egui::WidgetInfo::labeled(egui::Role::ProgressIndicator, ui.is_enabled(), &self.label)
         });
@@ -134,6 +167,12 @@ impl Default for Spinner {
 
 impl Widget for Spinner {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl Spinner {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let (rect, response) = ui.allocate_exact_size(egui::Vec2::splat(self.size), Sense::hover());
         if ui.is_rect_visible(rect) {
@@ -141,16 +180,30 @@ impl Widget for Spinner {
             let time = ui.input(|i| i.time) as f32;
             let m = rect.center();
             let r = (self.size / 2.0 - 1.5).max(0.0);
-            if x.look == Look::Mac {
-                for i in 0..12 {
-                    let a = i as f32 / 12.0 * std::f32::consts::TAU;
-                    let lead = ((time * 12.0).floor() as i32).rem_euclid(12) as f32;
-                    let fade = 1.0 - ((lead - i as f32).rem_euclid(12.0) / 12.0);
+            if matches!(x.look, Look::Mac | Look::Ios) {
+                // Eight spokes with round ends, the leading one darkest, stepping eight
+                // times a second.
+                let width = (r * 0.28).max(1.5);
+                let lead = ((time * 8.0).floor() as i32).rem_euclid(8) as f32;
+                for i in 0..8 {
+                    let a = i as f32 / 8.0 * std::f32::consts::TAU;
+                    let fade = 1.0 - ((lead - i as f32).rem_euclid(8.0) / 8.0);
+                    // iOS's spokes are fainter, only the leading few darkened.
+                    let share = match (x.look, x.c.dark) {
+                        (Look::Ios, false) => 0.14 + 0.26 * fade * fade,
+                        (Look::Ios, true) => 0.18 + 0.35 * fade * fade,
+                        _ => 0.12 + 0.6 * fade,
+                    };
+                    let colour = crate::lerp_color(x.c.bg, x.c.fg, share);
                     let dir = egui::vec2(a.cos(), a.sin());
-                    ui.painter().line_segment(
-                        [m + dir * r * 0.45, m + dir * r],
-                        Stroke::new(1.6, x.c.dim.gamma_multiply(0.25 + 0.75 * fade)),
+                    let (inner, outer) = (
+                        m + dir * (r * 0.42 + width / 2.0),
+                        m + dir * (r - width / 2.0),
                     );
+                    ui.painter()
+                        .line_segment([inner, outer], Stroke::new(width, colour));
+                    ui.painter().circle_filled(inner, width / 2.0, colour);
+                    ui.painter().circle_filled(outer, width / 2.0, colour);
                 }
             } else {
                 let start = time * 4.0;

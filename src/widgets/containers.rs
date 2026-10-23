@@ -1,8 +1,8 @@
 //! Sections, list rows and menu items.
 
-use egui::{CornerRadius, Rect, Response, Sense, Stroke, Ui, Widget};
+use egui::{Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, Widget};
 
-use super::Ctx;
+use super::{menu_label_inset, Ctx};
 use crate::Look;
 
 /// A section that folds: a header with the look's disclosure chevron (turning on macOS
@@ -103,7 +103,16 @@ impl Section {
             ui.painter()
                 .rect_filled(rect, CornerRadius::same(x.m.radius), c.row_hover);
         }
-        let m = egui::pos2(rect.left() + 12.0, rect.center().y);
+        // macOS's disclosure header is plain text after a small, thin chevron; GTK's
+        // expander plain text after its 16-point arrow.
+        let mac = x.look == Look::Mac;
+        let gtk = x.look == Look::Gtk;
+        let (inset, gap) = match x.look {
+            Look::Mac => (5.0, 14.0),
+            Look::Gtk => (8.0, 17.0),
+            _ => (12.0, 26.0),
+        };
+        let m = egui::pos2(rect.left() + inset, rect.center().y);
         let colour = if response.hovered() { c.fg } else { c.dim };
         // A chevron pointing right, turned down as the section opens.
         let angle = openness * std::f32::consts::FRAC_PI_2;
@@ -113,21 +122,31 @@ impl Section {
                 v.x * angle.sin() + v.y * angle.cos(),
             )
         };
-        let size = if x.look == Look::Windows { 3.5 } else { 3.0 };
+        let size = match x.look {
+            Look::Windows => 3.5,
+            Look::Mac => 2.5,
+            _ => 3.0,
+        };
         let points = [
             egui::vec2(-size * 0.6, -size),
             egui::vec2(size * 0.6, 0.0),
             egui::vec2(-size * 0.6, size),
         ]
         .map(|v| m + turn(v));
-        ui.painter()
-            .add(egui::Shape::line(points.to_vec(), Stroke::new(1.5, colour)));
+        ui.painter().add(egui::Shape::line(
+            points.to_vec(),
+            Stroke::new(if mac { 1.2 } else { 1.5 }, colour),
+        ));
         crate::text(
             ui.painter(),
-            egui::pos2(rect.left() + 26.0, rect.center().y),
+            egui::pos2(rect.left() + gap, rect.center().y),
             egui::Align2::LEFT_CENTER,
             &title,
-            x.m.bold.clone(),
+            if mac || gtk {
+                x.m.body.clone()
+            } else {
+                x.m.bold.clone()
+            },
             c.fg,
         );
         if response.has_focus() {
@@ -200,6 +219,12 @@ impl ListRow {
 
 impl Widget for ListRow {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl ListRow {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let c = x.c;
         let (rect, response) = super::allocate_control(
@@ -207,11 +232,28 @@ impl Widget for ListRow {
             egui::vec2(ui.available_width(), self.height),
             Sense::click(),
         );
-        let round = CornerRadius::same(if x.look == Look::Plain { 3 } else { 5 });
+        let round = CornerRadius::same(match x.look {
+            Look::Plain => 3,
+            Look::Mac => 6,
+            _ => 5,
+        });
+        // A click puts the keyboard in the list, as it makes a list first responder.
+        if response.clicked() {
+            response.request_focus();
+        }
+        if response.has_focus() {
+            let frame = ui.ctx().cumulative_frame_nr();
+            ui.data_mut(|data| data.insert_temp(list_focus_key(ui), frame));
+        }
         if self.picked {
             match x.look {
                 Look::Mac => {
-                    ui.painter().rect_filled(rect, round, c.accent);
+                    let fill = if list_emphasized(ui) {
+                        c.accent
+                    } else {
+                        mac_quiet_selection(&c)
+                    };
+                    ui.painter().rect_filled(rect, round, fill);
                 }
                 Look::Windows => {
                     ui.painter().rect_filled(rect, round, c.button_hover);
@@ -250,15 +292,40 @@ impl Widget for ListRow {
     }
 }
 
-/// The colour of text on a picked [`ListRow`] in the look in force: white on macOS's
-/// accent, the ordinary text colour elsewhere.
+/// The colour of text on a picked [`ListRow`] in the look in force, for the `Ui` the rows
+/// are in: white on macOS's accent, the ordinary text colour elsewhere and on macOS's grey.
 pub fn picked_text(ui: &Ui) -> egui::Color32 {
     let x = Ctx::of(ui);
-    if x.look == Look::Mac {
+    if x.look == Look::Mac && list_emphasized(ui) {
         x.c.on_accent
     } else {
         x.c.fg
     }
+}
+
+fn list_focus_key(ui: &Ui) -> egui::Id {
+    ui.scope_id().with("egui_native_look::list-focus")
+}
+
+/// Whether a macOS list shows its selection in the accent: while one of its rows (in this
+/// `Ui`) has the keyboard focus, this frame or the last, and the window is active. Otherwise
+/// macOS greys the selection.
+fn list_emphasized(ui: &Ui) -> bool {
+    let frame = ui.ctx().cumulative_frame_nr();
+    let focused = ui
+        .data(|data| data.get_temp::<u64>(list_focus_key(ui)))
+        .is_some_and(|seen| frame.saturating_sub(seen) <= 1);
+    focused && ui.input(|input| input.focused)
+}
+
+/// macOS's selection in a list without the focus.
+fn mac_quiet_selection(c: &crate::Colors) -> egui::Color32 {
+    let ink = if c.dark {
+        egui::Color32::WHITE
+    } else {
+        egui::Color32::BLACK
+    };
+    crate::lerp_color(c.bg, ink, if c.dark { 0.18 } else { 0.137 })
 }
 
 /// An item of a menu: an icon or a tick at its start, its label, and its shortcut at its
@@ -323,19 +390,52 @@ impl MenuItem {
         });
         self.arrow = true;
         let response = ui.add(self);
-        let inner = egui::containers::menu::SubMenu::new().show(ui, &response, |ui| {
-            super::choice::menu_contents(ui, response.id, add)
-        });
+        let inner = egui::containers::menu::SubMenu::new()
+            .config(
+                egui::containers::menu::MenuConfig::new()
+                    .style(super::choice::menu_style(crate::look(ui.ctx()))),
+            )
+            .show(ui, &response, |ui| {
+                super::choice::menu_contents(ui, response.id, add)
+            });
         egui::InnerResponse::new(inner.map(|i| i.inner), response)
     }
 }
 
 impl Widget for MenuItem {
     fn ui(self, ui: &mut Ui) -> Response {
+        super::unfaded(ui, |ui| self.add_contents(ui))
+    }
+}
+
+impl MenuItem {
+    fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let c = x.c;
-        let height = (ui.spacing().interact_size.y - 4.0).max(22.0);
-        let font = x.m.body.clone();
+        let height = match x.look {
+            Look::Mac => 24.0,
+            // Material 3's menu items are 48 points high, libadwaita's 32.
+            Look::Material => 48.0,
+            // libadwaita's 32 and WinUI's MenuFlyoutThemeMinHeight.
+            Look::Gtk | Look::Windows => 32.0,
+            _ => (ui.spacing().interact_size.y - 4.0).max(22.0),
+        };
+        // Material and libadwaita set a plain item's label twelve points in, with no column
+        // for a tick.
+        let inset = if matches!(x.look, Look::Material | Look::Gtk)
+            && self.checked.is_none()
+            && self.icon.is_none()
+        {
+            12.0
+        } else {
+            menu_label_inset(x.look)
+        };
+        // Material's menu items are labelled in the medium weight.
+        let font = if x.look == Look::Material {
+            x.m.bold.clone()
+        } else {
+            x.m.body.clone()
+        };
         let label_width = ui.fonts_mut(|f| {
             f.layout_no_wrap(self.label.clone(), font.clone(), c.fg)
                 .size()
@@ -352,10 +452,17 @@ impl Widget for MenuItem {
                     .x
             }) + 24.0
         };
-        let needed = 28.0 + label_width + shortcut_width + 12.0;
+        let needed = inset + label_width + shortcut_width + 12.0;
         let mut width = menu_width(ui, needed);
         if egui::containers::menu::is_in_menu(ui) {
             width = width.min(ui.available_width().max(1.0));
+            // Kept for the pop-up button that opened this menu, to size it next time.
+            let key = menu_needed_id(ui.layer_id().id);
+            let room = needed + ui.spacing().menu_margin.sum().x;
+            ui.data_mut(|d| {
+                let widest = d.get_temp::<f32>(key).unwrap_or(0.0);
+                d.insert_temp(key, widest.max(room));
+            });
         }
         let shortcut_width = if width < needed {
             shortcut_width.min((width - 40.0).max(0.0) / 3.0)
@@ -372,14 +479,29 @@ impl Widget for MenuItem {
                 Sense::hover()
             },
         );
-        let hot = enabled && (response.hovered() || self.open);
+        // The row the keyboard is on lights as the pointer's does, as every system's menus
+        // show it.
+        let hot = enabled && (response.hovered() || response.has_focus() || self.open);
         let accent_row = matches!(x.look, Look::Mac | Look::Plain);
         if hot {
-            ui.painter().rect_filled(
-                rect,
-                CornerRadius::same(4),
-                if accent_row { c.accent } else { c.button_hover },
-            );
+            // libadwaita lights its menu rows in its selection tint, rounded by 9.
+            let (round, fill) = match x.look {
+                Look::Mac => (6, c.accent),
+                Look::Plain => (4, c.accent),
+                Look::Gtk => (9, c.button),
+                // WinUI's SubtleFillColorSecondary.
+                Look::Windows => (
+                    4,
+                    if c.dark {
+                        Color32::from_white_alpha(15)
+                    } else {
+                        Color32::from_black_alpha(9)
+                    },
+                ),
+                _ => (4, c.button_hover),
+            };
+            ui.painter()
+                .rect_filled(rect, CornerRadius::same(round), fill);
         }
         let text = if !enabled {
             c.disabled
@@ -413,11 +535,11 @@ impl Widget for MenuItem {
             &self.label,
             font.clone(),
             text,
-            rect.width() - 40.0 - shortcut_width,
+            rect.width() - inset - 12.0 - shortcut_width,
         );
         let top = crate::galley_top(ui.ctx(), &label, rect.center().y);
         ui.painter()
-            .galley(egui::pos2(rect.left() + 28.0, top), label, text);
+            .galley(egui::pos2(rect.left() + inset, top), label, text);
         if !self.shortcut.is_empty() && !self.arrow {
             let (shortcut, _) = super::truncated(
                 ui,
@@ -453,7 +575,12 @@ impl Widget for MenuItem {
             ),
             None => egui::WidgetInfo::labeled(egui::Role::MenuItem, enabled, &self.label),
         });
-        let in_popup = super::choice::register_menu_item(ui, &response);
+        let in_popup = super::choice::register_menu_item(
+            ui,
+            &response,
+            self.checked == Some(true),
+            &self.label,
+        );
         if in_popup && !self.arrow && response.clicked() {
             ui.close_kind(egui::UiKind::Menu);
         }
@@ -469,8 +596,16 @@ impl Widget for MenuItem {
 
 /// How wide a menu row is: what it needs, or in a menu's justified column as wide as the
 /// column (egui sizes a menu after its widest row), at least the menu's own width.
+/// Where a menu's items leave the width the widest of them needs, under the menu's id.
+pub(super) fn menu_needed_id(menu: egui::Id) -> egui::Id {
+    menu.with("egui_native_look-menu-needed")
+}
+
 fn menu_width(ui: &Ui, needed: f32) -> f32 {
-    if ui.layout().horizontal_justify() {
+    // In a menu every row spans the menu, so the one lit spans it too.
+    if egui::containers::menu::is_in_menu(ui) {
+        ui.available_width().max(needed)
+    } else if ui.layout().horizontal_justify() {
         ui.available_width()
             .min(needed.max(ui.spacing().menu_width.min(180.0)))
             .max(needed)

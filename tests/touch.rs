@@ -414,9 +414,16 @@ fn tabs_expose_tab_roles_and_update_selection_on_keyboard_frame() {
             draw(ui, &mut selected)
         });
         ctx.enable_accesskit();
-        let (_, output) = frame(&ctx, key(egui::Key::End, false), |ui| {
-            draw(ui, &mut selected)
-        });
+        // GTK's view switcher moves the focus with End and chooses with Space.
+        let choose = if chosen == look::Look::Gtk {
+            frame(&ctx, key(egui::Key::End, false), |ui| {
+                draw(ui, &mut selected)
+            });
+            egui::Key::Space
+        } else {
+            egui::Key::End
+        };
+        let (_, output) = frame(&ctx, key(choose, false), |ui| draw(ui, &mut selected));
         assert_eq!(selected, 1, "{chosen}");
         let nodes = output.platform_output.accesskit_update.unwrap().nodes;
         assert!(

@@ -229,9 +229,18 @@ mod mac {
         let mono = std::fs::read("/System/Library/Fonts/SFNSMono.ttf")
             .ok()
             .map(FontData::from_owned);
+        // CoreText sets the optical size to the point size, which for interface text
+        // (13 points) is the font's smallest, 17: the wider "Text" design rather than the
+        // "Display" one the font defaults to.
+        let text = |weight: f32| {
+            let mut data = super::weighted(&bytes, weight);
+            data.tweak.coords =
+                egui::epaint::text::VariationCoords::new([(b"wght", weight), (b"opsz", 17.0)]);
+            data
+        };
         Some(super::SystemFonts {
-            regular: super::weighted(&bytes, 400.0),
-            semibold: super::weighted(&bytes, 590.0),
+            regular: text(400.0),
+            semibold: text(590.0),
             mono,
         })
     }
