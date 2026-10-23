@@ -170,49 +170,115 @@ fn the_toolbar_and_form_in_every_look_and_scheme() {
     every_look_and_scheme_of(more, 330.0, "-more");
 }
 
+/// A chequered window, so a dialog's corners, edge and shade show against it.
+fn chequer(ui: &mut egui::Ui) {
+    let area = ui.max_rect();
+    for row in 0..12 {
+        for column in 0..16 {
+            let color = if (row + column) % 2 == 0 {
+                egui::Color32::from_rgb(100, 130, 160)
+            } else {
+                egui::Color32::from_rgb(180, 160, 120)
+            };
+            let min = area.min + egui::vec2(column as f32 * 32.0, row as f32 * 32.0);
+            ui.painter().rect_filled(
+                egui::Rect::from_min_size(min, egui::Vec2::splat(32.0)),
+                0.0,
+                color,
+            );
+        }
+    }
+}
+
+/// Every look's dialog, at its own size, in both schemes: `<look>-<scheme>-dialog`.
 #[test]
 #[ignore = "renders with wgpu: cargo test --test snapshots -- --include-ignored"]
-fn material_dialog_corners_in_both_schemes() {
+fn every_looks_dialog_in_both_schemes() {
     let mut failures = Vec::new();
-    for (scheme, name) in [(egui::Theme::Dark, "dark"), (egui::Theme::Light, "light")] {
-        let mut harness = egui_kittest::Harness::builder()
-            .with_size(egui::vec2(440.0, 320.0))
-            .with_theme(scheme)
-            .with_context_setup(|ctx| look::install(ctx, theme(look::Look::Material)))
-            .build_ui(|ui| {
-                let area = ui.max_rect();
-                for row in 0..12 {
-                    for column in 0..16 {
-                        let color = if (row + column) % 2 == 0 {
-                            egui::Color32::from_rgb(100, 130, 160)
-                        } else {
-                            egui::Color32::from_rgb(180, 160, 120)
-                        };
-                        let min = area.min + egui::vec2(column as f32 * 32.0, row as f32 * 32.0);
-                        ui.painter().rect_filled(
-                            egui::Rect::from_min_size(min, egui::Vec2::splat(32.0)),
-                            0.0,
-                            color,
-                        );
-                    }
-                }
-                look::Dialog::new("material-corners", "Save changes?")
-                    .size((280.0, 160.0))
-                    .show(
+    for chosen in [
+        look::Look::Mac,
+        look::Look::Windows,
+        look::Look::Gtk,
+        look::Look::Ios,
+        look::Look::Material,
+        look::Look::Plain,
+    ] {
+        for (scheme, name) in [(egui::Theme::Dark, "dark"), (egui::Theme::Light, "light")] {
+            let mut harness = egui_kittest::Harness::builder()
+                .with_size(egui::vec2(440.0, 320.0))
+                .with_theme(scheme)
+                .with_context_setup(move |ctx| look::install(ctx, theme(chosen)))
+                .build_ui(|ui| {
+                    chequer(ui);
+                    look::Dialog::new("dialog", "Save changes?").show(
                         ui.ctx(),
                         &mut true,
                         |ui| {
                             ui.label("Save changes to this document?");
                         },
                         |ui| {
-                            ui.add(look::Button::new("Save").accent());
+                            ui.add(look::Button::new("Save").accent().default_action());
                             ui.add(look::Button::new("Cancel"));
                         },
                     );
-            });
-        harness.run();
-        if let Err(error) = harness.try_snapshot(format!("material-{name}-dialog")) {
-            failures.push(error.to_string());
+                });
+            harness.run();
+            let file = format!("{}-{name}-dialog", chosen.label().to_lowercase());
+            if let Err(error) = harness.try_snapshot(file) {
+                failures.push(error.to_string());
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// Every look's open pop-up menu, a ticked item and a plain one, in both schemes:
+/// `<look>-<scheme>-menu`.
+#[test]
+#[ignore = "renders with wgpu: cargo test --test snapshots -- --include-ignored"]
+fn every_looks_open_menu_in_both_schemes() {
+    use egui_kittest::kittest::Queryable;
+    let mut failures = Vec::new();
+    for chosen in [
+        look::Look::Mac,
+        look::Look::Windows,
+        look::Look::Gtk,
+        look::Look::Ios,
+        look::Look::Material,
+        look::Look::Plain,
+    ] {
+        for (scheme, name) in [(egui::Theme::Dark, "dark"), (egui::Theme::Light, "light")] {
+            let mut harness = egui_kittest::Harness::builder()
+                .with_size(egui::vec2(300.0, 260.0))
+                .with_theme(scheme)
+                .with_context_setup(move |ctx| look::install(ctx, theme(chosen)))
+                .build_ui_state(
+                    |ui, units: &mut usize| {
+                        egui::Frame::new()
+                            .fill(ui.visuals().panel_fill)
+                            .inner_margin(12)
+                            .show(ui, |ui| {
+                                ui.set_min_size(ui.available_size());
+                                look::PopupButton::new("units", "Metres").show(ui, |ui| {
+                                    look::menu_value(ui, units, 0, "Metres");
+                                    look::menu_value(ui, units, 1, "Feet");
+                                    ui.separator();
+                                    ui.add(look::MenuItem::new("Convert all units…"));
+                                });
+                            });
+                    },
+                    0usize,
+                );
+            harness.run();
+            harness.get_by_label("Metres").click();
+            harness.run();
+            // The pointer away, so no row is lit under it.
+            harness.hover_at(egui::pos2(290.0, 250.0));
+            harness.run();
+            let file = format!("{}-{name}-menu", chosen.label().to_lowercase());
+            if let Err(error) = harness.try_snapshot(file) {
+                failures.push(error.to_string());
+            }
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

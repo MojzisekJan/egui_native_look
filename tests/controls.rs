@@ -712,6 +712,41 @@ fn more_contrast_outlines_controls_and_darkens_secondary_text() {
 }
 
 #[test]
+fn a_menu_is_wide_enough_for_its_items_from_the_first_frame_it_shows() {
+    const LONG: &str = "A much longer item than its button";
+    for chosen in LOOKS {
+        let ctx = context(chosen, false);
+        let mut units = 0;
+        let mut add = |ui: &mut egui::Ui| {
+            let mut row = None;
+            look::PopupButton::new("short", "Unit").show(ui, |ui| {
+                look::menu_value(ui, &mut units, 0, "Unit");
+                row = Some(look::menu_value(ui, &mut units, 1, LONG).rect);
+            });
+            row
+        };
+        let mut first_shown = None;
+        for events in click(egui::pos2(20.0, 10.0)) {
+            let row = frame(&ctx, events, &mut add);
+            first_shown = first_shown.or(row);
+        }
+        for _ in 0..3 {
+            let row = frame(&ctx, vec![], &mut add);
+            first_shown = first_shown.or(row);
+        }
+        let row = first_shown.unwrap_or_else(|| panic!("{chosen}: the menu did not open"));
+        let body = look::theme(&ctx).metrics.body;
+        let text = ctx.fonts_mut(|f| {
+            f.layout_no_wrap(LONG.into(), body, egui::Color32::WHITE)
+                .size()
+                .x
+        });
+        // Its label fits whole, with room at either end, the first time the menu shows.
+        assert!(row.width() >= text + 20.0, "{chosen}: {row:?} for {text}");
+    }
+}
+
+#[test]
 fn a_tool_window_shows_its_contents() {
     for chosen in LOOKS {
         let ctx = context(chosen, true);

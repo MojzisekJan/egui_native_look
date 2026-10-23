@@ -1384,10 +1384,14 @@ impl PopupButton {
             Look::Gtk => width.max(120.0),
             _ => width,
         };
-        let list_width = list_width.max(
-            ui.data(|d| d.get_temp::<f32>(super::containers::menu_needed_id(popup)))
-                .unwrap_or(0.0),
-        );
+        // The items say how wide they need the menu as they are drawn; last pass's word
+        // sizes it, and this pass's is gathered afresh.
+        let needed_id = super::containers::menu_needed_id(popup);
+        let needed_before = ui
+            .data_mut(|d| d.remove_temp::<f32>(needed_id))
+            .unwrap_or(0.0);
+        let base_width = list_width;
+        let list_width = list_width.max(needed_before);
         let mut list = egui::Popup::menu(&response)
             .style(menu_style(x.look))
             .id(popup)
@@ -1414,11 +1418,22 @@ impl PopupButton {
             }
         }
         let inner = list.show(|ui| {
+            // The list's width less the menu's own margins, whatever the look sets them to.
+            let margins = ui.spacing().menu_margin.sum().x;
             ui.set_min_width(
-                (list_width - 8.0).min((ui.ctx().content_rect().width() - 24.0).max(1.0)),
+                (list_width - margins).min((ui.ctx().content_rect().width() - 24.0).max(1.0)),
             );
             menu_contents(ui, response.id, add)
         });
+        // Items grown wider than the menu, or a menu wider than its items now need, lay
+        // the pass out again rather than show a frame cut short or too wide.
+        if inner.is_some() {
+            let needed = ui.data(|d| d.get_temp::<f32>(needed_id)).unwrap_or(0.0);
+            if needed > list_width + 0.5 || needed_before > base_width.max(needed) + 0.5 {
+                ui.ctx()
+                    .request_discard("egui_native_look::PopupButton menu width");
+            }
+        }
         if x.look == Look::Mac {
             let offset = inner.as_ref().and_then(|inner| {
                 let menu = inner.response.layer_id.id.with("menu-focus");

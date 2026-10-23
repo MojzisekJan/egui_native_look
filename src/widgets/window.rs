@@ -40,7 +40,8 @@ pub struct Dialog {
 
 impl Dialog {
     /// The size a dialog opens at unless asked otherwise: Material 3's 280-point minimum
-    /// width, libadwaita's 300-point alert, 420 by 240 elsewhere.
+    /// width, libadwaita's 300-point alert, WinUI's 320, iOS's 316, 420 elsewhere; as tall
+    /// as the content.
     fn default_size(look: Look) -> egui::Vec2 {
         match look {
             Look::Material => egui::vec2(280.0, 1.0),
@@ -49,7 +50,8 @@ impl Dialog {
             Look::Windows => egui::vec2(320.0, 1.0),
             // iOS 26's alert on an iPhone: 316 points.
             Look::Ios => egui::vec2(316.0, 1.0),
-            _ => egui::vec2(420.0, 240.0),
+            // A macOS sheet and the plain look's dialog: as tall as their content.
+            _ => egui::vec2(420.0, 1.0),
         }
     }
 
