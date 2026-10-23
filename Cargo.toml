@@ -1,7 +1,7 @@
 [package]
 name = "egui_native_look"
 description = "egui controls drawn in the manner of the system they run on: macOS, WinUI, GTK 4 / libadwaita, or a plain look of the app's own"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.95"
 license = "MIT-0"
