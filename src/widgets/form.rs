@@ -314,10 +314,27 @@ impl FormUi<'_> {
                     .max_rect(room)
                     .layout(Layout::left_to_right(Align::Center).with_main_align(Align::Max)),
             );
+            let activation_key = boxed_row_id().with("activate");
+            let outer_activation = child
+                .data(|d| d.get_temp::<bool>(activation_key))
+                .unwrap_or(false);
+            let label_hit = Rect::from_min_max(rect.min, egui::pos2(start, rect.bottom()));
+            let activated = x.look == Look::Gtk
+                && self
+                    .ui
+                    .interact(label_hit, id.with("label-click"), Sense::CLICK)
+                    .clicked();
+            child.data_mut(|d| d.insert_temp(activation_key, activated));
             let outer = in_boxed_row(child.ctx());
+            let outer_rect = boxed_row_rect(child.ctx());
+            child.data_mut(|d| d.insert_temp(boxed_row_id().with("rect"), Some(rect)));
             child.data_mut(|d| d.insert_temp(boxed_row_id(), true));
             let inner = control(&mut child);
-            child.data_mut(|d| d.insert_temp(boxed_row_id(), outer));
+            child.data_mut(|d| {
+                d.insert_temp(activation_key, outer_activation);
+                d.insert_temp(boxed_row_id(), outer);
+                d.insert_temp(boxed_row_id().with("rect"), outer_rect);
+            });
             let width = child.min_rect().width();
             if (width - used).abs() > 0.5 {
                 self.ui.ctx().data_mut(|d| d.insert_temp(id, width));
@@ -384,6 +401,25 @@ pub(crate) fn accessible_name(ui: &Ui, own: &str) -> String {
         .data(|d| d.get_temp::<Option<String>>(row_label_id()))
         .flatten()
         .unwrap_or_default()
+}
+
+/// A label click belongs to the first enabled control that can activate its row.
+pub(super) fn take_row_activation(ui: &Ui) -> bool {
+    if !ui.is_enabled() {
+        return false;
+    }
+    ui.data_mut(|d| {
+        let key = boxed_row_id().with("activate");
+        let clicked = d.get_temp::<bool>(key).unwrap_or(false);
+        d.insert_temp(key, false);
+        clicked
+    })
+}
+
+/// Bounds of the enclosing boxed row, used by controls whose focus outline spans it.
+pub(super) fn boxed_row_rect(ctx: &egui::Context) -> Option<Rect> {
+    ctx.data(|d| d.get_temp::<Option<Rect>>(boxed_row_id().with("rect")))
+        .flatten()
 }
 
 #[cfg(test)]

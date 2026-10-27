@@ -167,8 +167,11 @@ impl Dialog {
             }
         };
         let top_escape = escape_closes(ctx, self.id);
-        let escape_allowed =
-            self.close_on_escape && !newly_opened && !popup_open && !state.editing && top_escape;
+        let escape_allowed = self.close_on_escape
+            && !newly_opened
+            && !popup_open
+            && (!state.editing || x.look == Look::Gtk)
+            && top_escape;
         let mut close = false;
         let frame = dialog_frame(ctx);
         let available =
@@ -209,7 +212,9 @@ impl Dialog {
                 top: 0,
                 bottom: 20,
             }
-        } else if matches!(x.look, Look::Material | Look::Gtk | Look::Windows) {
+        } else if x.look == Look::Gtk {
+            egui::Margin::ZERO
+        } else if matches!(x.look, Look::Material | Look::Windows) {
             egui::Margin {
                 left: 24,
                 right: 24,
@@ -229,6 +234,20 @@ impl Dialog {
         };
         let modal = modal.show(ctx, |ui| {
             ui.set_width(size.x);
+            ui.set_max_height(available.y);
+            if x.look == Look::Gtk {
+                close |= gtk_dialog_contents(
+                    ui,
+                    &x,
+                    &self.title,
+                    &self.close_label,
+                    size,
+                    available.y,
+                    body,
+                    actions,
+                );
+                return;
+            }
             // The area offers last frame's size; let content that grew since then
             // grow the dialog up to the viewport before it scrolls.
             ui.set_max_height(available.y);
@@ -241,7 +260,11 @@ impl Dialog {
                     egui::Frame::new().inner_margin(margin).show(ui, |ui| {
                         if x.look == Look::Gtk {
                             // An alert's body is centred under its heading.
-                            ui.vertical_centered(body);
+                            egui::Frame::new()
+                                .inner_margin(egui::Margin::symmetric(24, 0))
+                                .show(ui, |ui| {
+                                    ui.vertical_centered(body);
+                                });
                         } else if x.look == Look::Ios {
                             // iOS sets an alert's message 28 points in, in its 15-point
                             // secondary text.
@@ -258,7 +281,7 @@ impl Dialog {
                         }
                         ui.add_space(match x.look {
                             Look::Material | Look::Windows => 24.0,
-                            Look::Gtk => 21.0,
+                            Look::Gtk => 24.0,
                             Look::Ios => 18.0,
                             _ => 12.0,
                         });
@@ -275,8 +298,15 @@ impl Dialog {
                         let row_id = self.id.with("dialog-actions-width");
                         let actions = |ui: &mut Ui| as_dialog_actions(ui, actions);
                         let room = ui.available_width();
-                        let needed = ui.ctx().data(|d| d.get_temp::<f32>(row_id));
-                        if needed.is_some_and(|needed| needed > room) {
+                        let needed = ui.ctx().data(|d| {
+                            d.get_temp::<f32>(if x.look == Look::Gtk {
+                                dialog_actions_count_id(ui.layer_id()).with("needed")
+                            } else {
+                                row_id
+                            })
+                        });
+                        let stacked = needed.is_some_and(|needed| needed > room);
+                        if stacked {
                             ui.with_layout(egui::Layout::top_down(egui::Align::Max), actions);
                         } else {
                             // Sized like `ui.horizontal`, so the row is centred on its
@@ -295,6 +325,18 @@ impl Dialog {
                             ui.ctx().data_mut(|d| d.insert_temp(row_id, width));
                             if width > room {
                                 ui.ctx().request_discard("egui_native_look::Dialog actions");
+                            }
+                        }
+                        if x.look == Look::Gtk {
+                            let needed = ui
+                                .data(|d| {
+                                    d.get_temp::<f32>(
+                                        dialog_actions_count_id(ui.layer_id()).with("needed"),
+                                    )
+                                })
+                                .unwrap_or(0.0);
+                            if (needed > room) != stacked {
+                                ui.ctx().request_discard("GTK dialog response layout");
                             }
                         }
                         if let Some((shape, top)) = command {
@@ -357,6 +399,78 @@ impl Dialog {
             // Keep the opener until the first closed pass has completed too.
         }
     }
+}
+
+/// Keep responses outside the message's scroll area. An unusually tall response
+/// list has its own viewport so every action remains reachable on tiny screens.
+#[allow(clippy::too_many_arguments)]
+fn gtk_dialog_contents(
+    ui: &mut Ui,
+    x: &Ctx,
+    title: &str,
+    close_label: &str,
+    size: egui::Vec2,
+    available: f32,
+    body: impl FnOnce(&mut Ui),
+    actions: impl FnOnce(&mut Ui),
+) -> bool {
+    let key = ui.scope_id().with("gtk-dialog-footer-height");
+    let measured = ui.data(|d| d.get_temp::<f32>(key)).unwrap_or(44.0);
+    let footer_limit = (available - 32.0).max(available * 0.5).max(1.0);
+    let footer = measured.min(footer_limit);
+    let body_limit = (available - footer).max(1.0);
+    let mut close = false;
+    let spacing = ui.spacing().item_spacing.y;
+    ui.spacing_mut().item_spacing.y = 0.0;
+    super::ScrollArea::vertical()
+        .id_salt("dialog-message")
+        .min_scrolled_height(1.0)
+        .max_height(body_limit)
+        .show(ui, |ui| {
+            ui.set_min_width(size.x);
+            ui.set_min_height((size.y - footer).max(0.0).min(body_limit));
+            close |= header(ui, x, title, close_label, false);
+            egui::Frame::new()
+                .inner_margin(egui::Margin::symmetric(24, 0))
+                .show(ui, |ui| {
+                    ui.spacing_mut().item_spacing.y = spacing;
+                    ui.vertical_centered(body);
+                });
+            ui.add_space(24.0);
+        });
+    let result = super::ScrollArea::vertical()
+        .id_salt("dialog-responses")
+        .min_scrolled_height(1.0)
+        .max_height(footer_limit)
+        .show(ui, |ui| {
+            ui.set_min_width(size.x);
+            let count_key = dialog_actions_count_id(ui.layer_id()).with("needed");
+            let needed = ui.data(|d| d.get_temp::<f32>(count_key)).unwrap_or(0.0);
+            let stacked = needed > ui.available_width();
+            if stacked {
+                ui.with_layout(egui::Layout::top_down(egui::Align::Max), |ui| {
+                    as_dialog_actions(ui, actions)
+                });
+            } else {
+                let room = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
+                ui.allocate_ui_with_layout(
+                    room,
+                    egui::Layout::right_to_left(egui::Align::Center),
+                    |ui| as_dialog_actions(ui, actions),
+                );
+            }
+            let needed = ui.data(|d| d.get_temp::<f32>(count_key)).unwrap_or(0.0);
+            if (needed > ui.available_width()) != stacked {
+                ui.ctx().request_discard("GTK dialog response layout");
+            }
+        });
+    ui.spacing_mut().item_spacing.y = spacing;
+    let height = result.content_size.y;
+    if (height - measured).abs() > 0.5 {
+        ui.data_mut(|d| d.insert_temp(key, height));
+        ui.ctx().request_discard("GTK dialog response height");
+    }
+    close
 }
 
 #[derive(Clone)]
@@ -456,16 +570,28 @@ fn as_dialog_actions(ui: &mut Ui, actions: impl FnOnce(&mut Ui)) {
         // libadwaita's responses and WinUI's and iOS's buttons share the row in equal widths,
         // 12 and 8 points apart: each button takes its share of the row by the count of the
         // last pass.
-        let gap = if look == Look::Gtk { 12.0 } else { 8.0 };
+        let gap = if look == Look::Gtk { 0.0 } else { 8.0 };
         ui.spacing_mut().item_spacing.x = gap;
+        if look == Look::Gtk && ui.layout().main_dir().is_vertical() {
+            ui.spacing_mut().item_spacing.y = 0.0;
+        }
+        let stacked = look == Look::Gtk && ui.layout().main_dir().is_vertical();
         let room = ui.available_width();
         let count =
             ui.data(|d| d.get_temp::<usize>(dialog_actions_count_id(ui.layer_id()).with("last")));
         ui.data_mut(|d| {
             d.insert_temp(dialog_actions_count_id(ui.layer_id()), 0usize);
             d.insert_temp(
+                dialog_actions_count_id(ui.layer_id()).with("natural"),
+                0.0f32,
+            );
+            d.insert_temp(
                 dialog_actions_count_id(ui.layer_id()).with("share"),
-                count.map(|n| (room - gap * (n.max(1) - 1) as f32) / n.max(1) as f32),
+                if stacked {
+                    Some(room)
+                } else {
+                    count.map(|n| (room - gap * (n.max(1) - 1) as f32) / n.max(1) as f32)
+                },
             );
         });
     }
@@ -478,6 +604,13 @@ fn as_dialog_actions(ui: &mut Ui, actions: impl FnOnce(&mut Ui)) {
             .get_temp::<usize>(dialog_actions_count_id(ui.layer_id()))
             .unwrap_or(0);
         d.insert_temp(dialog_actions_count_id(ui.layer_id()).with("last"), n);
+        let natural = d
+            .get_temp::<f32>(dialog_actions_count_id(ui.layer_id()).with("natural"))
+            .unwrap_or(0.0);
+        d.insert_temp(
+            dialog_actions_count_id(ui.layer_id()).with("needed"),
+            natural * n as f32,
+        );
         n
     });
     // A changed count (the first pass too) shares the row out wrongly: lay it out again.
@@ -494,7 +627,7 @@ fn dialog_actions_count_id(layer: egui::LayerId) -> egui::Id {
 
 /// The width each of a libadwaita alert's responses or a WinUI dialog's buttons takes,
 /// counting this one, or `None` outside a dialog's actions and on the first pass.
-pub(super) fn shared_action_width(ui: &Ui) -> Option<f32> {
+pub(super) fn shared_action_width(ui: &Ui, natural_width: f32) -> Option<f32> {
     if !in_dialog_actions(ui.ctx()) {
         return None;
     }
@@ -502,8 +635,16 @@ pub(super) fn shared_action_width(ui: &Ui) -> Option<f32> {
     ui.data_mut(|d| {
         let n = d.get_temp::<usize>(key).unwrap_or(0);
         d.insert_temp(key, n + 1);
+        let natural = d.get_temp::<f32>(key.with("natural")).unwrap_or(0.0);
+        d.insert_temp(key.with("natural"), natural.max(natural_width));
         d.get_temp::<Option<f32>>(key.with("share")).flatten()
     })
+}
+
+/// Whether this response reaches the bottom corners of a stacked action group.
+pub(super) fn last_dialog_action(ui: &Ui) -> bool {
+    let key = dialog_actions_count_id(ui.layer_id());
+    ui.data(|data| data.get_temp::<usize>(key) == data.get_temp::<usize>(key.with("last")))
 }
 
 /// Whether the buttons being added are a dialog's actions, which Material 3 draws as text
@@ -728,12 +869,12 @@ fn dialog_frame(ctx: &egui::Context) -> egui::Frame {
                 Color32::WHITE
             })
         }
-        // libadwaita's alert: 18-point corners, the window's colour on the light scheme
+        // libadwaita's alert: 12-point corners, the window's colour on the light scheme
         // and a lighter grey on the dark, a soft shade around it.
         Look::Gtk => {
             let c = crate::colors(ctx);
             frame
-                .corner_radius(CornerRadius::same(18))
+                .corner_radius(CornerRadius::same(12))
                 .stroke(Stroke::NONE)
                 .fill(if c.dark { c.surface } else { c.bg })
                 .shadow(egui::Shadow {
@@ -813,6 +954,32 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
         Look::Mac => 32.0,
         _ => 40.0,
     };
+    if alert {
+        let font = egui::FontId::new(x.m.body.size * 1.36, x.m.bold.family.clone());
+        let mut job = egui::text::LayoutJob::simple(
+            title.to_owned(),
+            font,
+            c.fg,
+            (ui.available_width() - 48.0).max(1.0),
+        );
+        job.halign = egui::Align::Center;
+        let galley = ui.fonts_mut(|fonts| fonts.layout_job(job));
+        let extra = galley
+            .rows
+            .first()
+            .map_or(0.0, |row| (galley.size().y - row.row.size.y).max(0.0));
+        let (bar, _) = ui.allocate_exact_size(
+            egui::vec2(
+                ui.available_width(),
+                (height + extra).max(super::minimum_target(ui)),
+            ),
+            Sense::hover(),
+        );
+        let top = crate::galley_top(ui.ctx(), &galley, bar.top() + 44.0);
+        ui.painter()
+            .galley(egui::pos2(bar.center().x, top), galley, c.fg);
+        return false;
+    }
     let height = height.max(super::minimum_target(ui));
     let (bar, _) = ui.allocate_exact_size(egui::vec2(ui.available_width(), height), Sense::hover());
     let painter = ui.painter();
@@ -1225,10 +1392,10 @@ mod tests {
     fn a_gtk_dialog_is_an_alert() {
         let ctx = egui::Context::default();
         crate::install(&ctx, crate::Theme::new(crate::Look::Gtk));
-        // libadwaita's alert: 18-point corners, rounder than its windows' 12.
+        // The reference alert and window both use 12-point corners.
         assert_eq!(
             super::dialog_frame(&ctx).corner_radius,
-            egui::CornerRadius::same(18)
+            egui::CornerRadius::same(12)
         );
         assert_eq!(
             super::window_frame(&ctx).corner_radius,

@@ -630,7 +630,7 @@ fn each_look_opens_in_its_systems_window_colours() {
     for (chosen, light, dark) in [
         (look::Look::Mac, 0xffffff, 0x1e1e1e),
         (look::Look::Windows, 0xf3f3f3, 0x202020),
-        (look::Look::Gtk, 0xfafafb, 0x222226),
+        (look::Look::Gtk, 0xfafafa, 0x242424),
         (look::Look::Ios, 0xffffff, 0x000000),
         (look::Look::Material, 0xfef7ff, 0x141218),
     ] {
@@ -3839,7 +3839,7 @@ fn gtk_number_field_shortcuts_do_not_restore_stale_edit_text() {
     frame(&ctx, vec![egui::Event::Text("12".into())], |ui| {
         draw(ui, &mut value)
     });
-    assert_eq!(value, 12.0);
+    assert_eq!(value, 5.0, "typing is not a committed numeric change");
     frame(&ctx, key(egui::Key::PageUp), |ui| draw(ui, &mut value));
     assert_eq!(value, 42.0);
     frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut value));
@@ -4550,7 +4550,7 @@ fn escape_interrupts_composition_before_leaving_the_text_field() {
     frame(&ctx, vec![preedit("")], |ui| draw(ui, &mut text));
     assert_eq!(text, "prefix ");
     let response = frame(&ctx, key(egui::Key::Escape), |ui| draw(ui, &mut text));
-    assert!(!response.has_focus());
+    assert!(response.has_focus());
     assert_eq!(text, "prefix ");
 }
 
@@ -4576,7 +4576,7 @@ fn committed_unicode_text_survives_focus_changes_and_normal_escape() {
         });
         let fields = frame(&ctx, key(egui::Key::Escape), |ui| draw(ui, &mut texts));
         assert_eq!(texts, ["Žluťoučký 🦀 kůň", "東京"]);
-        assert!(!fields[1].has_focus());
+        assert_eq!(fields[1].has_focus(), chosen == look::Look::Gtk);
     }
 }
 
@@ -5356,6 +5356,13 @@ fn dialog_escape_leaves_text_editing_before_closing() {
         let field = draw(vec![]).1;
         ctx.memory_mut(|memory| memory.request_focus(field));
         draw(vec![]);
+        if chosen == look::Look::Gtk {
+            assert!(
+                !draw(key(egui::Key::Escape)).0,
+                "GTK entry leaves Escape to its dialog"
+            );
+            continue;
+        }
         assert!(
             draw(key(egui::Key::Escape)).0,
             "{chosen}: first Escape closed editor"
@@ -5413,5 +5420,76 @@ fn dialog_focus_return_is_independent_of_background_draw_order() {
         );
         frame(&ctx, vec![], |ui| draw(ui, &mut open));
         assert_eq!(ctx.memory(|memory| memory.focused()), Some(opener));
+    }
+}
+
+#[test]
+fn invalid_fields_expose_validation_and_remain_editable() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, false);
+        ctx.enable_accesskit();
+        let mut text = "invalid".to_owned();
+        let mut response = None;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            response = Some(
+                ui.add(
+                    look::TextField::new(&mut text)
+                        .invalid(true)
+                        .accessible_label("Name"),
+                ),
+            );
+        });
+        output.textures_delta.clear();
+        let response = response.unwrap();
+        let nodes = output.platform_output.accesskit_update.unwrap().nodes;
+        let node = nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Name"))
+            .unwrap();
+        assert_eq!(node.1.invalid(), Some(egui::accesskit::Invalid::True));
+        response.request_focus();
+        frame(&ctx, vec![], |ui| {
+            ui.add(
+                look::TextField::new(&mut text)
+                    .invalid(true)
+                    .accessible_label("Name"),
+            )
+        });
+        frame(&ctx, vec![egui::Event::Text("corrected".into())], |ui| {
+            ui.add(
+                look::TextField::new(&mut text)
+                    .invalid(false)
+                    .accessible_label("Name"),
+            )
+        });
+        assert!(text.ends_with("corrected"), "{chosen}: {text}");
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            ui.add(look::TextField::new(&mut text).accessible_label("Name"));
+        });
+        output.textures_delta.clear();
+        let nodes = output.platform_output.accesskit_update.unwrap().nodes;
+        let node = nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Name"))
+            .unwrap();
+        assert_eq!(node.1.invalid(), None);
+    }
+}
+
+#[test]
+fn destructive_button_activates_once_and_disabled_button_stays_inert() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, false);
+        for enabled in [true, false] {
+            let draw = |ui: &mut egui::Ui| {
+                ui.add_enabled(enabled, look::Button::new("Delete").destructive())
+            };
+            let response = frame(&ctx, vec![], draw);
+            let mut clicks = 0;
+            for events in click(response.rect.center()) {
+                clicks += usize::from(frame(&ctx, events, draw).clicked());
+            }
+            assert_eq!(clicks, usize::from(enabled), "{chosen}");
+        }
     }
 }

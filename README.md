@@ -84,9 +84,10 @@ platform first reports touch through an input event, larger targets take effect
 between gestures. Caller-owned `TitleBar` rectangles need at least 48 points of
 height to contain their targets.
 
-Leaving a pressed control, scrolling, cancelling touch, hiding the control or
+Leaving a pressed touch control, scrolling, cancelling touch, hiding the control or
 losing window focus cancels the tap until release. Keyboard and accessibility
-activation remain available afterward. Sliders and the GTK switch retain their
+activation remain available afterward. A desktop GTK button can activate after the
+pointer leaves and returns before release. Sliders and the GTK switch retain their
 horizontal drag behavior while vertical swipes can scroll their parent.
 
 `accessible_label()` names icon actions, list rows, choices, tabs and progress
@@ -97,6 +98,8 @@ indicators expose numeric bounds or an indeterminate busy state. Disabled contro
 omit actions they cannot apply. Keyboard focus follows layout order and skips
 disabled controls.
 
+The native gallery enables eframe's `accesskit` feature so its accessibility tree reaches platform screen readers. Applications that disable eframe's default features must enable `accesskit` explicitly.
+
 Tests inspect AccessKit output and simulate input in all six looks. Physical
 TalkBack and VoiceOver runs remain separate device checks.
 
@@ -104,7 +107,7 @@ TalkBack and VoiceOver runs remain separate device checks.
 
 Text fields keep Unicode selection in character units and retain typed text when focus changes. `select_all_on_focus(true)` selects the existing text before the first typing or IME event, including programmatic focus requests. Stable `id_salt` values keep focus, selection and composition attached to fields when rows reorder.
 
-Enter used to confirm an IME candidate keeps the field focused; a later Enter ends editing. During composition, Escape requests cancellation from the input method and keeps focus. Normal Escape behavior resumes once the backend reports that composition has ended. Password fields retain password IME purpose and masked accessibility output. Disabled text fields ignore text edits from accessibility actions.
+Enter used to confirm an IME candidate keeps the field focused; a later Enter ends editing. During composition, Escape requests cancellation from the input method and keeps focus. Normal Escape behavior resumes once the backend reports that composition has ended. GTK entries retain focus on Escape outside a dialog; inside a dialog, an unhandled Escape closes it. Password fields retain password IME purpose and masked accessibility output. Disabled text fields ignore text edits from accessibility actions.
 
 Focused text fields request scrolling when focus or viewport size changes, so a
 scrolling container can reveal them above a software keyboard without another
@@ -129,7 +132,7 @@ button, including an ordinary egui button, keeps its own Enter action. Opening a
 dialog with Enter does not also confirm it. Popup selection and IME confirmation
 never trigger the default action.
 
-An unhandled Escape closes the top dialog. While editing text, the first Escape
+An unhandled Escape closes the top dialog. GTK closes it directly when a text field is focused. In other looks, the first Escape
 leaves the field and the next closes the dialog. During composition, Escape belongs
 to the input method. `close_on_escape(false)` disables Escape dismissal. Call
 `ui.close()` from a body or action to close the dialog through its open flag.
@@ -210,6 +213,116 @@ cargo llvm-cov --locked --lib --test controls --test touch --test navigation --h
 ```
 
 Coverage reports describe the code compiled for the tested platform; they do not demonstrate behavior on other operating systems or real touch devices.
+
+## GTK reference behavior
+
+GTK controls are checked against GTK 4.14 and libadwaita 1.5. GTK number fields
+edit text directly: dragging selects text instead of changing the value. Enter
+or leaving the field commits valid text; Enter keeps focus. Typing does not
+change the bound value until commit. Invalid or incomplete text preserves the
+previous value, while valid numbers outside the range are clamped. Stepping
+first commits the draft. The field has one Tab stop; its pointer steppers keep
+focus in the editor. Prefix, suffix, formatting and parsing remain available.
+
+The default parser uses a decimal point. Applications choose locale-specific
+formatting explicitly, for example:
+
+```rust
+# fn field(ui: &mut egui::Ui, value: &mut f64) {
+ui.add(egui_native_look::NumberField::new(value)
+    .fixed_decimals(2)
+    .custom_formatter(|value, _| format!("{value:.2}").replace('.', ","))
+    .custom_parser(|text| text.replace(',', ".").parse().ok()));
+# }
+```
+
+Long alert headings wrap, and responses stack at full width when their labels
+do not fit side by side. Submenus size to their contents within the viewport. Focused
+number fields and sliders consume wheel input; unfocused controls let their
+scrolling parent handle it. Ctrl+Up and Ctrl+Down navigate away from a number field.
+Alerts use connected bottom responses, and dropdowns use a bold label, a filled
+arrow and a check beside the selected item's text. System accent colours can differ
+between desktop distributions; the configured palette remains overridable.
+
+Copying `theme(ctx)` preserves system accent tracking through `AccentSource`.
+Use `theme.accent(Some([dark_rgb, light_rgb]))` to pin an application's accent,
+or `.accent(None)` to use its palette. A fresh theme's `Automatic` policy still
+infers a fixed accent from a populated `accent` field. A resolved theme records
+`System` or `Fixed` explicitly.
+
+GTK labels and glyphs use the configured desktop font when `install_fonts` can
+resolve it through Fontconfig. Use `Metrics::system(Look::Gtk)` during setup to
+also read its size; `Metrics::of` keeps fixed, reproducible metrics. The native
+gallery uses system metrics. Font lookup is optional and falls back to installed
+Adwaita or Cantarell fonts.
+
+`Button::destructive()` marks a destructive action. `TextField::invalid(true)`
+shows an error state and exposes it to accessibility tools; the application still
+validates the value. Clicking a GTK form editor's label transfers focus to that
+editor without adding another Tab stop. Clicking a GTK switch row label toggles
+the switch. The gallery includes destructive and validation-state examples.
+
+Use this crate's `ScrollArea` to get GTK wheel distances and nested boundary
+handling. A wheel line moves by the visible extent raised to the power of 2/3;
+point-based input keeps its distance. A scrollable child retains the whole wheel
+event at its ends and for input in another axis. Other looks keep egui's scrolling behavior. Using `egui::ScrollArea`
+directly still uses egui's policies.
+
+GTK dialogs keep actions outside the message scroll area. If the actions alone
+exceed the available height, their footer scrolls separately. `ListBox` provides
+one Tab stop, arrow, Home/End and Page Up/Down navigation, Ctrl navigation without changing
+selection, Enter/Space activation, accessible items and disabled-item skipping.
+Item values must be unique and stable when filtering.
+
+```rust
+# fn list(ui: &mut egui::Ui, selected: &mut usize) {
+use egui_native_look::{ListBox, ScrollArea};
+ScrollArea::vertical().max_height(180.0).show(ui, |ui| {
+    let result = ListBox::new("documents", selected).show(ui, |list| {
+        list.item(10, "Documents");
+        list.item_enabled(false, 20, "Unavailable");
+        list.item(30, "Pictures");
+    });
+    if let Some(item) = result.activated {
+        // Open the item identified by its stable value.
+        let _ = item;
+    }
+});
+# }
+```
+
+GTK text fields preserve the selection that an edit replaced when undoing it.
+Redo restores the resulting caret. Ctrl+Insert, Shift+Insert and Shift+Delete
+also support copying, pasting and cutting on Linux. Text shaping and rasterization still use
+egui and can differ from Pango.
+
+For distributions with libadwaita 1.5 colour overrides, use
+`Theme::new(Look::Gtk).schemes(Schemes::system(Look::Gtk))` during setup. This
+reads supported named colour declarations from the selected installed theme;
+it does not interpret arbitrary widget CSS. Fixed `Schemes::for_look` palettes
+remain reproducible. The native gallery uses system schemes and metrics.
+
+### Remaining GTK differences
+
+Matching the tested controls does not imply complete GTK compatibility. Touchpad
+unit conversion, momentum, overshoot and scrollbar fading still differ. Pixel
+scroll events keep egui's distances; they are not equivalent to GDK surface units.
+GTK text fields and numeric editors support Insert overwrite mode with a block
+cursor. Typed text and IME commits replace the next grapheme when no text is
+selected; clipboard pastes insert normally. Text shaping remains egui's.
+
+IME surrounding deletion is handled by the editor, but the bundled winit
+Wayland backend does not forward `delete_surrounding_text`. Full surrounding-text
+exchange therefore still requires backend support.
+
+Fractional-scale layout tests cover 125%, 150% and 200%. GTK and egui also pass
+keyboard, pointer, menu and dialog checks through a nested Wayland compositor at
+100%, 125%, 150% and 200%. This does not establish identical text rasterization
+or physical-monitor behavior. An isolated Orca/AT-SPI check verifies gallery
+names, roles and keyboard focus with speech disabled; spoken interaction still
+needs a listening test.
+List paging uses row positions and 90% of the visible height; scroll animation
+and alignment can still differ from GTK. Multi-selection is not implemented.
 
 ## License
 

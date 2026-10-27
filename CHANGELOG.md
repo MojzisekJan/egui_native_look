@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+- Preserve GTK theme palette accents when no explicit or system accent overrides them.
+
+- Support GTK Insert overwrite mode in text and numeric editors, with a block cursor, Unicode grapheme replacement and IME commit handling. Clipboard paste keeps insertion semantics.
+- Add regression coverage for IME surrounding deletion and verify current gallery roles/focus through Orca/AT-SPI and controls through nested Wayland at 100–200% scale.
+
+- Add Page Up/Down and Ctrl paging to `ListBox`, using row positions and viewport height.
+- Keep orthogonal wheel events inside a scrollable GTK child instead of scrolling its parent.
+- Handle GTK Ctrl+Insert, Shift+Insert and Shift+Delete clipboard shortcuts on Linux, preserving password copy restrictions.
+
+- Add `ScrollArea` with viewport-dependent GTK wheel steps and nested boundary capture, retaining egui behavior in other looks.
+- Keep GTK dialog responses outside the message scroll area; allow oversized response lists to scroll separately.
+- Add `ListBox` with stable item values, one Tab stop, keyboard navigation, activation, accessibility and disabled-item skipping. Use it in the gallery.
+- Preserve replaced selections during GTK Undo and restore caret position during Redo.
+- Add explicit `Schemes::system` loading for installed libadwaita 1.5 colour overrides and use it in the native gallery.
+
+- Match GTK neutral colours, disabled opacity, compact switches and checkboxes, icon button padding, progress allocation and overlay scrollbar dimensions to the native reference.
+- Animate GTK button fills and switch movement with measured transition durations.
+- Add `Button::destructive()` and `TextField::invalid(bool)`, including accessibility validation state.
+- Focus GTK form editors when their row label is clicked, without adding a Tab stop; toggle switches through their row labels.
+- Read Linux desktop fonts through Fontconfig and add `Metrics::system` for the configured text size. Use these metrics in the native gallery.
+
+- Use text editing in GTK form number rows, skip their step buttons during Tab navigation, and draw focus around the row.
+- Enable the native gallery's AccessKit bridge for platform screen readers.
+
+- Commit GTK numeric drafts on Enter or focus transfer, keep editor focus on Enter and pointer steps, and omit step buttons from Tab navigation. Reject invalid drafts without changing the model.
+- Wrap long GTK alert headings and give stacked responses the full dialog width; recalculate the layout when labels change.
+- Size nested menus to their contents instead of expanding them across the viewport.
+
+- Match measured GTK desktop pointer re-entry, focused wheel input, text selection in number fields, and entry Escape behavior. Preserve touch cancellation and scrolling through unfocused controls.
+- Align GTK dropdown labels, arrows and selection marks, control rounding, and connected alert responses with the GTK 4.14 / libadwaita 1.5 reference.
+- Preserve system accent tracking when copying an installed theme. Add `AccentSource` and `Theme::accent` for explicit ownership.
+- Restore application style values when switching away from look-specific shadows, opacity and scrolling settings; make direct style application independent of the previous look.
+- Bound checkerboard drawing and clamp inner geometry for tiny translucent colour wells.
+
 - Frame tooltips in the macOS look as macOS's tool tip (a light grey box with a hairline edge and a small shadow) while this crate's menus keep macOS's menu, and press macOS's default button and switch darker on the light scheme and lighter on the dark, as measured from AppKit with a real pointer.
 - Move to the next menu item starting with what is typed in an open menu, as macOS and GTK menus do.
 - Give macOS number fields without steppers a text field's height too.

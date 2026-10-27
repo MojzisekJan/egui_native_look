@@ -76,7 +76,14 @@ impl ProgressBar {
             6.0
         };
         let (outer, response) = ui.allocate_exact_size(
-            egui::vec2(width, ui.spacing().interact_size.y.min(16.0)),
+            egui::vec2(
+                width,
+                if x.look == Look::Gtk {
+                    thickness
+                } else {
+                    ui.spacing().interact_size.y.min(16.0)
+                },
+            ),
             Sense::hover(),
         );
         let rail = Rect::from_center_size(outer.center(), egui::vec2(width, thickness));

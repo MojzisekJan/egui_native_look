@@ -9,6 +9,8 @@ mod containers;
 mod entry;
 mod extra;
 mod form;
+mod list;
+mod scroll;
 mod status;
 mod window;
 
@@ -23,6 +25,8 @@ pub use containers::{picked_text, section, submenu, ListRow, MenuItem, Section};
 pub use entry::{NumberField, TextField};
 pub use extra::{show_toasts, toast, ColorWell, IconButton};
 pub use form::{Form, FormUi};
+pub use list::{ListBox, ListBoxOutput, ListBoxUi};
+pub use scroll::ScrollArea;
 pub use status::{ProgressBar, Spinner};
 pub use window::{window_frame, Dialog, TitleBar, ToolWindow, WindowAction};
 
@@ -53,9 +57,14 @@ pub(crate) struct Ctx {
 impl Ctx {
     pub fn of(ui: &egui::Ui) -> Ctx {
         let resolved = crate::resolved(ui.ctx());
+        let mut c = resolved.colors(ui.ctx());
+        // GTK fades the entire disabled widget once, including its foreground.
+        if resolved.theme.look == Look::Gtk && !ui.is_enabled() {
+            c.disabled = c.fg;
+        }
         Ctx {
             look: resolved.theme.look,
-            c: resolved.colors(ui.ctx()),
+            c,
             m: resolved.theme.metrics.clone(),
         }
     }
@@ -135,7 +144,7 @@ pub(crate) fn allocate_control(
     sense: egui::Sense,
 ) -> (egui::Rect, egui::Response) {
     let (rect, response) = allocate_touch(ui, size, sense);
-    (rect, click_response(ui, response))
+    (rect, click_response_with_reentry(ui, response, true))
 }
 
 #[derive(Clone, Copy)]
@@ -144,10 +153,19 @@ struct ClickPress {
     frame: u64,
     cancelled: bool,
     touch: bool,
+    left: bool,
 }
 
 /// Pointer cancellation is latched until release; keyboard and accessibility clicks stay independent.
-pub(crate) fn click_response(ui: &egui::Ui, mut response: egui::Response) -> egui::Response {
+pub(crate) fn click_response(ui: &egui::Ui, response: egui::Response) -> egui::Response {
+    click_response_with_reentry(ui, response, false)
+}
+
+fn click_response_with_reentry(
+    ui: &egui::Ui,
+    mut response: egui::Response,
+    desktop_button: bool,
+) -> egui::Response {
     use egui::response::Flags;
     let key = response.id.with("click-press");
     let frame = ui.ctx().cumulative_frame_nr();
@@ -175,17 +193,34 @@ pub(crate) fn click_response(ui: &egui::Ui, mut response: egui::Response) -> egu
             frame,
             cancelled: false,
             touch,
+            left: false,
         });
     }
     let position = pointer_position(ui, &response);
     if let Some(press) = state.as_mut() {
+        press.left |= position.is_some_and(|at| !response.interact_rect.contains(at));
         press.cancelled |= cancelled
             || !response.enabled()
             || frame.saturating_sub(press.frame) > 1
             || (down && press.time != time)
-            || position.is_some_and(|position| !response.interact_rect.contains(position))
+            || ((!desktop_button || press.touch || crate::look(ui.ctx()) != Look::Gtk)
+                && position.is_some_and(|position| !response.interact_rect.contains(position)))
             || (press.touch && dragging);
         press.frame = frame;
+        if desktop_button
+            && press.left
+            && crate::look(ui.ctx()) == Look::Gtk
+            && !press.touch
+            && !press.cancelled
+            && released
+            && position.is_some_and(|at| response.interact_rect.contains(at))
+            && response.enabled()
+            && response.contains_pointer()
+        {
+            // egui stops classifying a long pointer excursion as a click. A desktop
+            // button still activates when its original press is released back inside.
+            response.flags.insert(Flags::FAKE_PRIMARY_CLICKED);
+        }
         if press.cancelled {
             response
                 .flags
@@ -356,6 +391,49 @@ pub(crate) fn unfaded<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R
         ui.set_opacity(before);
     }
     result
+}
+
+/// A focused GTK control owns its wheel gesture, including the smoothed tail.
+/// Unfocused controls leave scrolling to their parent.
+pub(crate) fn gtk_wheel(ui: &egui::Ui, response: &egui::Response) -> f64 {
+    if !response.enabled() || !response.has_focus() {
+        return 0.0;
+    }
+    let key = response.id.with("wheel-capture");
+    let captured = ui.data(|data| data.get_temp::<bool>(key)).unwrap_or(false);
+    let mut count = 0.0;
+    let scrolling = ui.input_mut(|input| {
+        if !input.focused || !input.modifiers.is_none() {
+            return false;
+        }
+        if response.hovered() {
+            input.events.retain(|event| {
+                if let egui::Event::MouseWheel {
+                    unit,
+                    delta,
+                    modifiers,
+                    ..
+                } = event
+                {
+                    if modifiers.is_none() && delta.y != 0.0 {
+                        count += f64::from(delta.y)
+                            / match unit {
+                                egui::MouseWheelUnit::Point => 40.0,
+                                egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => 1.0,
+                            };
+                        return false;
+                    }
+                }
+                true
+            });
+        }
+        if count != 0.0 || captured {
+            input.smooth_scroll_delta.y = 0.0;
+        }
+        input.is_scrolling()
+    });
+    ui.data_mut(|data| data.insert_temp(key, scrolling && (captured || count != 0.0)));
+    count
 }
 
 #[cfg(test)]

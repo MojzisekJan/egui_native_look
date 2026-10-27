@@ -19,6 +19,7 @@ default = ["system"]
 system = ["dep:objc2", "dep:objc2-app-kit", "dep:windows-sys", "dep:web-sys"]
 
 [dependencies]
+unicode-segmentation = "1.13"
 egui = { version = "0.37.0", default-features = false }
 
 # macOS: the accent colour and the appearance chosen in System Settings.
@@ -37,7 +38,7 @@ web-sys = { version = "0.3.104", features = ["Window", "Navigator"], optional = 
 [dev-dependencies]
 # The arrows in the gallery's and the snapshots' toolbars.
 egui = { version = "0.37.0", default-features = false, features = ["monochrome_emoji_fonts"] }
-eframe = { version = "0.37.0", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+eframe = { version = "0.37.0", default-features = false, features = ["accesskit", "default_fonts", "glow", "wayland", "x11"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 image = { version = "0.25", default-features = false, features = ["png"] }

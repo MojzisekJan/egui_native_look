@@ -1052,3 +1052,37 @@ fn phone_submenus_remain_within_viewport_edges() {
         }
     }
 }
+
+#[test]
+fn gtk_submenu_sizes_to_its_items_in_a_wide_viewport() {
+    let ctx = context(look::Look::Gtk);
+    let size = egui::vec2(900.0, 600.0);
+    let mut menu = NestedMenu::default();
+    phone_frame(&ctx, size, vec![], |ui| menu.draw(ui));
+    ctx.memory_mut(|memory| memory.request_focus(menu.launcher));
+    phone_frame(
+        &ctx,
+        size,
+        key(egui::Key::Enter, egui::Modifiers::NONE),
+        |ui| menu.draw(ui),
+    );
+    phone_frame(&ctx, size, vec![], |ui| menu.draw(ui));
+    phone_frame(
+        &ctx,
+        size,
+        key(egui::Key::ArrowRight, egui::Modifiers::NONE),
+        |ui| menu.draw(ui),
+    );
+    for _ in 0..4 {
+        phone_frame(&ctx, size, vec![], |ui| menu.draw(ui));
+    }
+    assert!(menu.visible);
+    let bounds = popup_bounds(&ctx);
+    assert_eq!(bounds.len(), 2);
+    for rect in bounds {
+        assert!(
+            rect.width() < 250.0,
+            "short submenu expanded across viewport: {rect:?}"
+        );
+    }
+}

@@ -9,8 +9,18 @@ use crate::{Colors, Look, Theme};
 /// [`crate::install`] calls it for both of egui's schemes. What it does not set stays as
 /// the style had it: the app's shadows, spacing (bar the controls' height), heading and
 /// other text styles, so an app may set them before or after. The body and button text
-/// styles take the theme's [`crate::Metrics::body`].
+/// styles take the theme's [`crate::Metrics::body`]. Popup shadows, disabled opacity,
+/// caret stroke, menu margins and scrollbar metrics reset before applying the look.
+/// [`crate::install`] additionally restores app overrides when a look stops owning them.
 pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
+    // Set every look-owned property on every call, so the result does not depend on
+    // which look was applied before. Context installation preserves app overrides.
+    let defaults = egui::Style::default();
+    style.visuals.disabled_alpha = defaults.visuals.disabled_alpha;
+    style.visuals.text_cursor.stroke = defaults.visuals.text_cursor.stroke;
+    style.visuals.popup_shadow = defaults.visuals.popup_shadow;
+    style.spacing.menu_margin = defaults.spacing.menu_margin;
+    style.spacing.scroll = defaults.spacing.scroll;
     let metrics = theme.metrics.clone().sanitized(theme.look);
     let c = Colors::resolve(theme, dark);
     let look = theme.look;
@@ -36,6 +46,9 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
     if look == Look::Material {
         visuals.disabled_alpha = 0.38;
     }
+    if look == Look::Gtk {
+        visuals.disabled_alpha = 0.5;
+    }
     visuals.hyperlink_color = c.accent;
     visuals.selection.bg_fill = c.accent.gamma_multiply(if dark { 0.55 } else { 0.35 });
     visuals.selection.stroke = if look == Look::Mac {
@@ -55,7 +68,7 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
         Look::Mac => 5,
         Look::Material => 4,
         // libadwaita's popovers: its menus' radius and six more.
-        Look::Gtk => 15,
+        Look::Gtk => 12,
         Look::Plain => 6,
         _ => 8,
     });
@@ -131,6 +144,25 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
             };
         }
         _ => {}
+    }
+    if look == Look::Gtk {
+        style.spacing.scroll = egui::style::ScrollStyle {
+            floating: true,
+            bar_width: 8.0,
+            floating_width: 3.0,
+            floating_allocated_width: 0.0,
+            handle_min_length: 40.0,
+            bar_inner_margin: 3.0,
+            bar_outer_margin: 3.0,
+            foreground_color: true,
+            dormant_background_opacity: 0.0,
+            active_background_opacity: 0.0,
+            interact_background_opacity: 0.1,
+            dormant_handle_opacity: 0.0,
+            active_handle_opacity: 0.2,
+            interact_handle_opacity: 0.4,
+            ..style.spacing.scroll
+        };
     }
     if look == Look::Mac {
         // macOS's overlay scrollers: a six-point rounded handle three points in from the

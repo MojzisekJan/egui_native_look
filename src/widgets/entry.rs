@@ -33,6 +33,7 @@ pub struct TextField<'a> {
     clear_label: String,
     select_all: bool,
     password: bool,
+    invalid: bool,
     context_menu: bool,
     id: Option<egui::IdSalt>,
     label: String,
@@ -49,6 +50,7 @@ impl<'a> TextField<'a> {
             clear_label: "Clear".into(),
             select_all: false,
             password: false,
+            invalid: false,
             context_menu: true,
             id: None,
             label: String::new(),
@@ -63,6 +65,12 @@ impl<'a> TextField<'a> {
     /// Masks the text and prevents copying its contents through the field's copy action.
     pub fn password(mut self, password: bool) -> Self {
         self.password = password;
+        self
+    }
+    /// Mark invalid input visually and in the accessibility tree.
+    /// Validation and an explanatory message remain the app's responsibility.
+    pub fn invalid(mut self, invalid: bool) -> Self {
+        self.invalid = invalid;
         self
     }
     /// Text shown while it is empty.
@@ -116,7 +124,17 @@ impl Widget for TextField<'_> {
 
 impl TextField<'_> {
     fn add_contents(self, ui: &mut Ui) -> Response {
-        let x = Ctx::of(ui);
+        let mut x = Ctx::of(ui);
+        if self.invalid {
+            let error = crate::colors::rgb(if x.c.dark { 0xff7b63 } else { 0xc01c28 });
+            x.c.accent = error;
+            if x.look == Look::Gtk {
+                x.c.fg = error;
+                x.c.disabled = error;
+                x.c.entry = error.gamma_multiply(0.1);
+                x.c.entry_focused = x.c.entry;
+            }
+        }
         // Material 3's filled field: 48 points without a label, its text in the 16-point
         // body and 16 points in.
         let material = x.look == Look::Material;
@@ -134,6 +152,7 @@ impl TextField<'_> {
         let left = match (self.search, material) {
             (true, _) => 26,
             (false, true) => 16,
+            (false, false) if x.look == Look::Gtk => 9,
             (false, false) => 8,
         };
         // A search entry keeps room for its clear button, so the text does not move when
@@ -153,6 +172,10 @@ impl TextField<'_> {
             || ui.next_auto_id(),
             |salt| ui.make_persistent_id(egui::IdSalt::new(salt)),
         );
+        let activate_row = x.look == Look::Gtk && super::form::take_row_activation(ui);
+        if activate_row {
+            ui.memory_mut(|memory| memory.request_focus(id));
+        }
         let focus_id = id.with("select-on-focus");
         let previously_focused = ui
             .data(|data| data.get_temp::<bool>(focus_id))
@@ -173,10 +196,13 @@ impl TextField<'_> {
             }
         }
         let composing = prepare_text_input(ui, id);
+        let history_changed =
+            x.look == Look::Gtk && gtk_history_input(ui, id, self.text, composing);
         if ui.is_enabled() {
             super::window::dialog_field(ui, id);
         }
-        let mut edit = egui::TextEdit::singleline(self.text)
+        let mut buffer = OverwriteBuffer::new(ui, id, self.text, composing);
+        let mut edit = egui::TextEdit::singleline(&mut buffer)
             .interactive(ui.is_enabled())
             .text_color(if ui.is_enabled() {
                 x.c.fg
@@ -189,11 +215,14 @@ impl TextField<'_> {
             .desired_width(width - f32::from(margin.left) - f32::from(margin.right))
             .margin(margin)
             .min_size(super::target_size(ui, egui::vec2(width, height)));
+        if self.invalid && x.look == Look::Gtk {
+            edit = edit.background_color(x.c.entry);
+        }
         if let Some(id) = self.id {
             edit = edit.id_salt(id);
         }
         let mut filter = edit.get_event_filter();
-        filter.escape = composing;
+        filter.escape = composing || x.look == Look::Gtk;
         edit = edit.event_filter(filter);
         // macOS draws its search field as a capsule. The visuals are swapped in place, as a
         // scope would change the field's automatic id.
@@ -223,7 +252,13 @@ impl TextField<'_> {
         // egui grows a text edit to the controls' height; a large macOS field stays lower.
         let controls = ui.spacing().interact_size.y;
         ui.spacing_mut().interact_size.y = height.min(controls);
-        let mut response = ui.add(edit);
+        let mut response = show_text_editor(ui, edit, id, composing);
+        if history_changed {
+            response.mark_changed();
+        }
+        if activate_row {
+            response.request_focus();
+        }
         ui.spacing_mut().interact_size.y = controls;
         let visuals = ui.visuals_mut();
         (visuals.widgets, visuals.weak_text_color, visuals.selection) = saved;
@@ -277,6 +312,19 @@ impl TextField<'_> {
         }
         if self.context_menu && response.enabled() {
             edit_menu(ui, &x, &response, self.text, self.password);
+        }
+        if self.invalid {
+            ui.ctx().accesskit_node_builder(response.id, |node| {
+                node.set_invalid(egui::accesskit::Invalid::True)
+            });
+            if x.look != Look::Gtk {
+                ui.painter().rect_stroke(
+                    response.rect,
+                    x.radius(),
+                    Stroke::new(1.0, x.c.accent),
+                    egui::StrokeKind::Inside,
+                );
+            }
         }
         super::disabled_actions(ui, &response);
         underline(ui.painter(), response.rect, response.has_focus());
@@ -463,6 +511,318 @@ impl TextComposition {
     }
 }
 
+/// Draw a block cursor while GTK overwrite mode is active outside composition.
+fn show_text_editor(
+    ui: &mut Ui,
+    editor: egui::TextEdit<'_>,
+    id: egui::Id,
+    composing: bool,
+) -> Response {
+    let block = crate::look(ui.ctx()) == Look::Gtk
+        && !composing
+        && ui
+            .data(|d| d.get_temp::<bool>(id.with("overwrite-mode")))
+            .unwrap_or(false);
+    let cursor_style = ui.visuals().text_cursor.clone();
+    if block {
+        ui.visuals_mut().text_cursor.stroke.color = Color32::TRANSPARENT;
+    }
+    let output = editor.show(ui);
+    ui.visuals_mut().text_cursor = cursor_style.clone();
+    if block && output.response.has_focus() && ui.is_enabled() && ui.input(|i| i.focused) {
+        if let Some(cursor) = output.cursor_range.filter(|range| range.is_empty()) {
+            let now = ui.input(|i| i.time);
+            let key = id.with("overwrite-blink");
+            let previous = ui.data(|d| d.get_temp::<(egui::text::CCursorRange, f64)>(key));
+            let since = previous
+                .filter(|(old, _)| *old == cursor && !output.response.changed())
+                .map_or(now, |(_, time)| time);
+            ui.data_mut(|d| d.insert_temp(key, (cursor, since)));
+            let period = cursor_style.on_duration + cursor_style.off_duration;
+            let blink = cursor_style.blink && period.is_finite() && period > 0.0;
+            let phase = ((now - since).max(0.0) % f64::from(period.max(0.001))) as f32;
+            if !blink || phase < cursor_style.on_duration {
+                let mut rect = output.galley.pos_from_cursor(cursor.primary);
+                let mut next = cursor.primary;
+                next.index += 1;
+                let right = output.galley.pos_from_cursor(next).left();
+                rect.max.x = rect.min.x
+                    + if right > rect.min.x {
+                        right - rect.min.x
+                    } else {
+                        rect.height() * 0.4
+                    };
+                rect = rect.translate(output.galley_pos.to_vec2());
+                let painter = ui
+                    .painter()
+                    .with_clip_rect(output.text_clip_rect.intersect(rect));
+                let colors = super::Ctx::of(ui).c;
+                painter.rect_filled(rect, 0.0, colors.fg);
+                painter.galley_with_override_text_color(
+                    output.galley_pos,
+                    output.galley.clone(),
+                    colors.bg,
+                );
+            }
+            if blink {
+                ui.ctx()
+                    .request_repaint_after(std::time::Duration::from_secs_f32(
+                        (if phase < cursor_style.on_duration {
+                            cursor_style.on_duration - phase
+                        } else {
+                            period - phase
+                        })
+                        .max(0.01),
+                    ));
+            }
+        }
+    }
+    output.response.response
+}
+
+// Keep insertion policy next to the buffer so cursor movement is processed by TextEdit.
+struct OverwriteBuffer<'a> {
+    text: &'a mut String,
+    insertions: std::collections::VecDeque<(bool, bool)>,
+    replaced_selection: bool,
+}
+
+impl<'a> OverwriteBuffer<'a> {
+    fn new(ui: &mut Ui, id: egui::Id, text: &'a mut String, composing: bool) -> Self {
+        let mut insertions = std::collections::VecDeque::new();
+        if crate::look(ui.ctx()) == Look::Gtk
+            && ui.is_enabled()
+            && ui.input(|i| i.focused)
+            && ui.memory(|m| m.has_focus(id))
+        {
+            let preedit_key = id.with("overwrite-preedit-empty");
+            let mut preedit_empty = ui.data(|d| d.get_temp::<bool>(preedit_key));
+            if !composing
+                && !ui.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Ime(_))))
+            {
+                preedit_empty = None;
+            }
+            let empty_selection = egui::TextEdit::load_state(ui.ctx(), id)
+                .and_then(|s| s.cursor.char_range())
+                .is_none_or(|range| range.is_empty());
+            let key = id.with("overwrite-mode");
+            let mut overwrite = ui.data(|d| d.get_temp::<bool>(key)).unwrap_or(false);
+            ui.input_mut(|input| {
+                input.events.retain(|event| {
+                    match event {
+                        egui::Event::Key {
+                            key: egui::Key::Insert,
+                            pressed: true,
+                            modifiers,
+                            ..
+                        } if modifiers.is_none() && !composing => {
+                            overwrite = !overwrite;
+                            return false;
+                        }
+                        egui::Event::Text(value)
+                            if !value.is_empty() && value != "\n" && value != "\r" =>
+                        {
+                            insertions.push_back((overwrite, false))
+                        }
+                        egui::Event::Ime(egui::ImeEvent::Preedit { text, .. })
+                            if !text.is_empty() && text != "\n" && text != "\r" =>
+                        {
+                            preedit_empty.get_or_insert(empty_selection);
+                            insertions.push_back((false, false));
+                        }
+                        egui::Event::Ime(egui::ImeEvent::Commit(text)) => {
+                            if !text.is_empty() && text != "\n" && text != "\r" {
+                                insertions.push_back((
+                                    overwrite && preedit_empty.unwrap_or(true),
+                                    preedit_empty == Some(true),
+                                ));
+                            }
+                            preedit_empty = None;
+                        }
+                        egui::Event::Paste(value) if !value.is_empty() => {
+                            insertions.push_back((false, false))
+                        }
+                        egui::Event::AccessKitActionRequest(request)
+                            if request.action == egui::accesskit::Action::ReplaceSelectedText
+                                && request.target_node == id.accesskit_id() =>
+                        {
+                            insertions.push_back((false, false))
+                        }
+                        _ => {}
+                    }
+                    true
+                });
+            });
+            ui.data_mut(|d| {
+                d.insert_temp(key, overwrite);
+                if let Some(empty) = preedit_empty {
+                    d.insert_temp(preedit_key, empty);
+                } else {
+                    d.remove::<bool>(preedit_key);
+                }
+            });
+        }
+        Self {
+            text,
+            insertions,
+            replaced_selection: false,
+        }
+    }
+}
+
+impl egui::TextBuffer for OverwriteBuffer<'_> {
+    fn type_id(&self) -> std::any::TypeId {
+        std::any::TypeId::of::<OverwriteBuffer<'static>>()
+    }
+    fn is_mutable(&self) -> bool {
+        true
+    }
+    fn as_str(&self) -> &str {
+        self.text
+    }
+    fn insert_text(&mut self, value: &str, at: egui::text::CharIndex) -> usize {
+        use unicode_segmentation::UnicodeSegmentation as _;
+        let (overwrite, preedit) = self.insertions.pop_front().unwrap_or_default();
+        if overwrite && (preedit || !self.replaced_selection) {
+            let byte = self
+                .text
+                .char_indices()
+                .nth(at.0)
+                .map_or(self.text.len(), |(byte, _)| byte);
+            let count = self.text[byte..]
+                .graphemes(true)
+                .next()
+                .map_or(0, |g| g.chars().count());
+            self.text.delete_char_range(at..at + count);
+        }
+        self.replaced_selection = false;
+        self.text.insert_text(value, at)
+    }
+    fn delete_char_range(&mut self, range: std::ops::Range<egui::text::CharIndex>) {
+        self.replaced_selection = !range.is_empty();
+        self.text.delete_char_range(range);
+    }
+    fn replace_with(&mut self, value: &str) {
+        self.text.replace_with(value);
+        self.replaced_selection = false;
+    }
+}
+
+fn gtk_history_input(ui: &mut Ui, id: egui::Id, text: &mut String, composing: bool) -> bool {
+    if composing || !ui.is_enabled() || !ui.memory(|m| m.has_focus(id)) {
+        return false;
+    }
+    let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), id) else {
+        return false;
+    };
+    let Some(mut cursor) = state.cursor.char_range() else {
+        return false;
+    };
+    let mut commands = Vec::new();
+    let replaces = ui.input_mut(|input| {
+        input.events.retain(|event| {
+            if let egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } = event
+            {
+                let redo = (*key == egui::Key::Y
+                    && modifiers.matches_logically(egui::Modifiers::COMMAND))
+                    || (*key == egui::Key::Z
+                        && modifiers
+                            .matches_logically(egui::Modifiers::COMMAND | egui::Modifiers::SHIFT));
+                let undo =
+                    *key == egui::Key::Z && modifiers.matches_logically(egui::Modifiers::COMMAND);
+                if redo || undo {
+                    commands.push(redo);
+                    return false;
+                }
+            }
+            true
+        });
+        input.events.iter().any(|event| {
+            matches!(
+                event,
+                egui::Event::Text(_)
+                    | egui::Event::Paste(_)
+                    | egui::Event::Cut
+                    | egui::Event::Key {
+                        key: egui::Key::Backspace | egui::Key::Delete,
+                        pressed: true,
+                        ..
+                    }
+            )
+        })
+    });
+    if commands.is_empty() && (!replaces || cursor.is_empty()) {
+        return false;
+    }
+    let mut undoer = state.undoer();
+    let mut changed = false;
+    for redo in commands {
+        let original = text.clone();
+        // Selection changes are not standalone text edits.
+        for _ in 0..100 {
+            let current = (cursor, text.clone());
+            let next = if redo {
+                undoer.redo(&current)
+            } else {
+                undoer.undo(&current)
+            }
+            .cloned();
+            let Some((next_cursor, next_text)) = next else {
+                break;
+            };
+            cursor = next_cursor;
+            *text = next_text;
+            if *text != original {
+                changed = true;
+                break;
+            }
+        }
+    }
+    if replaces && !cursor.is_empty() {
+        undoer.add_undo(&(cursor, text.clone()));
+    }
+    state.cursor.set_char_range(Some(cursor));
+    state.set_undoer(undoer);
+    state.store(ui.ctx(), id);
+    changed
+}
+
+// Some backends translate these keys only on Windows. Normalize them for this look.
+fn gtk_clipboard_shortcuts(ui: &mut Ui) {
+    let paste = ui.input_mut(|input| {
+        if input.consume_key(egui::Modifiers::CTRL, egui::Key::Insert)
+            && !input
+                .events
+                .iter()
+                .any(|event| matches!(event, egui::Event::Copy))
+        {
+            input.events.push(egui::Event::Copy);
+        }
+        if input.consume_key(egui::Modifiers::SHIFT, egui::Key::Delete)
+            && !input
+                .events
+                .iter()
+                .any(|event| matches!(event, egui::Event::Cut))
+        {
+            input.events.push(egui::Event::Cut);
+        }
+        input.consume_key(egui::Modifiers::SHIFT, egui::Key::Insert)
+            && !input
+                .events
+                .iter()
+                .any(|event| matches!(event, egui::Event::Paste(_)))
+    });
+    if paste {
+        ui.ctx()
+            .send_viewport_cmd(egui::ViewportCommand::RequestPaste);
+    }
+}
+
 /// Composition confirmation belongs to the input method; submission needs a later Enter.
 fn prepare_text_input(ui: &mut Ui, id: egui::Id) -> bool {
     let state_id = id.with("text-composition");
@@ -485,7 +845,10 @@ fn prepare_text_input(ui: &mut Ui, id: egui::Id) -> bool {
         state.active = false;
     }
     if !ui.is_enabled() || !window_focused || !ui.memory(|memory| memory.has_focus(id)) {
-        ui.data_mut(|data| data.remove::<TextComposition>(state_id));
+        ui.data_mut(|data| {
+            data.remove::<TextComposition>(state_id);
+            data.remove::<bool>(id.with("overwrite-preedit-empty"));
+        });
         return false;
     }
     let composing = state.active
@@ -497,6 +860,9 @@ fn prepare_text_input(ui: &mut Ui, id: egui::Id) -> bool {
                 )
             })
         });
+    if crate::look(ui.ctx()) == Look::Gtk && !composing {
+        gtk_clipboard_shortcuts(ui);
+    }
     super::window::dialog_text_input(ui, composing);
     let interrupt = ui.input_mut(|input| state.filter_events(&mut input.events));
     if interrupt {
@@ -595,8 +961,12 @@ pub(crate) use format_methods;
 
 /// A number in an entry of the look, with − and + beside it (on macOS a stepper after it,
 /// except on a touch screen) unless [`NumberField::steppers`] leaves them out, stepping
-/// by `step` and staying inside the [`NumberField::range`] if it has one; drag it
-/// sideways to scrub, click it to type, which selects the number so typing
+/// by `step` and staying inside the [`NumberField::range`] if it has one. GTK uses
+/// an editable text field; dragging selects text and a focused field takes wheel steps.
+/// Enter or leaving the field commits valid text; Enter keeps focus. Invalid or
+/// incomplete text leaves the value unchanged. Use a custom parser and formatter
+/// for locale-specific decimal separators.
+/// Other looks let you drag sideways to scrub, or click to type, which selects the number so typing
 /// replaces it. The number keeps a width for five digits, so the row stays still while a
 /// longer number is typed. It takes what egui's `DragValue` takes: a prefix and a suffix,
 /// a formatter and a parser (for units), decimals, and whether a value already outside
@@ -805,7 +1175,7 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                     (true, false) => 2.0 * side + 8.0,
                 };
                 let number_width = if spin_row {
-                    40.0
+                    64.0
                 } else {
                     width.map_or(64.0, |w| (w - buttons).max(40.0))
                 };
@@ -848,21 +1218,37 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                     let layout = egui::Layout::centered_and_justified(ui.layout().main_dir());
                     ui.allocate_ui_with_layout(size, layout, |ui| {
                         let id = ui.next_auto_id();
+                        let activate_row =
+                            x.look == Look::Gtk && super::form::take_row_activation(ui);
+                        if activate_row {
+                            ui.memory_mut(|memory| memory.request_focus(id));
+                        }
                         super::ignore_disabled_numeric_actions(ui, id);
-                        let handled = x.look == Look::Gtk
-                            && ui.is_enabled()
-                            && number_input(ui, id, &mut shown, step, (lo, hi));
-                        let keyboard_changed =
-                            handled && super::number_changed(original, shown.to_f64());
+                        if x.look == Look::Gtk {
+                            let (mut response, handled) = gtk_number(
+                                ui,
+                                id,
+                                &mut shown,
+                                &format,
+                                step,
+                                (lo, hi),
+                                clamp_existing,
+                                spin_row,
+                                &x,
+                            );
+                            if activate_row {
+                                response.request_focus();
+                            }
+                            if handled && super::number_changed(original, shown.to_f64()) {
+                                response.mark_changed();
+                            }
+                            return response;
+                        }
                         let drag = egui::DragValue::new(&mut shown)
                             .speed(speed.filter(|speed| speed.is_finite()).unwrap_or(step))
                             .range(lo..=hi)
                             .clamp_existing_to_range(clamp_existing);
-                        let mut response = ui.add(format.apply(drag));
-                        if keyboard_changed {
-                            response.mark_changed();
-                        }
-                        response
+                        ui.add(format.apply(drag))
                     })
                     .inner
                 });
@@ -877,7 +1263,21 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                 }
                 underline(ui.painter(), number.rect, number.has_focus());
                 if number.has_focus() && matches!(x.look, Look::Mac | Look::Gtk | Look::Ios) {
-                    crate::paint::ring(ui.painter(), &x.paint(), number.rect, x.radius());
+                    let rect = if spin_row {
+                        super::form::boxed_row_rect(ui.ctx()).unwrap_or(number.rect)
+                    } else {
+                        number.rect
+                    };
+                    crate::paint::ring(
+                        ui.painter(),
+                        &x.paint(),
+                        rect,
+                        if spin_row {
+                            egui::CornerRadius::ZERO
+                        } else {
+                            x.radius()
+                        },
+                    );
                 }
                 let (minus, plus) = if stepper || capsule || linked {
                     let enabled = [value.to_f64() > lo, value.to_f64() < hi];
@@ -891,6 +1291,14 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                     } else {
                         mac_stepper(ui, &x, enabled, &step_names)
                     };
+                    if linked
+                        && (down.is_pointer_button_down_on()
+                            || up.is_pointer_button_down_on()
+                            || down.clicked()
+                            || up.clicked())
+                    {
+                        number.request_focus();
+                    }
                     let count = f64::from(u8::from(down.clicked())) + held(ui, &down);
                     if count > 0.0 {
                         *value = T::from_f64(stepped_number(value.to_f64(), step, -count, lo, hi));
@@ -927,6 +1335,195 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
     }
 }
 
+#[derive(Clone)]
+struct NumericEdit {
+    text: String,
+    value: f64,
+    focused: bool,
+}
+
+/// GTK spin entries always edit text; dragging selects instead of changing the number.
+#[allow(clippy::too_many_arguments)]
+fn gtk_number<T: egui::emath::Numeric>(
+    ui: &mut Ui,
+    id: egui::Id,
+    value: &mut T,
+    format: &Format<'_>,
+    step: f64,
+    (lo, hi): (f64, f64),
+    clamp_existing: bool,
+    spin_row: bool,
+    x: &Ctx,
+) -> (Response, bool) {
+    let before = value.to_f64();
+    if clamp_existing {
+        *value = T::from_f64(before.clamp(lo, hi));
+    }
+    let current = value.to_f64();
+    let key = id.with("numeric-edit");
+    let number_formatter = ui.style().number_formatter.clone();
+    let render = |value| {
+        let min = format.decimals.0.unwrap_or(0).min(15);
+        let max = format
+            .decimals
+            .1
+            .unwrap_or(if T::INTEGRAL { 0 } else { 15 })
+            .max(min)
+            .min(15);
+        let number = format.formatter.as_ref().map_or_else(
+            || number_formatter.format(value, min..=max),
+            |formatter| formatter(value, min..=max),
+        );
+        format!("{}{}{}", format.prefix, number, format.suffix)
+    };
+    let focused = ui.memory(|memory| memory.has_focus(id));
+    let previous = ui.data(|data| data.get_temp::<NumericEdit>(key));
+    let newly_focused = focused && previous.as_ref().is_none_or(|state| !state.focused);
+    let was_focused = previous.as_ref().is_some_and(|state| state.focused);
+    let mut text = previous
+        .filter(|state| (focused || state.focused) && !super::number_changed(state.value, current))
+        .map_or_else(|| render(current), |state| state.text);
+    let parse = |text: &str| {
+        let raw = text.strip_prefix(&format.prefix).unwrap_or(text);
+        let raw = raw.strip_suffix(&format.suffix).unwrap_or(raw).trim();
+        format
+            .parser
+            .as_ref()
+            .map_or_else(|| raw.parse::<f64>().ok(), |parse| parse(raw))
+            .filter(|value| value.is_finite())
+            .map(|value| T::from_f64(value.clamp(lo, hi)))
+    };
+    let composing = prepare_text_input(ui, id);
+    let enter = focused
+        && ui.is_enabled()
+        && !composing
+        && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+    let stepping = focused
+        && !composing
+        && ui.input(|input| {
+            input.events.iter().any(|event| {
+                matches!(event, egui::Event::Key { key, modifiers, pressed: true, .. }
+            if number_key(*key, *modifiers).is_some())
+            })
+        });
+    let outside = focused
+        && ui.input(|input| {
+            input.pointer.any_pressed()
+                && input
+                    .pointer
+                    .interact_pos()
+                    .is_some_and(|pos| !ui.available_rect_before_wrap().contains(pos))
+        });
+    // Commit before a step or a focus transfer; incomplete text never changes the model.
+    if ui.is_enabled() && !composing && (stepping || outside || (was_focused && !focused)) {
+        if let Some(parsed) = parse(&text) {
+            *value = parsed;
+        }
+        text = render(value.to_f64());
+    }
+    let handled = ui.is_enabled() && number_input(ui, id, value, step, (lo, hi));
+    if handled {
+        text = render(value.to_f64());
+    }
+    if newly_focused && !composing && !ui.input(|input| input.pointer.any_down()) {
+        select_all_text(ui.ctx(), id, &text);
+    }
+    if ui.is_enabled() {
+        super::window::dialog_field(ui, id);
+    }
+    gtk_history_input(ui, id, &mut text, composing);
+    let mut buffer = OverwriteBuffer::new(ui, id, &mut text, composing);
+    let editor = egui::TextEdit::singleline(&mut buffer)
+        .id(id)
+        .interactive(ui.is_enabled())
+        .font(x.m.body.clone())
+        .align(if spin_row {
+            egui::Align2::RIGHT_CENTER
+        } else {
+            egui::Align2::LEFT_CENTER
+        })
+        .margin(crate::entry_margin(
+            ui,
+            &x.m.body,
+            ui.available_height(),
+            8,
+            8,
+        ))
+        .min_size(ui.available_size())
+        .desired_width(ui.available_width())
+        .event_filter(egui::EventFilter {
+            horizontal_arrows: true,
+            vertical_arrows: true,
+            escape: true,
+            ..Default::default()
+        });
+    let editor = if spin_row {
+        editor.frame(egui::Frame::NONE)
+    } else {
+        editor
+    };
+    let mut response = show_text_editor(ui, editor, id, composing);
+    if ui.is_enabled() && !composing && (enter || response.lost_focus()) {
+        if let Some(parsed) = parse(&text) {
+            *value = parsed;
+        }
+        text = render(value.to_f64());
+    }
+    let wheel = super::gtk_wheel(ui, &response);
+    if wheel != 0.0 {
+        if let Some(parsed) = parse(&text) {
+            *value = parsed;
+        }
+        *value = T::from_f64(stepped_number(value.to_f64(), step, wheel, lo, hi));
+        text = render(value.to_f64());
+    }
+    if response.gained_focus() && !ui.input(|input| input.pointer.any_down()) && !composing {
+        select_all_text(ui.ctx(), id, &text);
+    }
+    let editing = response.has_focus();
+    ui.data_mut(|data| {
+        data.insert_temp(
+            key,
+            NumericEdit {
+                text: text.clone(),
+                value: value.to_f64(),
+                focused: editing,
+            },
+        )
+    });
+    response.flags.remove(egui::response::Flags::CHANGED);
+    if super::number_changed(before, value.to_f64()) {
+        response.mark_changed();
+    }
+    response.widget_info(|| egui::WidgetInfo::drag_value(ui.is_enabled(), value.to_f64()));
+    ui.ctx().accesskit_node_builder(id, |node| {
+        let name = [format.prefix.trim(), format.suffix.trim()]
+            .into_iter()
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+        if !name.is_empty() {
+            node.set_label(name);
+        }
+        node.set_numeric_value(value.to_f64());
+        node.set_min_numeric_value(lo);
+        node.set_max_numeric_value(hi);
+        node.set_numeric_value_step(step);
+        node.set_value(text);
+        if ui.is_enabled() {
+            node.add_action(egui::accesskit::Action::SetValue);
+            if value.to_f64() < hi {
+                node.add_action(egui::accesskit::Action::Increment);
+            }
+            if value.to_f64() > lo {
+                node.add_action(egui::accesskit::Action::Decrement);
+            }
+        }
+    });
+    keep_focused_field_visible(ui, &response);
+    (response, handled)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum NumberKey {
     Start,
@@ -944,6 +1541,20 @@ fn number_input<T: egui::emath::Numeric>(
     bounds: (f64, f64),
 ) -> bool {
     let focused = ui.memory(|memory| memory.has_focus(id));
+    if focused {
+        let direction = ui.input_mut(|input| {
+            if input.consume_key(egui::Modifiers::CTRL, egui::Key::ArrowUp) {
+                Some(egui::FocusDirection::Up)
+            } else if input.consume_key(egui::Modifiers::CTRL, egui::Key::ArrowDown) {
+                Some(egui::FocusDirection::Down)
+            } else {
+                None
+            }
+        });
+        if let Some(direction) = direction {
+            ui.memory_mut(|memory| memory.move_focus(direction));
+        }
+    }
     let commands = ui.input_mut(|input| {
         let mut commands = Vec::new();
         if focused {
@@ -1044,6 +1655,7 @@ fn entry_visuals(ui: &mut Ui, x: &Ctx) {
         Look::Mac | Look::Windows => Stroke::new(1.0, c.control_border),
         Look::Plain => Stroke::new(1.0, c.border),
     };
+    let enabled = ui.is_enabled();
     let w = &mut ui.visuals_mut().widgets;
     // A disabled entry is drawn with the non-interactive style.
     for (state, fill) in [
@@ -1052,6 +1664,7 @@ fn entry_visuals(ui: &mut Ui, x: &Ctx) {
         (&mut w.hovered, c.entry),
         (&mut w.active, c.entry_focused),
     ] {
+        state.fg_stroke.color = if enabled { c.fg } else { c.disabled };
         state.bg_fill = fill;
         state.weak_bg_fill = fill;
         state.bg_stroke = edge;
@@ -1218,7 +1831,7 @@ fn gtk_spin_buttons(
         let mut response = ui.interact(
             half,
             id.with(i),
-            if on { Sense::click() } else { Sense::hover() },
+            if on { Sense::CLICK } else { Sense::hover() },
         );
         response.flags.set(egui::response::Flags::ENABLED, on);
         let response = super::click_response(ui, response);
@@ -1282,7 +1895,7 @@ fn gtk_spin_row_buttons(
         let mut response = ui.interact(
             hit,
             id.with(i),
-            if on { Sense::click() } else { Sense::hover() },
+            if on { Sense::CLICK } else { Sense::hover() },
         );
         response.flags.set(egui::response::Flags::ENABLED, on);
         let response = super::click_response(ui, response);

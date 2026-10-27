@@ -108,7 +108,7 @@ impl Colors {
         let accent = match look {
             // WinUI's default blue, Light 2 on the dark scheme and Dark 1 on the light.
             Look::Windows => system_accent.unwrap_or(rgb(if dark { 0x60cdff } else { 0x005fb8 })),
-            Look::Gtk => system_accent.unwrap_or(rgb(0x3584e4)),
+            Look::Gtk => system_accent.unwrap_or(p.accent),
             // iOS 26's systemBlue; Material 3's baseline primary.
             Look::Ios => system_accent.unwrap_or(rgb(if dark { 0x0091ff } else { 0x0088ff })),
             Look::Material => system_accent.unwrap_or(rgb(if dark { 0xd0bcff } else { 0x6750a4 })),
@@ -354,4 +354,25 @@ impl Colors {
 /// The colours of the theme installed in `ctx`, in egui's scheme of the moment.
 pub fn colors(ctx: &egui::Context) -> Colors {
     crate::resolved(ctx).colors(ctx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gtk_palette_accent_is_used_unless_explicitly_overridden() {
+        let mut theme = Theme::new(Look::Gtk).accent(None);
+        theme.schemes.dark.accent = rgb(0x1f9ede);
+        theme.schemes.light.accent = rgb(0x007755);
+        for dark in [false, true] {
+            let expected = if dark { rgb(0x1f9ede) } else { rgb(0x007755) };
+            let colors = Colors::resolve(&theme, dark);
+            assert_eq!(colors.accent, expected);
+            assert_eq!(colors.accent_hover, lighten(expected, 0.1));
+        }
+        let theme = theme.accent(Some([0xaa2233, 0x3344bb]));
+        assert_eq!(Colors::resolve(&theme, true).accent, rgb(0xaa2233));
+        assert_eq!(Colors::resolve(&theme, false).accent, rgb(0x3344bb));
+    }
 }

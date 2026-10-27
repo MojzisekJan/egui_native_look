@@ -5,6 +5,17 @@
 
 use egui_native_look as look;
 
+fn snapshot_options(name: &str) -> egui_kittest::SnapshotOptions {
+    // Measured software-renderer differences: one antialiased pixel in each affected image.
+    // Keep every pixel checked; only these references need a wider colour tolerance.
+    let threshold = match name {
+        "windows-dark-menu" => 3.0,
+        "macos-light" | "macos-light-more" => 1.0,
+        _ => return egui_kittest::SnapshotOptions::default(),
+    };
+    egui_kittest::SnapshotOptions::default().threshold(threshold)
+}
+
 /// A theme that reads nothing from this system, so the pictures are the same everywhere.
 fn theme(chosen: look::Look) -> look::Theme {
     let mut theme = look::Theme::new(chosen);
@@ -148,9 +159,8 @@ fn every_look_and_scheme_of(add: fn(&mut egui::Ui, &mut State), height: f32, suf
             look::install(&harness.ctx, theme(chosen));
             harness.ctx.set_theme(scheme);
             harness.run();
-            if let Err(error) =
-                harness.try_snapshot(format!("{}-{name}{suffix}", chosen.label().to_lowercase()))
-            {
+            let file = format!("{}-{name}{suffix}", chosen.label().to_lowercase());
+            if let Err(error) = harness.try_snapshot_options(&file, &snapshot_options(&file)) {
                 failures.push(error.to_string());
             }
         }
@@ -224,7 +234,7 @@ fn every_looks_dialog_in_both_schemes() {
                 });
             harness.run();
             let file = format!("{}-{name}-dialog", chosen.label().to_lowercase());
-            if let Err(error) = harness.try_snapshot(file) {
+            if let Err(error) = harness.try_snapshot_options(&file, &snapshot_options(&file)) {
                 failures.push(error.to_string());
             }
         }
@@ -276,7 +286,7 @@ fn every_looks_open_menu_in_both_schemes() {
             harness.hover_at(egui::pos2(290.0, 250.0));
             harness.run();
             let file = format!("{}-{name}-menu", chosen.label().to_lowercase());
-            if let Err(error) = harness.try_snapshot(file) {
+            if let Err(error) = harness.try_snapshot_options(&file, &snapshot_options(&file)) {
                 failures.push(error.to_string());
             }
         }

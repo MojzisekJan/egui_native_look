@@ -112,6 +112,20 @@ impl IconButton {
         let hovered = enabled && response.hovered();
         let tint = |alpha: f32| c.accent.gamma_multiply(alpha);
         let (fill, colour) = match (self.selected.unwrap_or(false), x.look) {
+            (selected, Look::Gtk) => (
+                Some(if selected {
+                    c.button_pressed
+                } else if enabled {
+                    crate::paint::gtk_state_fill(
+                        ui.painter(),
+                        &response,
+                        [c.button, c.button_hover, c.button_pressed],
+                    )
+                } else {
+                    c.button
+                }),
+                c.fg,
+            ),
             (true, Look::Material) => (
                 Some(if hovered { c.accent_hover } else { c.accent }),
                 c.on_accent,
@@ -262,28 +276,29 @@ impl ColorWell<'_> {
                     egui::StrokeKind::Inside,
                 );
             }
-            let swatch = rect.shrink(match x.look {
-                Look::Material => height * 0.25,
-                Look::Mac => 3.0,
-                _ => 4.0,
-            });
+            let swatch = rect.shrink(
+                (match x.look {
+                    Look::Material => height * 0.25,
+                    Look::Mac => 3.0,
+                    _ => 4.0,
+                })
+                .min(rect.width().min(rect.height()) * 0.5),
+            );
             let inner = CornerRadius::same(round.nw.saturating_sub(3).max(2));
             if self.color.a() < 255 {
                 // A checkerboard behind a colour that is not opaque, its left half.
                 let left =
                     Rect::from_min_max(swatch.min, egui::pos2(swatch.center().x, swatch.max.y));
                 ui.painter().rect_filled(swatch, inner, Color32::WHITE);
-                let half = left.height() / 2.0;
-                let mut at = left.left();
-                let mut row = 0;
-                while at < left.right() {
+                let half = (left.height() / 2.0).max(1.0);
+                let count = (left.width().max(0.0) / half).ceil().min(4096.0) as usize;
+                for row in 0..count {
+                    let at = left.left() + row as f32 * half;
                     let cell = Rect::from_min_size(
                         egui::pos2(at, left.top() + if row % 2 == 0 { 0.0 } else { half }),
                         egui::vec2(half.min(left.right() - at), half),
                     );
                     ui.painter().rect_filled(cell, 0.0, Color32::from_gray(200));
-                    at += half;
-                    row += 1;
                 }
                 ui.painter().rect_filled(swatch, inner, *self.color);
                 let right =

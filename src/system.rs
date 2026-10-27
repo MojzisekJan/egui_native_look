@@ -180,7 +180,8 @@ pub fn system_accent(look: Look) -> Option<[u32; 2]> {
     }
 }
 
-/// The system's faces for `look`, read from the system's font folder; `None` where they
+/// The system's faces for `look`, resolved through desktop settings and installed fonts;
+/// `None` where they
 /// are not there (another system, an old one) or without the `system` feature.
 pub fn system_fonts(look: Look) -> Option<SystemFonts> {
     match look {
@@ -194,6 +195,24 @@ pub fn system_fonts(look: Look) -> Option<SystemFonts> {
         Look::Material => android::fonts(),
         _ => None,
     }
+}
+
+pub(crate) fn font_size(look: Look) -> Option<f32> {
+    #[cfg(all(target_os = "linux", feature = "system"))]
+    if look == Look::Gtk {
+        return gnome::font_size();
+    }
+    let _ = look;
+    None
+}
+
+pub(crate) fn schemes(look: Look) -> Option<crate::Schemes> {
+    #[cfg(all(target_os = "linux", feature = "system"))]
+    if look == Look::Gtk {
+        return gnome::schemes();
+    }
+    let _ = look;
+    None
 }
 
 /// One variable font at the weight `weight`.
@@ -394,18 +413,48 @@ mod windows {
 mod gnome {
     use egui::FontData;
 
-    /// Adwaita Sans (GNOME 48), else Cantarell, one variable font for both weights where it
-    /// is one; Adwaita Mono, else DejaVu Sans Mono. The folders of the common distributions.
+    /// Read the desktop font settings through Fontconfig, falling back to installed
+    /// Adwaita or Cantarell fonts when the settings are unavailable.
     pub fn fonts() -> Option<super::SystemFonts> {
+        if let Some((family, _)) = desktop_setting("font-name").and_then(|s| parse_font(&s)) {
+            if let (Some(regular), Some(semibold)) = (
+                matched_font(&family, "regular", 400.0),
+                matched_font(&family, "bold", 700.0),
+            ) {
+                let mono = desktop_setting("monospace-font-name")
+                    .and_then(|s| parse_font(&s))
+                    .and_then(|(family, _)| matched_font(&family, "regular", 400.0));
+                return Some(super::SystemFonts {
+                    regular,
+                    semibold,
+                    mono,
+                });
+            }
+        }
         let first = |paths: &[&str]| paths.iter().find_map(|p| std::fs::read(p).ok());
-        let text = first(&[
-            "/usr/share/fonts/adwaita-sans-fonts/AdwaitaSans-Regular.ttf",
-            "/usr/share/fonts/truetype/adwaita/AdwaitaSans-Regular.ttf",
-            "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf",
-            "/usr/share/fonts/cantarell/Cantarell-VF.otf",
-            "/usr/share/fonts/opentype/cantarell/Cantarell-VF.otf",
-            "/usr/share/fonts/abattis-cantarell-vf-fonts/Cantarell-VF.otf",
-        ])?;
+        let (text, bold_path) = [
+            (
+                "/usr/share/fonts/adwaita-sans-fonts/AdwaitaSans-Regular.ttf",
+                None,
+            ),
+            (
+                "/usr/share/fonts/truetype/adwaita/AdwaitaSans-Regular.ttf",
+                None,
+            ),
+            ("/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf", None),
+            ("/usr/share/fonts/cantarell/Cantarell-VF.otf", None),
+            ("/usr/share/fonts/opentype/cantarell/Cantarell-VF.otf", None),
+            (
+                "/usr/share/fonts/opentype/cantarell/Cantarell-Regular.otf",
+                Some("/usr/share/fonts/opentype/cantarell/Cantarell-Bold.otf"),
+            ),
+            (
+                "/usr/share/fonts/abattis-cantarell-vf-fonts/Cantarell-VF.otf",
+                None,
+            ),
+        ]
+        .into_iter()
+        .find_map(|(path, bold)| std::fs::read(path).ok().map(|text| (text, bold)))?;
         let mono = first(&[
             "/usr/share/fonts/adwaita-mono-fonts/AdwaitaMono-Regular.ttf",
             "/usr/share/fonts/truetype/adwaita/AdwaitaMono-Regular.ttf",
@@ -413,12 +462,198 @@ mod gnome {
             "/usr/share/fonts/dejavu-sans-mono-fonts/DejaVuSansMono.ttf",
         ])
         .map(FontData::from_owned);
-        // Both faces are variable: semibold is weight 600, as libadwaita's headings take.
+        // Static faces need a separate bold file; variable faces accept a weight axis.
+        let bold = bold_path.and_then(|path| std::fs::read(path).ok());
         Some(super::SystemFonts {
             regular: super::weighted(&text, 400.0),
-            semibold: super::weighted(&text, 600.0),
+            semibold: bold
+                .map(FontData::from_owned)
+                .unwrap_or_else(|| super::weighted(&text, 700.0)),
             mono,
         })
+    }
+
+    fn desktop_setting(key: &str) -> Option<String> {
+        let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        let schema = if desktop.contains("cinnamon") {
+            "org.cinnamon.desktop.interface"
+        } else {
+            "org.gnome.desktop.interface"
+        };
+        let output = std::process::Command::new("gsettings")
+            .args(["get", schema, key])
+            .output()
+            .ok()?;
+        output.status.success().then(|| {
+            String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .trim_matches('\'')
+                .to_owned()
+        })
+    }
+
+    fn parse_font(description: &str) -> Option<(String, f32)> {
+        let (family, size) = description.trim().rsplit_once(' ')?;
+        let pixels = size.ends_with("px");
+        let size: f32 = size.trim_end_matches("px").parse().ok()?;
+        let size = if pixels { size } else { size * 96.0 / 72.0 };
+        (!family.trim().is_empty() && size.is_finite() && size > 0.0 && size <= 256.0)
+            .then(|| (family.trim().to_owned(), size))
+    }
+
+    fn matched_font(family: &str, weight: &str, numeric_weight: f32) -> Option<FontData> {
+        let pattern = format!("{family}:weight={weight}");
+        let output = std::process::Command::new("fc-match")
+            .args(["--format=%{file}\n%{index}", "--", &pattern])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let output = String::from_utf8(output.stdout).ok()?;
+        let mut lines = output.lines();
+        let bytes = std::fs::read(lines.next()?).ok()?;
+        let mut data = super::weighted(&bytes, numeric_weight);
+        data.index = lines
+            .next()
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(0)
+            & 0xffff;
+        Some(data)
+    }
+
+    pub(super) fn schemes() -> Option<crate::Schemes> {
+        let theme = desktop_setting("gtk-theme")?;
+        // A theme name is one directory component, not a path supplied to a shell.
+        if theme.is_empty() || theme.contains(['/', '\\']) || theme == "." || theme == ".." {
+            return None;
+        }
+        let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+        let mut roots = Vec::new();
+        if let Some(data) = std::env::var_os("XDG_DATA_HOME") {
+            roots.push(std::path::PathBuf::from(data).join("themes"));
+        } else if let Some(home) = &home {
+            roots.push(home.join(".local/share/themes"));
+        }
+        if let Some(home) = &home {
+            roots.push(home.join(".themes"));
+        }
+        for root in std::env::split_paths(
+            &std::env::var_os("XDG_DATA_DIRS")
+                .unwrap_or_else(|| "/usr/local/share:/usr/share".into()),
+        ) {
+            roots.push(root.join("themes"));
+        }
+        roots.into_iter().find_map(|root| {
+            let root = root.join(&theme).join("libadwaita-1.5");
+            let dark = std::fs::read_to_string(root.join("defaults-dark.css")).ok()?;
+            let light = std::fs::read_to_string(root.join("defaults-light.css")).ok()?;
+            Some(crate::Schemes {
+                dark: palette_from_css(&dark, true),
+                light: palette_from_css(&light, false),
+            })
+        })
+    }
+
+    fn palette_from_css(css: &str, dark: bool) -> crate::Palette {
+        let defaults = crate::Schemes::for_look(crate::Look::Gtk);
+        let mut palette = if dark { defaults.dark } else { defaults.light };
+        let mut clean = String::new();
+        let mut rest = css;
+        while let Some((before, comment)) = rest.split_once("/*") {
+            clean.push_str(before);
+            rest = comment.split_once("*/").map_or("", |(_, after)| after);
+        }
+        clean.push_str(rest);
+        let definitions: std::collections::HashMap<_, _> = clean
+            .split("@define-color")
+            .skip(1)
+            .filter_map(|part| {
+                let declaration = part.split_once(';')?.0.trim();
+                let at = declaration.find(char::is_whitespace)?;
+                Some((&declaration[..at], declaration[at..].trim()))
+            })
+            .collect();
+        let resolve = |name| css_color(name, &definitions, 0);
+        if let Some(color) = resolve("window_bg_color") {
+            palette.bg = opaque(color, palette.bg);
+        }
+        if let Some(color) = resolve("window_fg_color") {
+            palette.fg = opaque(color, palette.bg);
+        }
+        if let Some(color) = resolve("popover_bg_color") {
+            palette.surface = opaque(color, palette.bg);
+        }
+        if let Some(color) = resolve("accent_bg_color") {
+            palette.accent = opaque(color, palette.bg);
+        }
+        palette.dim = crate::lerp_color(palette.bg, palette.fg, 0.55);
+        palette.disabled = crate::lerp_color(palette.bg, palette.fg, 0.5);
+        palette
+    }
+
+    fn opaque([r, g, b, a]: [f32; 4], bg: egui::Color32) -> egui::Color32 {
+        egui::Color32::from_rgb(
+            (r * a + f32::from(bg.r()) * (1.0 - a)).round() as u8,
+            (g * a + f32::from(bg.g()) * (1.0 - a)).round() as u8,
+            (b * a + f32::from(bg.b()) * (1.0 - a)).round() as u8,
+        )
+    }
+
+    fn css_color(
+        name: &str,
+        definitions: &std::collections::HashMap<&str, &str>,
+        depth: usize,
+    ) -> Option<[f32; 4]> {
+        if depth >= 16 {
+            return None;
+        }
+        let value = definitions.get(name)?.trim();
+        if let Some(name) = value.strip_prefix('@') {
+            return css_color(name, definitions, depth + 1);
+        }
+        if value == "white" {
+            return Some([255.0, 255.0, 255.0, 1.0]);
+        }
+        if value == "black" {
+            return Some([0.0, 0.0, 0.0, 1.0]);
+        }
+        if let Some(hex) = value.strip_prefix('#').filter(|s| s.len() == 6) {
+            let rgb = u32::from_str_radix(hex, 16).ok()?;
+            return Some([
+                ((rgb >> 16) & 255) as f32,
+                ((rgb >> 8) & 255) as f32,
+                (rgb & 255) as f32,
+                1.0,
+            ]);
+        }
+        let (values, count) = if let Some(v) = value.strip_prefix("rgba(") {
+            (v.strip_suffix(')')?, 4)
+        } else {
+            (value.strip_prefix("rgb(")?.strip_suffix(')')?, 3)
+        };
+        let values: Vec<f32> = values
+            .split(',')
+            .map(|s| s.trim().parse())
+            .collect::<Result<_, _>>()
+            .ok()?;
+        if values.len() != count
+            || values.iter().any(|v| !v.is_finite())
+            || values[..3].iter().any(|v| !(0.0..=255.0).contains(v))
+        {
+            return None;
+        }
+        let a = if count == 4 { values[3] } else { 1.0 };
+        (0.0..=1.0)
+            .contains(&a)
+            .then_some([values[0], values[1], values[2], a])
+    }
+    pub(super) fn font_size() -> Option<f32> {
+        desktop_setting("font-name")
+            .and_then(|s| parse_font(&s))
+            .map(|(_, size)| size)
     }
 
     /// GNOME's style (`org.gnome.desktop.interface color-scheme`): dark when it prefers
@@ -459,6 +694,37 @@ mod gnome {
             "slate" => 0x6f8396,
             _ => return None,
         })
+    }
+    #[cfg(test)]
+    mod font_tests {
+        use super::{palette_from_css, parse_font};
+        #[test]
+        fn theme_colours_resolve_aliases_and_composite_text() {
+            let p=palette_from_css("@define-color base #222226; @define-color window_bg_color @base; @define-color window_fg_color rgba(255,255,255,0.5); @define-color popover_bg_color #383838;",true);
+            assert_eq!(p.bg, egui::Color32::from_rgb(34, 34, 38));
+            assert_eq!(p.fg, egui::Color32::from_rgb(145, 145, 147));
+            assert_eq!(p.surface, egui::Color32::from_gray(56));
+        }
+        #[test]
+        fn unsupported_or_cyclic_theme_colours_keep_defaults() {
+            let default = crate::Schemes::for_look(crate::Look::Gtk).dark;
+            for css in [
+                "@define-color window_bg_color @window_bg_color;",
+                "@define-color window_bg_color rgba(0,0,0,NaN);",
+                "@define-color window_bg_color #oops;",
+                "/* @define-color window_bg_color #000000; */",
+            ] {
+                assert_eq!(palette_from_css(css, true).bg, default.bg);
+            }
+        }
+        #[test]
+        fn desktop_font_description_keeps_family_and_converts_points() {
+            assert_eq!(parse_font("Noto Sans 12"), Some(("Noto Sans".into(), 16.0)));
+            assert_eq!(parse_font("Ubuntu 15px"), Some(("Ubuntu".into(), 15.0)));
+            for invalid in ["", "12", "Sans NaN", "Sans -2", "Sans 9999"] {
+                assert!(parse_font(invalid).is_none());
+            }
+        }
     }
 }
 

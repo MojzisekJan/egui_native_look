@@ -362,12 +362,12 @@ impl Palette {
             ),
             // libadwaita's window, popover and text colours, its dimmed and disabled text.
             Look::Gtk => with(
-                (0xffffff, 0x323237),
-                (0x9c9c9d, 0x8c8c8f),
-                (0x909192, 0x969699),
-                (0x222226, 0xfafafb),
-                (0x36363a, 0xffffff),
-                (0x434347, 0xdcdcde),
+                (0xffffff, 0x323232),
+                (0x9c9c9c, 0x8c8c8c),
+                (0x929292, 0x969696),
+                (0x242424, 0xfafafa),
+                (0x383838, 0xffffff),
+                (0x464646, 0xdcdcdc),
                 (0x3584e4, 0x3584e4),
                 hover,
             ),
@@ -399,6 +399,15 @@ impl Palette {
 }
 
 impl Schemes {
+    /// Read installed GTK/libadwaita 1.5 theme colour overrides on Linux.
+    /// Falls back to [`Self::for_look`] on other platforms, without `system`, or
+    /// when no supported override is installed. Call during setup, not per frame.
+    /// Supports named aliases, six-digit hex, rgb/rgba, black and white. This does
+    /// not load arbitrary widget CSS or change the fixed defaults of [`Theme::new`].
+    pub fn system(look: Look) -> Schemes {
+        system::schemes(look).unwrap_or_else(|| Self::for_look(look))
+    }
+
     /// Both schemes of [`Palette::for_look`].
     pub fn for_look(look: Look) -> Schemes {
         Schemes {
@@ -451,7 +460,7 @@ impl Metrics {
         let (height, radius, size) = match look {
             Look::Mac => (24.0, 6, 13.0),
             Look::Windows => (32.0, 4, 14.0),
-            Look::Gtk => (34.0, 9, 14.67),
+            Look::Gtk => (34.0, 6, 14.67),
             Look::Ios => (34.0, 8, 17.0),
             Look::Material => (40.0, 8, 14.0),
             Look::Plain => (28.0, 4, 13.0),
@@ -462,6 +471,19 @@ impl Metrics {
             body: FontId::proportional(size),
             bold: FontId::proportional(size),
         }
+    }
+
+    /// Default metrics with the configured desktop text size when available.
+    /// On Linux, GTK reads the desktop font setting through `gsettings`; call this
+    /// during setup, not on every frame. Other platforms keep [`Self::of`] metrics.
+    pub fn system(look: Look) -> Metrics {
+        let mut metrics = Self::of(look);
+        if let Some(size) = system::font_size(look) {
+            metrics.body.size = size;
+            metrics.bold.size = size;
+            metrics.control_height = metrics.control_height.max(size + 10.0);
+        }
+        metrics
     }
 
     /// Smaller controls, as SwiftUI's `.small` control size draws them on macOS: 20 points
@@ -540,6 +562,19 @@ pub fn bold_family() -> egui::FontFamily {
     egui::FontFamily::Name("egui_native_look-bold".into())
 }
 
+/// Whether an accent is supplied by the app or follows the system.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AccentSource {
+    /// A supplied accent is fixed; an absent one follows the system. Installation
+    /// resolves this to [`Self::System`] or [`Self::Fixed`] so copying a theme is safe.
+    #[default]
+    Automatic,
+    /// Keep reading the system accent, falling back to the palette when unavailable.
+    System,
+    /// Keep [`Theme::accent`], or the palette when it is absent.
+    Fixed,
+}
+
 /// The whole of a look: which, the app's palette, the controls' sizes, and the system's
 /// accent once [`install`] has read it.
 ///
@@ -552,6 +587,8 @@ pub fn bold_family() -> egui::FontFamily {
 #[must_use]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Theme {
+    /// How installation and system changes resolve [`Self::accent`].
+    pub accent_source: AccentSource,
     /// How the controls are drawn.
     pub look: Look,
     /// The app's palette for each scheme.
@@ -559,7 +596,8 @@ pub struct Theme {
     /// The controls' sizes and fonts.
     pub metrics: Metrics,
     /// The system's accent for the dark and the light scheme, as 0xRRGGBB; `None` keeps
-    /// the palette's. [`install`] fills it in unless it was set.
+    /// the palette's. [`Self::accent_source`] controls whether installation reads it
+    /// from the system. Use [`Self::accent`] to pin a copied theme's colour.
     pub accent: Option<[u32; 2]>,
     /// Whether the system asks for more contrast: controls take an edge, troughs and
     /// separators darken and secondary text comes closer to the text colour, as
@@ -582,6 +620,7 @@ impl Theme {
     /// `look` with its system's palette ([`Schemes::for_look`]) and sizes.
     pub fn new(look: Look) -> Theme {
         Theme {
+            accent_source: AccentSource::Automatic,
             look,
             schemes: Schemes::for_look(look),
             metrics: Metrics::of(look),
@@ -594,6 +633,14 @@ impl Theme {
     /// [`Theme::high_contrast`](Theme#structfield.high_contrast).
     pub fn high_contrast(mut self, on: bool) -> Theme {
         self.high_contrast = on;
+        self
+    }
+
+    /// Fix the accent to the app's colours, even when this theme was read from a context.
+    /// `None` uses the palette instead of the system accent.
+    pub fn accent(mut self, accent: Option<[u32; 2]>) -> Theme {
+        self.accent = accent;
+        self.accent_source = AccentSource::Fixed;
         self
     }
 
@@ -681,9 +728,49 @@ pub fn install(ctx: &egui::Context, theme: Theme) {
 
 fn restyle(ctx: &egui::Context, theme: &Theme) {
     for scheme in [egui::Theme::Dark, egui::Theme::Light] {
+        let id = resolved_id().with(("style-origin", scheme == egui::Theme::Dark));
+        let previous = ctx.data(|data| data.get_temp::<(egui::Style, egui::Style)>(id));
+        let mut saved = None;
         ctx.style_mut_of(scheme, |style| {
-            apply_style(style, theme, scheme == egui::Theme::Dark)
+            let mut base = style.clone();
+            if let Some((original, applied)) = previous {
+                macro_rules! recover {
+                    ($($field:ident).+) => {
+                        if base.$($field).+ == applied.$($field).+ {
+                            base.$($field).+ = original.$($field).+;
+                        }
+                    };
+                }
+                recover!(visuals.disabled_alpha);
+                recover!(visuals.text_cursor.stroke);
+                recover!(visuals.popup_shadow);
+                recover!(spacing.menu_margin);
+                recover!(spacing.scroll);
+            }
+            apply_style(style, theme, scheme == egui::Theme::Dark);
+            if !matches!(
+                theme.look,
+                Look::Mac | Look::Gtk | Look::Ios | Look::Material
+            ) {
+                style.visuals.disabled_alpha = base.visuals.disabled_alpha;
+            }
+            if theme.look == Look::Plain {
+                style.visuals.text_cursor.stroke = base.visuals.text_cursor.stroke;
+            }
+            if !matches!(theme.look, Look::Mac | Look::Gtk) {
+                style.visuals.popup_shadow = base.visuals.popup_shadow;
+            }
+            if matches!(theme.look, Look::Plain | Look::Ios) {
+                style.spacing.menu_margin = base.spacing.menu_margin;
+            }
+            if !matches!(theme.look, Look::Mac | Look::Gtk) {
+                style.spacing.scroll = base.spacing.scroll;
+            }
+            saved = Some((base, style.clone()));
         });
+        if let Some(saved) = saved {
+            ctx.data_mut(|data| data.insert_temp(id, saved));
+        }
     }
 }
 
@@ -696,7 +783,16 @@ pub fn set_theme(ctx: &egui::Context, theme: Theme) -> Theme {
 
 fn keep(ctx: &egui::Context, mut theme: Theme, styled: bool) -> Theme {
     theme.metrics = theme.metrics.sanitized(theme.look);
-    let system_accent = theme.accent.is_none();
+    let system_accent = match theme.accent_source {
+        AccentSource::Automatic => theme.accent.is_none(),
+        AccentSource::System => true,
+        AccentSource::Fixed => false,
+    };
+    theme.accent_source = if system_accent {
+        AccentSource::System
+    } else {
+        AccentSource::Fixed
+    };
     if system_accent {
         theme.accent = system::system_accent(theme.look);
     }
@@ -758,7 +854,7 @@ pub fn look(ctx: &egui::Context) -> Look {
 }
 
 /// Puts the system's faces for `look` (San Francisco, Segoe UI Variable, Adwaita Sans or
-/// Cantarell) in front of `fonts`' proportional and monospace families, and its semibold
+/// Cantarell, or the configured Linux desktop font) in front of `fonts`' proportional and monospace families, and its semibold
 /// behind [`bold_family`]. Returns whether the system had them.
 pub fn install_fonts(fonts: &mut egui::FontDefinitions, look: Look) -> bool {
     let system = system_fonts(look);
@@ -895,5 +991,62 @@ mod tests {
         assert_eq!(changed.metrics, metrics);
         assert_eq!(changed.schemes, schemes);
         assert_ne!(base.schemes, changed.schemes);
+    }
+}
+
+#[cfg(test)]
+mod regression_tests {
+    use super::*;
+    #[test]
+    fn copying_a_theme_preserves_system_accent_updates() {
+        let ctx = egui::Context::default();
+        install(&ctx, Theme::new(Look::Plain));
+        take_system_accent(&ctx, Some([0x123456; 2]));
+        install(&ctx, theme(&ctx).high_contrast(true));
+        take_system_accent(&ctx, Some([0xabcdef; 2]));
+        assert_eq!(theme(&ctx).accent, Some([0xabcdef; 2]));
+        install(&ctx, theme(&ctx).accent(Some([0xabcdef; 2])));
+        take_system_accent(&ctx, Some([0xff0000; 2]));
+        assert_eq!(theme(&ctx).accent, Some([0xabcdef; 2]));
+    }
+    #[test]
+    fn changing_looks_restores_app_style_and_accepts_later_overrides() {
+        let ctx = egui::Context::default();
+        let custom = egui::Shadow {
+            blur: 19,
+            ..egui::Shadow::NONE
+        };
+        ctx.all_styles_mut(|style| {
+            style.visuals.popup_shadow = custom;
+            style.visuals.disabled_alpha = 0.61;
+        });
+        install(&ctx, Theme::new(Look::Mac));
+        install(&ctx, Theme::new(Look::Windows));
+        assert_eq!(ctx.style_of(egui::Theme::Dark).visuals.popup_shadow, custom);
+        assert_eq!(ctx.style_of(egui::Theme::Dark).visuals.disabled_alpha, 0.61);
+        install(&ctx, Theme::new(Look::Material));
+        ctx.all_styles_mut(|style| style.visuals.disabled_alpha = 0.72);
+        install(&ctx, Theme::new(Look::Gtk));
+        assert_eq!(ctx.style_of(egui::Theme::Dark).visuals.disabled_alpha, 0.5);
+        install(&ctx, Theme::new(Look::Windows));
+        assert_eq!(ctx.style_of(egui::Theme::Dark).visuals.disabled_alpha, 0.72);
+    }
+    #[test]
+    fn direct_style_application_is_independent_of_previous_look() {
+        for look in [
+            Look::Plain,
+            Look::Mac,
+            Look::Windows,
+            Look::Gtk,
+            Look::Ios,
+            Look::Material,
+        ] {
+            let mut changed = egui::Style::default();
+            let mut fresh = changed.clone();
+            apply_style(&mut changed, &Theme::new(Look::Mac), false);
+            apply_style(&mut changed, &Theme::new(look), false);
+            apply_style(&mut fresh, &Theme::new(look), false);
+            assert_eq!(changed, fresh, "{look}");
+        }
     }
 }

@@ -854,7 +854,11 @@ impl Dropdown<'_> {
             Look::Gtk => 32.0,
             _ => ui.spacing().interact_size.y,
         };
-        let font = popup_font(&x);
+        let font = if x.look == Look::Gtk {
+            x.m.body.clone()
+        } else {
+            popup_font(&x)
+        };
         let bold = x.m.bold.clone();
         let longest = self
             .items
@@ -873,9 +877,33 @@ impl Dropdown<'_> {
             .width(width)
             .show(ui, |ui| {
                 let max_height = (ui.ctx().content_rect().height() - 32.0).clamp(1.0, 320.0);
-                egui::ScrollArea::vertical()
+                super::ScrollArea::vertical()
                     .max_height(max_height)
                     .show(ui, |ui| {
+                        let focus_key = ui.scope_id().with("dropdown-keyboard-highlight");
+                        let frame = ui.ctx().cumulative_frame_nr();
+                        let previous = ui.data(|data| data.get_temp::<(u64, bool)>(focus_key));
+                        let keyboard_highlight = ui.input(|input| {
+                            let mut visible = previous
+                                .filter(|(last, _)| frame.saturating_sub(*last) <= 1)
+                                .map_or(
+                                    !input.pointer.any_down() && !input.pointer.any_click(),
+                                    |(_, visible)| visible,
+                                );
+                            for event in &input.events {
+                                match event {
+                                    egui::Event::PointerMoved(_)
+                                    | egui::Event::PointerButton { .. } => visible = false,
+                                    egui::Event::Key { pressed: true, .. }
+                                    | egui::Event::Text(_) => visible = true,
+                                    _ => {}
+                                }
+                            }
+                            visible
+                        });
+                        ui.data_mut(|data| {
+                            data.insert_temp(focus_key, (frame, keyboard_highlight))
+                        });
                         let mut ids = Vec::with_capacity(items.len());
                         let mut focused = None;
                         for (i, item) in items.iter().enumerate() {
@@ -902,7 +930,8 @@ impl Dropdown<'_> {
                                     item,
                                 )
                             });
-                            let hot = hit.hovered() || hit.has_focus();
+                            let hot = hit.hovered()
+                                || (hit.has_focus() && (look != Look::Gtk || keyboard_highlight));
                             if look == Look::Material {
                                 // Material lays a state layer over the row under the pointer
                                 // and a stronger one over the chosen row, without a tick.
@@ -944,7 +973,13 @@ impl Dropdown<'_> {
                             if i == *selected && !matches!(look, Look::Windows | Look::Material) {
                                 // libadwaita ticks the chosen item after its label, at the end.
                                 let tick = if look == Look::Gtk {
-                                    row.right() - 18.0
+                                    let width = ui.fonts_mut(|fonts| {
+                                        fonts
+                                            .layout_no_wrap(item.clone(), font.clone(), colour)
+                                            .size()
+                                            .x
+                                    });
+                                    (row.left() + 12.0 + width + 14.0).min(row.right() - 12.0)
                                 } else {
                                     row.left() + 12.0
                                 };
@@ -1125,7 +1160,7 @@ pub(super) fn menu_contents<R>(
             if x.c.dark { 0.17 } else { 0.09 },
         );
     }
-    egui::ScrollArea::vertical()
+    super::ScrollArea::vertical()
         .id_salt("menu-rows")
         .max_height((bounds.height() - 32.0).max(1.0))
         .min_scrolled_height(1.0)
@@ -2075,6 +2110,12 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
             egui::pos2(rect.right() - knob_r, rect.center().y + 2.0),
         );
         self.accessible_input(ui, &mut response);
+        if x.look == Look::Gtk {
+            let wheel = super::gtk_wheel(ui, &response);
+            if wheel != 0.0 {
+                self.set(self.nudged(wheel * 10.0, false), &mut response);
+            }
+        }
         let dragging = self.pointer_input(ui, &mut response, rail, knob_r, x.look);
         response = super::click_response(ui, response);
         if response.has_focus() && response.enabled() {
@@ -2142,7 +2183,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 };
                 crate::lerp_color(c.bg, ink, if c.dark { 0.27 } else { 0.2 })
             }
-            (true, _) => c.accent,
+            (true, _) | (false, Look::Gtk) => c.accent,
             // macOS greys a disabled slider's fill just past its rail.
             (false, Look::Mac) => {
                 let ink = if c.dark {
@@ -2280,15 +2321,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                     knob_r + 0.5,
                     Color32::from_black_alpha(if enabled { 50 } else { 20 }),
                 );
-                painter.circle_filled(
-                    at,
-                    knob_r,
-                    if enabled {
-                        Color32::WHITE
-                    } else {
-                        Color32::from_gray(if c.dark { 140 } else { 240 })
-                    },
-                );
+                painter.circle_filled(at, knob_r, Color32::WHITE);
             }
         }
         if response.has_focus() {
@@ -2682,6 +2715,8 @@ fn popup_height(ui: &Ui, look: Look) -> f32 {
 fn popup_font(x: &Ctx) -> egui::FontId {
     if x.look == Look::Material {
         egui::FontId::new(16.0, x.m.body.family.clone())
+    } else if x.look == Look::Gtk {
+        x.m.bold.clone()
     } else {
         x.m.body.clone()
     }

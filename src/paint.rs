@@ -320,12 +320,16 @@ pub(crate) fn button(
     };
     let down = response.is_pointer_button_down_on();
     let hovered = response.hovered();
-    let fill = match (enabled, accent) {
+    let mut fill = match (enabled, accent) {
+        (false, true) if look == Look::Gtk => c.accent,
         (false, _) => c.button_disabled,
         (true, true) if down && look == Look::Mac => crate::mac_pressed_accent(&c),
         // Material's pressed state layer: 10 % of the primary's text colour.
         (true, true) if down && look == Look::Material => {
             crate::lerp_color(c.accent, c.on_accent, 0.1)
+        }
+        (true, true) if down && look == Look::Gtk => {
+            crate::lerp_color(c.accent, Color32::BLACK, 0.2)
         }
         (true, true) if down => c
             .accent
@@ -338,6 +342,18 @@ pub(crate) fn button(
         (true, false) if hovered => c.button_hover,
         (true, false) => c.button,
     };
+    if look == Look::Gtk && enabled {
+        let fills = if accent {
+            [
+                c.accent,
+                c.accent_hover,
+                crate::lerp_color(c.accent, Color32::BLACK, 0.2),
+            ]
+        } else {
+            [c.button, c.button_hover, c.button_pressed]
+        };
+        fill = gtk_state_fill(painter, response, fills);
+    }
     if accent && look == Look::Windows {
         painter.rect_filled(rect, radius, fill);
         if enabled {
@@ -367,7 +383,7 @@ pub(crate) fn button(
     }
     // WinUI dims a pressed button's text rather than darkening its fill much.
     // iOS sets an ordinary (bordered) button's text in the accent.
-    let color = if !enabled {
+    let color = if !enabled && look != Look::Gtk {
         c.disabled
     } else if accent {
         c.on_accent
@@ -510,7 +526,11 @@ pub(crate) fn popup_button(
             (true, Look::Gtk) => (2.0, c.fg),
             (true, _) => (1.5, c.dim),
         };
-        painter.add(egui::Shape::line(chevron, Stroke::new(width, ink)));
+        if look == Look::Gtk {
+            painter.add(egui::Shape::convex_polygon(chevron, ink, Stroke::NONE));
+        } else {
+            painter.add(egui::Shape::line(chevron, Stroke::new(width, ink)));
+        }
     }
     if response.has_focus() && look.native() {
         ring(painter, p, rect, radius);
@@ -546,6 +566,53 @@ pub fn underline(painter: &egui::Painter, rect: Rect, focused: bool) {
         ],
         Stroke::new(width, colour),
     );
+}
+
+/// State transitions use the toolkit's 200 ms ease-out curve and honor disabled animations.
+pub(crate) fn gtk_state_fill(
+    painter: &egui::Painter,
+    response: &Response,
+    fills: [Color32; 3],
+) -> Color32 {
+    let ctx = painter.ctx();
+    let duration = ctx.global_style().animation_time.min(0.2);
+    let hover = ctx.animate_bool_with_time_and_easing(
+        response.id.with("gtk-hover"),
+        response.hovered(),
+        duration,
+        gtk_easing,
+    );
+    let press = ctx.animate_bool_with_time_and_easing(
+        response.id.with("gtk-press"),
+        response.is_pointer_button_down_on(),
+        duration,
+        gtk_easing,
+    );
+    crate::lerp_color(
+        crate::lerp_color(fills[0], fills[1], hover),
+        fills[2],
+        press,
+    )
+}
+
+fn gtk_easing(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    if t == 0.0 || t == 1.0 {
+        return t;
+    }
+    let bezier = |u: f32, a: f32, b: f32| {
+        3.0 * (1.0 - u).powi(2) * u * a + 3.0 * (1.0 - u) * u * u * b + u * u * u
+    };
+    let (mut lo, mut hi) = (0.0, 1.0);
+    for _ in 0..12 {
+        let mid = (lo + hi) * 0.5;
+        if bezier(mid, 0.25, 0.45) < t {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    bezier((lo + hi) * 0.5, 0.46, 0.94)
 }
 
 #[cfg(test)]

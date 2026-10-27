@@ -19,6 +19,7 @@ pub struct Button {
     label: String,
     icon: Option<(String, egui::FontId)>,
     accent: bool,
+    destructive: bool,
     default_action: bool,
     width: Option<f32>,
 }
@@ -30,6 +31,7 @@ impl Button {
             label: label.into(),
             icon: None,
             accent: false,
+            destructive: false,
             default_action: false,
             width: None,
         }
@@ -52,6 +54,14 @@ impl Button {
     /// Use [`Self::default_action`] separately to activate a dialog action with Enter.
     pub fn accent(mut self) -> Self {
         self.accent = true;
+        self.destructive = false;
+        self
+    }
+    /// Mark a destructive action, such as deleting an item, with a red fill.
+    /// This changes appearance only; activation and confirmation remain the app's responsibility.
+    pub fn destructive(mut self) -> Self {
+        self.accent = true;
+        self.destructive = true;
         self
     }
     /// Activate on Enter in a [`crate::Dialog`] when a [`crate::TextField`] or no
@@ -64,6 +74,7 @@ impl Button {
     /// In the accent when `on`.
     pub fn selected(mut self, on: bool) -> Self {
         self.accent = on;
+        self.destructive = false;
         self
     }
     /// A fixed width.
@@ -83,7 +94,12 @@ impl Widget for Button {
 
 impl Button {
     fn add_contents(self, ui: &mut Ui) -> Response {
-        let x = Ctx::of(ui);
+        let mut x = Ctx::of(ui);
+        if self.destructive {
+            x.c.accent = crate::colors::rgb(if x.c.dark { 0xc01c28 } else { 0xe01b24 });
+            x.c.on_accent = Color32::WHITE;
+            x.c.accent_hover = lerp_color(x.c.accent, Color32::WHITE, 0.1);
+        }
         let icon = self.icon.as_ref().map(|(glyph, font)| {
             ui.fonts_mut(|fonts| fonts.layout_no_wrap(glyph.clone(), font.clone(), x.c.fg))
         });
@@ -99,7 +115,13 @@ impl Button {
         } else {
             0.0
         };
-        let icon_width = icon.as_ref().map_or(0.0, |icon| icon.size().x);
+        let icon_width = icon.as_ref().map_or(0.0, |icon| {
+            if x.look == Look::Gtk {
+                icon.size().x.max(16.0)
+            } else {
+                icon.size().x
+            }
+        });
         // Material sets its button labels in the medium weight, libadwaita in bold.
         let font = if matches!(x.look, Look::Material | Look::Gtk) {
             x.m.bold.clone()
@@ -123,6 +145,7 @@ impl Button {
             Look::Material if text_button => 12.0,
             Look::Material => 24.0,
             // libadwaita's text buttons.
+            Look::Gtk if icon.is_some() => 9.0,
             Look::Gtk => 17.0,
             _ => 10.0,
         };
@@ -138,7 +161,12 @@ impl Button {
         let gtk_response = x.look == Look::Gtk && in_actions;
         let response_width = (in_actions
             && matches!(x.look, Look::Gtk | Look::Windows | Look::Ios))
-        .then(|| super::window::shared_action_width(ui))
+        .then(|| {
+            super::window::shared_action_width(
+                ui,
+                text_width + icon_width + gap + 2.0 * ui.spacing().button_padding.x.max(padding),
+            )
+        })
         .flatten();
         // iOS 26's alert buttons: 48-point capsules, every one alike.
         let ios_alert = x.look == Look::Ios && in_actions;
@@ -191,6 +219,45 @@ impl Button {
             if response.has_focus() {
                 crate::paint::ring(ui.painter(), &x.paint(), rect, round);
             }
+        } else if gtk_response && icon.is_none() && ui.is_rect_visible(rect) {
+            let colour = if !enabled {
+                x.c.disabled
+            } else if self.destructive {
+                crate::colors::rgb(if x.c.dark { 0xff7b63 } else { 0xc01c28 })
+            } else if self.accent {
+                x.c.accent
+            } else {
+                x.c.fg
+            };
+            let left_edge = rect.left() <= ui.max_rect().left() + 1.0;
+            let right_edge = rect.right() >= ui.max_rect().right() - 1.0;
+            let bottom =
+                !ui.layout().main_dir().is_vertical() || super::window::last_dialog_action(ui);
+            let corners = CornerRadius {
+                sw: if left_edge && bottom { 12 } else { 0 },
+                se: if right_edge && bottom { 12 } else { 0 },
+                ..CornerRadius::ZERO
+            };
+            if enabled && (response.hovered() || response.is_pointer_button_down_on()) {
+                ui.painter().rect_filled(rect, corners, x.c.row_hover);
+            }
+            ui.painter()
+                .hline(rect.x_range(), rect.top(), Stroke::new(1.0, x.c.border));
+            if !left_edge {
+                ui.painter()
+                    .vline(rect.left(), rect.y_range(), Stroke::new(1.0, x.c.border));
+            }
+            let (galley, _) =
+                super::truncated(ui, &self.label, font.clone(), colour, rect.width() - 16.0);
+            let top = crate::galley_top(ui.ctx(), &galley, rect.center().y);
+            ui.painter().galley(
+                egui::pos2(rect.center().x - galley.size().x / 2.0, top),
+                galley,
+                colour,
+            );
+            if response.has_focus() {
+                crate::paint::ring(ui.painter(), &x.paint(), rect.shrink(1.0), corners);
+            }
         } else if ios_alert && icon.is_none() && ui.is_rect_visible(rect) {
             // Grey capsules in the text colour, the default one too: black at an eighth or
             // white at a twelfth over the alert, darker pressed.
@@ -237,7 +304,7 @@ impl Button {
                 self.accent,
             );
             if let Some(icon) = icon {
-                let color = if !enabled {
+                let color = if !enabled && x.look != Look::Gtk {
                     x.c.disabled
                 } else if self.accent {
                     x.c.on_accent
@@ -263,7 +330,8 @@ impl Button {
                     .painter()
                     .with_clip_rect(ui.clip_rect().intersect(rect.shrink(4.0)));
                 let top = crate::galley_top(ui.ctx(), &icon, rect.center().y);
-                painter.galley_with_override_text_color(egui::pos2(left, top), icon, color);
+                let icon_left = left + (glyph_width - icon.size().x).max(0.0) * 0.5;
+                painter.galley_with_override_text_color(egui::pos2(icon_left, top), icon, color);
                 let top = crate::galley_top(ui.ctx(), &label, rect.center().y);
                 painter.galley(egui::pos2(left + glyph_width + gap, top), label, color);
             }
@@ -311,7 +379,12 @@ impl<'a> Switch<'a> {
 /// macOS's small and large controls ([`crate::Metrics::small`]) scale it in proportion.
 #[must_use]
 pub fn switch_width(look: Look) -> f32 {
-    switch_size(look).x + if look == Look::Mac { 0.0 } else { 2.0 }
+    switch_size(look).x
+        + if matches!(look, Look::Mac | Look::Gtk) {
+            0.0
+        } else {
+            2.0
+        }
 }
 
 /// The size of a switch's pill in `look`.
@@ -343,14 +416,26 @@ impl Switch<'_> {
         } else {
             switch_size(x.look)
         };
-        let height = ui.spacing().interact_size.y.max(size.y);
+        let height = if x.look == Look::Gtk {
+            size.y
+        } else {
+            ui.spacing().interact_size.y.max(size.y)
+        };
         // macOS's switch starts flush with its row; the others keep a point either side.
-        let margin = if x.look == Look::Mac { 0.0 } else { 2.0 };
+        let margin = if matches!(x.look, Look::Mac | Look::Gtk) {
+            0.0
+        } else {
+            2.0
+        };
         let (outer, mut response) =
             super::allocate_touch(ui, egui::vec2(size.x + margin, height), Sense::click());
         response = super::click_response(ui, response);
         let rect = Rect::from_center_size(outer.center(), size);
         let before = *self.on;
+        if x.look == Look::Gtk && super::form::take_row_activation(ui) {
+            *self.on = !*self.on;
+            response.request_focus();
+        }
         // Every system's switch lets its thumb be dragged; the plain look's only toggles.
         let preview = if x.look.native() {
             switch_drag(ui, &response, rect, self.on)
@@ -370,7 +455,18 @@ impl Switch<'_> {
         if !ui.is_rect_visible(rect) {
             return response;
         }
-        let t = preview.unwrap_or_else(|| ui.ctx().animate_bool_responsive(response.id, on));
+        let t = preview.unwrap_or_else(|| {
+            if x.look == Look::Gtk {
+                ui.ctx().animate_bool_with_time_and_easing(
+                    response.id,
+                    on,
+                    ui.style().animation_time.min(0.1),
+                    egui::emath::easing::cubic_out,
+                )
+            } else {
+                ui.ctx().animate_bool_responsive(response.id, on)
+            }
+        });
         let painter = ui.painter();
         let round = CornerRadius::same((size.y / 2.0) as u8);
         let hovered = enabled && response.hovered();
@@ -828,7 +924,7 @@ impl Checkbox<'_> {
             painter.rect_filled(
                 mark,
                 round,
-                if enabled {
+                if enabled || x.look == Look::Gtk {
                     c.accent
                 } else {
                     c.accent.gamma_multiply(0.5)
@@ -949,7 +1045,7 @@ impl Radio {
             painter.circle_filled(
                 mark.center(),
                 mark.width() / 2.0,
-                if enabled {
+                if enabled || x.look == Look::Gtk {
                     c.accent
                 } else {
                     c.accent.gamma_multiply(0.5)
@@ -960,7 +1056,7 @@ impl Radio {
             painter.circle_filled(
                 mark.center(),
                 mark.width() / 2.0,
-                if enabled {
+                if enabled || x.look == Look::Gtk {
                     c.accent
                 } else {
                     c.accent.gamma_multiply(0.5)
@@ -1241,7 +1337,15 @@ fn mark_row(
         _ => (14.0, 6.0),
     };
     // libadwaita pads the whole check button by 3 points.
-    let pad = if x.look == Look::Gtk { 3.0 } else { 0.0 };
+    let pad = if x.look == Look::Gtk {
+        if text.text().is_empty() {
+            3.0
+        } else {
+            4.0
+        }
+    } else {
+        0.0
+    };
     let galley = text.into_galley(
         ui,
         None,
@@ -1249,7 +1353,11 @@ fn mark_row(
         egui::FontSelection::FontId(x.m.body.clone()),
     );
     let width = side + gap + galley.size().x + 2.0 * pad;
-    let line = ui.spacing().interact_size.y.max(side);
+    let line = if x.look == Look::Gtk {
+        (side + 2.0 * pad).max(super::minimum_target(ui))
+    } else {
+        ui.spacing().interact_size.y.max(side)
+    };
     let first_row = galley
         .rows
         .first()
@@ -1313,7 +1421,7 @@ fn paint_mark_box(
             painter.rect_stroke(
                 mark,
                 round,
-                Stroke::new(2.0, if enabled { tint } else { c.button_disabled }),
+                Stroke::new(2.0, tint),
                 egui::StrokeKind::Inside,
             );
         }

@@ -226,17 +226,11 @@ impl Widget for ListRow {
 impl ListRow {
     fn add_contents(self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
-        let c = x.c;
         let (rect, response) = super::allocate_control(
             ui,
             egui::vec2(ui.available_width(), self.height),
             Sense::click(),
         );
-        let round = CornerRadius::same(match x.look {
-            Look::Plain => 3,
-            Look::Mac => 6,
-            _ => 5,
-        });
         // A click puts the keyboard in the list, as it makes a list first responder.
         if response.clicked() {
             response.request_focus();
@@ -245,44 +239,7 @@ impl ListRow {
             let frame = ui.ctx().cumulative_frame_nr();
             ui.data_mut(|data| data.insert_temp(list_focus_key(ui), frame));
         }
-        if self.picked {
-            match x.look {
-                Look::Mac => {
-                    let fill = if list_emphasized(ui) {
-                        c.accent
-                    } else {
-                        mac_quiet_selection(&c)
-                    };
-                    ui.painter().rect_filled(rect, round, fill);
-                }
-                Look::Windows => {
-                    ui.painter().rect_filled(rect, round, c.button_hover);
-                    let bar = Rect::from_center_size(
-                        egui::pos2(rect.left() + 2.0, rect.center().y),
-                        egui::vec2(3.0, rect.height() * 0.5),
-                    );
-                    ui.painter()
-                        .rect_filled(bar, CornerRadius::same(2), c.accent);
-                }
-                Look::Material => {
-                    // Material's chosen item: the tonal container, rounded to a pill.
-                    ui.painter().rect_filled(
-                        rect,
-                        CornerRadius::same((rect.height() / 2.0) as u8),
-                        c.button,
-                    );
-                }
-                Look::Gtk | Look::Ios | Look::Plain => {
-                    ui.painter().rect_filled(
-                        rect,
-                        round,
-                        c.accent.gamma_multiply(if c.dark { 0.38 } else { 0.24 }),
-                    );
-                }
-            }
-        } else if response.hovered() {
-            ui.painter().rect_filled(rect, round, c.row_hover);
-        }
+        paint_list_row(ui, &x, rect, &response, self.picked);
         response.widget_info(|| {
             egui::WidgetInfo::labeled(egui::Role::ListBoxOption, ui.is_enabled(), &self.label)
         });
@@ -290,6 +247,62 @@ impl ListRow {
             .accesskit_node_builder(response.id, |node| node.set_selected(self.picked));
         response
     }
+}
+
+pub(super) fn paint_list_row(ui: &Ui, x: &Ctx, rect: Rect, response: &Response, picked: bool) {
+    let c = x.c;
+    let round = CornerRadius::same(match x.look {
+        Look::Gtk => 0,
+        Look::Plain => 3,
+        Look::Mac => 6,
+        _ => 5,
+    });
+    if picked {
+        match x.look {
+            Look::Mac => {
+                let fill = if list_emphasized(ui) {
+                    c.accent
+                } else {
+                    mac_quiet_selection(&c)
+                };
+                ui.painter().rect_filled(rect, round, fill);
+            }
+            Look::Windows => {
+                ui.painter().rect_filled(rect, round, c.button_hover);
+                let bar = Rect::from_center_size(
+                    egui::pos2(rect.left() + 2.0, rect.center().y),
+                    egui::vec2(3.0, rect.height() * 0.5),
+                );
+                ui.painter()
+                    .rect_filled(bar, CornerRadius::same(2), c.accent);
+            }
+            Look::Material => {
+                // Material's chosen item: the tonal container, rounded to a pill.
+                ui.painter().rect_filled(
+                    rect,
+                    CornerRadius::same((rect.height() / 2.0) as u8),
+                    c.button,
+                );
+            }
+            Look::Gtk => {
+                ui.painter()
+                    .rect_filled(rect, round, c.accent.gamma_multiply(0.25));
+            }
+            Look::Ios | Look::Plain => {
+                ui.painter().rect_filled(
+                    rect,
+                    round,
+                    c.accent.gamma_multiply(if c.dark { 0.38 } else { 0.24 }),
+                );
+            }
+        }
+    } else if response.hovered() {
+        ui.painter().rect_filled(rect, round, c.row_hover);
+    }
+}
+pub(super) fn note_list_focus(ui: &Ui) {
+    let frame = ui.ctx().cumulative_frame_nr();
+    ui.data_mut(|d| d.insert_temp(list_focus_key(ui), frame));
 }
 
 /// The colour of text on a picked [`ListRow`] in the look in force, for the `Ui` the rows
@@ -396,7 +409,29 @@ impl MenuItem {
                     .style(super::choice::menu_style(crate::look(ui.ctx()))),
             )
             .show(ui, &response, |ui| {
-                super::choice::menu_contents(ui, response.id, add)
+                let key = menu_needed_id(ui.layer_id().id);
+                let previous = ui
+                    .data_mut(|data| data.remove_temp::<f32>(key))
+                    .unwrap_or(0.0);
+                let minimum = match crate::look(ui.ctx()) {
+                    crate::Look::Gtk => 120.0,
+                    crate::Look::Material => 112.0,
+                    _ => ui.spacing().menu_width.min(180.0),
+                };
+                let margins = ui.spacing().menu_margin.sum().x;
+                let width = previous.max(minimum);
+                ui.set_width(
+                    (width - margins).clamp(1.0, (ui.ctx().content_rect().width() - 24.0).max(1.0)),
+                );
+                let result = super::choice::menu_contents(ui, response.id, add);
+                let needed = ui
+                    .data(|data| data.get_temp::<f32>(key))
+                    .unwrap_or(0.0)
+                    .max(minimum);
+                if (width - needed).abs() > 0.5 {
+                    ui.ctx().request_discard("submenu content width");
+                }
+                result
             });
         egui::InnerResponse::new(inner.map(|i| i.inner), response)
     }

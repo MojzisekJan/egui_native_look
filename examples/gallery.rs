@@ -55,13 +55,14 @@ static CONTRAST: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::
 /// `look` with its system's sizes and, where the system has it, its semibold; with more
 /// contrast when asked.
 fn theme(look: look::Look) -> look::Theme {
-    let metrics = look::Metrics::of(look);
+    let metrics = look::Metrics::system(look);
     let metrics = if look::system_fonts(look).is_some() {
         metrics.system_bold()
     } else {
         metrics
     };
     look::Theme::new(look)
+        .schemes(look::Schemes::system(look))
         .metrics(metrics)
         .high_contrast(CONTRAST.load(std::sync::atomic::Ordering::Relaxed))
 }
@@ -80,6 +81,7 @@ struct Gallery {
     delay: f64,
     volume: f64,
     name: String,
+    invalid_name: bool,
     query: String,
     picked: usize,
     added_items: Vec<String>,
@@ -175,13 +177,13 @@ const LOOKS: [look::Look; 6] = [
 /// A vertical scroll area that a touch screen scrolls by dragging from its first touch.
 /// egui enables dragging only once it has seen a touch, which would leave the first
 /// swipe on a phone without effect.
-fn scroll_area(id: &str, touch: bool) -> egui::ScrollArea {
+fn scroll_area(id: &str, touch: bool) -> look::ScrollArea {
     let drag = if touch {
         egui::scroll_area::DragScroll::Always
     } else {
         egui::scroll_area::DragScroll::OnTouch
     };
-    egui::ScrollArea::vertical()
+    look::ScrollArea::vertical()
         .id_salt(id)
         .scroll_source(egui::scroll_area::ScrollSource {
             drag,
@@ -273,6 +275,9 @@ impl Gallery {
                 self.notify(&ctx, "Button activated");
             }
             ui.add_enabled(false, look::Button::new("Disabled"));
+            if ui.add(look::Button::new("Delete").destructive()).clicked() {
+                self.notify(&ctx, "Destructive action activated");
+            }
             if ui.add(look::Button::new("Default").accent()).clicked() {
                 self.notify(&ctx, "Primary action activated");
             }
@@ -363,8 +368,13 @@ impl Gallery {
             ui.add(
                 look::TextField::new(&mut self.name)
                     .hint("Name")
+                    .invalid(self.invalid_name)
                     .width(260.0),
             );
+            ui.add(look::Checkbox::new(
+                &mut self.invalid_name,
+                "Show validation error",
+            ));
             if ui.add(look::Button::new("Dialog…")).clicked() {
                 self.dialog = true;
             }
@@ -413,44 +423,26 @@ impl Gallery {
             }
         });
         let query = self.query.trim().to_lowercase();
+        let items: Vec<_> = ["First row", "Second row", "Third row"]
+            .into_iter()
+            .map(String::from)
+            .chain(self.added_items.iter().cloned())
+            .enumerate()
+            .filter(|(_, item)| item.to_lowercase().contains(&query))
+            .collect();
         look::section(ui, "section", "Items", true, |ui| {
-            let mut matches = 0;
-            for (i, item) in ["First row", "Second row", "Third row"]
-                .into_iter()
-                .map(String::from)
-                .chain(self.added_items.iter().cloned())
-                .enumerate()
-            {
-                if !item.to_lowercase().contains(&query) {
-                    continue;
-                }
-                matches += 1;
-                // Filtering must not transfer a row's focus or identity to another item.
-                let id = ui.make_persistent_id(("gallery-item", i));
-                let response = ui
-                    .scope_builder(egui::UiBuilder::new().scope_id(id), |ui| {
-                        ui.add(look::ListRow::new(i == self.picked).accessible_label(&item))
-                    })
-                    .inner;
-                let colour = if i == self.picked {
-                    look::picked_text(ui)
-                } else {
-                    look::colors(ui.ctx()).fg
-                };
-                look::text(
-                    ui.painter(),
-                    response.rect.left_center() + egui::vec2(10.0, 0.0),
-                    egui::Align2::LEFT_CENTER,
-                    &item,
-                    egui::FontId::proportional(13.0),
-                    colour,
-                );
-                if response.clicked() {
-                    self.picked = i;
-                }
-            }
-            if matches == 0 {
+            if items.is_empty() {
                 ui.label("No matching items");
+            }
+            let result = look::ListBox::new("gallery-items", &mut self.picked)
+                .accessible_label("Items")
+                .show(ui, |list| {
+                    for (id, label) in &items {
+                        list.item(*id, label);
+                    }
+                });
+            if let Some(id) = result.activated {
+                self.notify(&ctx, format!("Opened item {}", id + 1));
             }
         });
     }
@@ -893,7 +885,7 @@ mod tests {
                                 ..Default::default()
                             },
                             |ui| {
-                                egui::ScrollArea::vertical().show(ui, |ui| {
+                                look::ScrollArea::vertical().show(ui, |ui| {
                                     let available = ui.available_width();
                                     gallery.controls(ui);
                                     assert!(

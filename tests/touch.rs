@@ -907,7 +907,8 @@ fn text_buttons_with_icons_keep_one_accessible_name_and_separate_glyphs() {
                 ui.add(look::Button::new("Save").icon("+", egui::FontId::proportional(16.0)));
             (plain, icon)
         });
-        assert!(icon.rect.width() > plain.rect.width() + 6.0, "{chosen}");
+        // GTK reduces horizontal padding when an icon is present: 16 + 6 - 2*8 = 6.
+        assert!(icon.rect.width() >= plain.rect.width() + 6.0, "{chosen}");
         let nodes = output.platform_output.accesskit_update.unwrap().nodes;
         let node = &nodes
             .iter()
