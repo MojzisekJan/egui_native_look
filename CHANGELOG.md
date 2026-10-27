@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0 - 2026-10-27
+
 - Preserve GTK theme palette accents when no explicit or system accent overrides them.
 
 - Support GTK Insert overwrite mode in text and numeric editors, with a block cursor, Unicode grapheme replacement and IME commit handling. Clipboard paste keeps insertion semantics.
@@ -35,6 +37,8 @@
 - Preserve system accent tracking when copying an installed theme. Add `AccentSource` and `Theme::accent` for explicit ownership.
 - Restore application style values when switching away from look-specific shadows, opacity and scrolling settings; make direct style application independent of the previous look.
 - Bound checkerboard drawing and clamp inner geometry for tiny translucent colour wells.
+
+## 0.2.0
 
 - Frame tooltips in the macOS look as macOS's tool tip (a light grey box with a hairline edge and a small shadow) while this crate's menus keep macOS's menu, and press macOS's default button and switch darker on the light scheme and lighter on the dark, as measured from AppKit with a real pointer.
 - Move to the next menu item starting with what is typed in an open menu, as macOS and GTK menus do.

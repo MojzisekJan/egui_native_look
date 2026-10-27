@@ -28,7 +28,7 @@ Add `?mac`, `?gtk&light` and so on to the address to open it in a given look.
 
 ```toml
 [dependencies]
-egui_native_look = "0.2"
+egui_native_look = "0.3"
 ```
 
 ```rust
