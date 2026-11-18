@@ -462,7 +462,7 @@ impl Metrics {
             Look::Mac => (24.0, 6, 13.0),
             Look::Windows => (32.0, 4, 14.0),
             Look::Gtk => (34.0, 6, 14.67),
-            Look::Ios => (34.0, 8, 17.0),
+            Look::Ios => (103.0 / 3.0, 8, 17.0),
             Look::Material => (40.0, 8, 14.0),
             Look::Plain => (28.0, 4, 13.0),
         };
@@ -489,9 +489,14 @@ impl Metrics {
 
     /// Smaller controls, as SwiftUI's `.small` control size draws them on macOS: 20 points
     /// tall in 11-point text, the switches, marks and knobs in proportion. The other looks
-    /// take five sixths of their size.
+    /// take five sixths of their size, except iOS: buttons are 28 points tall while
+    /// fields, switches and sliders retain their regular sizes.
     pub fn small(look: Look) -> Metrics {
-        if look == Look::Mac {
+        if look == Look::Ios {
+            let mut metrics = Self::of(look);
+            metrics.control_height = 28.0;
+            metrics
+        } else if look == Look::Mac {
             Metrics {
                 control_height: 20.0,
                 radius: 5,
@@ -505,10 +510,13 @@ impl Metrics {
 
     /// Larger controls, as SwiftUI's `.large` control size draws them on macOS: 28 points
     /// tall in the regular 13-point text. The other looks grow by a sixth and keep their
-    /// text.
+    /// text. iOS buttons are 50⅓ points and segments 48; fields, switches and
+    /// sliders retain their regular sizes.
     pub fn large(look: Look) -> Metrics {
         let mut metrics = Self::of(look);
-        let height = if look == Look::Mac {
+        let height = if look == Look::Ios {
+            151.0 / 3.0
+        } else if look == Look::Mac {
             28.0
         } else {
             (metrics.control_height * 7.0 / 6.0).round()
@@ -854,6 +862,10 @@ pub fn look(ctx: &egui::Context) -> Look {
     resolved(ctx).theme.look
 }
 
+pub(crate) fn apple_emphasis_family() -> egui::FontFamily {
+    egui::FontFamily::Name("egui_native_look-apple-emphasis".into())
+}
+
 /// Puts the system's faces for `look` (San Francisco, Segoe UI Variable, Adwaita Sans or
 /// Cantarell, or the configured Linux desktop font) in front of `fonts`' proportional and monospace families, and its semibold
 /// behind [`bold_family`]. Returns whether the system had them.
@@ -867,6 +879,20 @@ pub fn install_fonts(fonts: &mut egui::FontDefinitions, look: Look) -> bool {
     let mut bold = proportional.clone();
     let found = system.is_some();
     if let Some(system) = system {
+        if matches!(look, Look::Mac | Look::Ios) {
+            let mut emphasis = system.regular.clone();
+            emphasis.tweak.coords =
+                egui::epaint::text::VariationCoords::new([(b"wght", 700.0), (b"opsz", 17.0)]);
+            fonts
+                .font_data
+                .insert("egui_native_look-apple-emphasis".into(), emphasis.into());
+            let mut family = proportional.clone();
+            family.insert(0, "egui_native_look-apple-emphasis".into());
+            fonts
+                .families
+                .entry(apple_emphasis_family())
+                .or_insert(family);
+        }
         fonts
             .font_data
             .insert("egui_native_look-regular".into(), system.regular.into());

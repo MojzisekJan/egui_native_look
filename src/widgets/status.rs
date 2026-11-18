@@ -78,8 +78,15 @@ impl ProgressBar {
         let (outer, response) = ui.allocate_exact_size(
             egui::vec2(
                 width,
-                if x.look == Look::Gtk {
+                if matches!(x.look, Look::Gtk | Look::Ios) {
                     thickness
+                } else if x.look == Look::Mac {
+                    // SwiftUI reserves 12 points for small and 20 for regular/large.
+                    if super::mac_scale(ui) < 0.95 {
+                        12.0
+                    } else {
+                        20.0
+                    }
                 } else {
                     ui.spacing().interact_size.y.min(16.0)
                 },

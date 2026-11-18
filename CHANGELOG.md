@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Route macOS Return from focused switches and segmented controls to the window default action, retaining Space activation; support default actions outside dialogs with `window_actions`.
+- Correct San Francisco tracking through a local epaint point-size patch (downstream workspace opt-in required), use regular macOS/default-bold iOS button labels, and round Apple label bounds to display pixels.
+- Match iOS menu-picker height across control sizes, Apple progress layout heights and the iOS slider shadow.
+- Compare Apple fixtures at matching display scales and require an active key window throughout native input probes.
+
+- Add independent SwiftUI fixtures and measured Apple regression coverage (macOS 27.0.1 / iOS 26.5).
+- Load the iOS system UI font through CoreText, and use San Francisco for iOS-look previews on macOS.
+- Match measured macOS field heights and small/large switch widths; permit desktop button pointer excursions followed by release inside. Touch cancellation remains latched.
+- Match iOS switch width and segmented capsule height, preserve the separate touch target, use selected-segment emphasis, and remove non-native switch/segment shadows.
+- Use native Apple destructive-button treatment and default-action typography; correct disabled iOS slider, switch, segment and text-field rendering.
+
 - Bound external system queries to 500 ms and 64 KiB of accepted output, terminate and reap timed-out children, and avoid waiting for inherited stdout pipes.
 - Use exact 64-bit integer arithmetic, decimal editing and accessibility steps for wide numeric controls; resolve short pointer ranges relative to their integer endpoints.
 

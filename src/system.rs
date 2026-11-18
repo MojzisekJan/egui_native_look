@@ -7,7 +7,7 @@ use crate::Look;
 #[cfg(all(feature = "system", any(target_os = "linux", target_os = "macos")))]
 mod process;
 
-/// The system's faces for a look: San Francisco on macOS, Segoe UI Variable (or Segoe
+/// The system's faces for a look: San Francisco on macOS/iOS, Segoe UI Variable (or Segoe
 /// UI) on Windows, each with its monospaced face where there is one.
 #[non_exhaustive]
 pub struct SystemFonts {
@@ -190,7 +190,9 @@ pub fn system_accent(look: Look) -> Option<[u32; 2]> {
 pub fn system_fonts(look: Look) -> Option<SystemFonts> {
     match look {
         #[cfg(all(target_os = "macos", feature = "system"))]
-        Look::Mac => mac::fonts(),
+        Look::Mac | Look::Ios => mac::fonts(),
+        #[cfg(all(target_os = "ios", feature = "system"))]
+        Look::Ios => apple_mobile::fonts(),
         #[cfg(all(target_os = "windows", feature = "system"))]
         Look::Windows => windows::fonts(),
         #[cfg(all(target_os = "linux", feature = "system"))]
@@ -225,6 +227,7 @@ pub(crate) fn schemes(look: Look) -> Option<crate::Schemes> {
         feature = "system",
         any(
             target_os = "macos",
+            target_os = "ios",
             target_os = "windows",
             target_os = "linux",
             target_os = "android"
@@ -239,6 +242,85 @@ fn weighted(bytes: &[u8], weight: f32) -> FontData {
         ..Default::default()
     };
     data
+}
+
+#[cfg(all(target_os = "ios", feature = "system"))]
+mod apple_mobile {
+    use std::ffi::{c_void, CStr, OsStr};
+    use std::os::unix::ffi::OsStrExt;
+
+    type CFRef = *const c_void;
+
+    #[link(name = "CoreText", kind = "framework")]
+    extern "C" {
+        fn CTFontCreateUIFontForLanguage(kind: u32, size: f64, language: CFRef) -> CFRef;
+        fn CTFontCopyAttribute(font: CFRef, attribute: CFRef) -> CFRef;
+        static kCTFontURLAttribute: CFRef;
+    }
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        fn CFRelease(value: CFRef);
+        fn CFGetTypeID(value: CFRef) -> usize;
+        fn CFURLGetTypeID() -> usize;
+        fn CFURLGetFileSystemRepresentation(
+            url: CFRef,
+            resolve: u8,
+            buffer: *mut u8,
+            capacity: isize,
+        ) -> u8;
+    }
+
+    struct Owned(CFRef);
+    impl Owned {
+        fn new(value: CFRef) -> Option<Self> {
+            (!value.is_null()).then_some(Self(value))
+        }
+    }
+    impl Drop for Owned {
+        fn drop(&mut self) {
+            // SAFETY: each non-null reference comes from a Core Foundation Create/Copy
+            // function and is released exactly once by this owner.
+            unsafe { CFRelease(self.0) }
+        }
+    }
+
+    pub fn fonts() -> Option<super::SystemFonts> {
+        // Ask CoreText for its current UI font instead of relying on private font paths.
+        // kCTFontUIFontSystem is 2; a null language selects the system language.
+        // SAFETY: the documented enum value, finite point size and nullable language
+        // are valid. Create/Copy results remain owned until all accesses have finished.
+        let bytes = unsafe {
+            let font = Owned::new(CTFontCreateUIFontForLanguage(2, 17.0, std::ptr::null()))?;
+            let url = Owned::new(CTFontCopyAttribute(font.0, kCTFontURLAttribute))?;
+            if CFGetTypeID(url.0) != CFURLGetTypeID() {
+                return None;
+            }
+            let mut buffer = [0u8; 4096];
+            if CFURLGetFileSystemRepresentation(
+                url.0,
+                1,
+                buffer.as_mut_ptr(),
+                buffer.len() as isize,
+            ) == 0
+            {
+                return None;
+            }
+            // On success Core Foundation guarantees a NUL-terminated filesystem path.
+            let path = CStr::from_ptr(buffer.as_ptr().cast());
+            std::fs::read(OsStr::from_bytes(path.to_bytes())).ok()?
+        };
+        let face = |weight| {
+            let mut font = super::weighted(&bytes, weight);
+            font.tweak.coords =
+                egui::epaint::text::VariationCoords::new([(b"wght", weight), (b"opsz", 17.0)]);
+            font
+        };
+        Some(super::SystemFonts {
+            regular: face(400.0),
+            semibold: face(600.0),
+            mono: None,
+        })
+    }
 }
 
 #[cfg(all(target_os = "macos", feature = "system"))]

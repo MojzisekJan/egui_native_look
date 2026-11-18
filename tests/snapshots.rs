@@ -9,7 +9,7 @@ fn snapshot_options(name: &str) -> egui_kittest::SnapshotOptions {
     // Measured software-renderer differences: one antialiased pixel in each affected image.
     // Keep every pixel checked; only these references need a wider colour tolerance.
     let threshold = match name {
-        "windows-dark-menu" => 3.0,
+        "windows-dark-menu" | "gtk-light-menu" => 3.0,
         "macos-light" | "macos-light-more" => 1.0,
         _ => return egui_kittest::SnapshotOptions::default(),
     };

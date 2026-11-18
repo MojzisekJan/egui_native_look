@@ -86,7 +86,7 @@ height to contain their targets.
 
 Leaving a pressed touch control, scrolling, cancelling touch, hiding the control or
 losing window focus cancels the tap until release. Keyboard and accessibility
-activation remain available afterward. A desktop GTK button can activate after the
+activation remain available afterward. A desktop macOS or GTK button can activate after the
 pointer leaves and returns before release. Sliders and the GTK switch retain their
 horizontal drag behavior while vertical swipes can scroll their parent.
 
@@ -131,6 +131,12 @@ Mark one action with `Button::default_action()` to activate it with Enter when a
 button, including an ordinary egui button, keeps its own Enter action. Opening a
 dialog with Enter does not also confirm it. Popup selection and IME confirmation
 never trigger the default action.
+
+Outside a dialog, wrap the window content in `window_actions(ui, body, actions)`.
+Draw text editors in `body` and default buttons in `actions`; this order lets IME
+confirmation suppress submission. Return and Shift+Return activate the first enabled
+default; Command/Control/Option+Return and repeats do not. Open popups and modal
+dialogs suppress the window action. A focused button keeps its own activation.
 
 An unhandled Escape closes the top dialog. GTK closes it directly when a text field is focused. In other looks, the first Escape
 leaves the field and the next closes the dialog. During composition, Escape belongs
@@ -336,3 +342,22 @@ and alignment can still differ from GTK. Multi-selection is not implemented.
 ## License
 
 [MIT-0](LICENSE): use it anywhere, no credit needed.
+
+## Apple reference comparison
+
+`tools/apple-parity/run.py` builds an independent SwiftUI fixture on macOS and,
+optionally, an existing iOS simulator. It captures light/dark, disabled, small and
+large controls, records geometry and macOS event traces, and invokes a Rust font
+probe inside the iOS process. `compare.py` converts embedded display profiles to
+sRGB before generating side-by-side comparisons. See
+[the Apple audit](docs/audits/2026-11-18/apple-parity/REPORT.md) for the measured
+fixes and remaining gaps. These fixtures do not establish full SwiftUI parity.
+
+iOS loads its system UI font through CoreText. An iOS-look preview on macOS uses
+the Mac's San Francisco font. System fonts are read locally and are not bundled.
+The selected iOS segment uses the installed semibold face. Default-action buttons
+use regular weight on macOS and bold weight on iOS. Explicit custom bold metrics
+remain respected. This checkout also patches epaint to pass the point size to its
+text shaper, correcting San Francisco tracking. Downstream applications must apply
+the workspace patch described in [vendor/README.md](vendor/README.md); Cargo patches
+are not inherited from library dependencies.

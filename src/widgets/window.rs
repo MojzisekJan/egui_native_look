@@ -158,6 +158,7 @@ impl Dialog {
                     blocked: false,
                     focused,
                     text_input: false,
+                    control_input: false,
                     first_field: None,
                     pass: keyboard_pass,
                 },
@@ -494,6 +495,7 @@ struct DialogKeyboard {
     blocked: bool,
     focused: Option<egui::Id>,
     text_input: bool,
+    control_input: bool,
     /// The first enabled text field laid out in the dialog this pass.
     first_field: Option<egui::Id>,
     pass: u64,
@@ -660,10 +662,99 @@ pub(super) fn in_dialog_actions(ctx: &egui::Context) -> bool {
         .unwrap_or(false)
 }
 
+/// Give a normal window a default Return action. Draw editors in `body` and
+/// default buttons in `actions`, so composition and text input are resolved first.
+/// Open popups, modal dialogs, modified shortcuts (except Shift), repeat events
+/// and an unfocused window suppress activation. The first enabled default wins.
+///
+/// ```
+/// # egui::__run_test_ui(|ui| {
+/// let mut name = String::new();
+/// egui_native_look::window_actions(ui,
+///     |ui| { ui.add(egui_native_look::TextField::new(&mut name)); },
+///     |ui| { if ui.add(egui_native_look::Button::new("Save").default_action()).clicked() {} });
+/// # });
+/// ```
+pub fn window_actions<B, A>(
+    ui: &mut Ui,
+    body: impl FnOnce(&mut Ui) -> B,
+    actions: impl FnOnce(&mut Ui) -> A,
+) -> (B, A) {
+    let id = ui.layer_id().id.with("dialog-keyboard");
+    let previous = ui.data(|data| data.get_temp::<DialogKeyboard>(id));
+    let enter = !egui::Popup::is_any_open(ui.ctx())
+        && ui.memory(|m| m.top_modal_layer().is_none())
+        && ui.input(|input| {
+            input.focused
+                && !input
+                    .events
+                    .iter()
+                    .any(|e| matches!(e, egui::Event::WindowFocused(false)))
+                && input.events.iter().any(|e| {
+                    matches!(e,
+            egui::Event::Key { key: egui::Key::Enter, pressed: true, repeat: false, modifiers, .. }
+            if !modifiers.command && !modifiers.ctrl && !modifiers.alt && !modifiers.mac_cmd)
+                })
+        });
+    let keyboard = DialogKeyboard {
+        enter,
+        blocked: false,
+        focused: ui.memory(|m| m.focused()),
+        text_input: false,
+        control_input: false,
+        first_field: None,
+        pass: ui.ctx().cumulative_pass_nr(),
+    };
+    ui.data_mut(|data| data.insert_temp(id, keyboard));
+    let b = body(ui);
+    let popup = egui::Popup::is_any_open(ui.ctx());
+    ui.data_mut(|data| {
+        if let Some(mut keyboard) = data.get_temp::<DialogKeyboard>(id) {
+            keyboard.blocked |= popup;
+            data.insert_temp(id, keyboard);
+        }
+    });
+    let a = actions(ui);
+    ui.data_mut(|data| {
+        if let Some(mut previous) = previous {
+            if let Some(inner) = data.get_temp::<DialogKeyboard>(id) {
+                previous.enter &= inner.enter;
+                previous.blocked |= inner.blocked;
+                previous.text_input |= inner.text_input;
+                previous.control_input |= inner.control_input;
+            }
+            data.insert_temp(id, previous);
+        } else {
+            data.remove::<DialogKeyboard>(id);
+        }
+    });
+    (b, a)
+}
+
+// AppKit non-button controls offer Return to the window's default action;
+// Space remains their own activation key. Called before applying a synthetic click.
+pub(super) fn offer_default_enter(ui: &Ui, focused: egui::Id) -> bool {
+    let id = ui.layer_id().id.with("dialog-keyboard");
+    let pass = ui.ctx().cumulative_pass_nr();
+    ui.data_mut(|data| {
+        let Some(mut keyboard) = data.get_temp::<DialogKeyboard>(id) else {
+            return false;
+        };
+        if keyboard.pass != pass || keyboard.focused != Some(focused) {
+            return false;
+        }
+        keyboard.control_input = true;
+        let offered = keyboard.enter && !keyboard.blocked;
+        data.insert_temp(id, keyboard);
+        offered
+    })
+}
+
 pub(super) fn dialog_button(ui: &Ui, response: &mut egui::Response, default: bool) {
     let id = ui.layer_id().id.with("dialog-keyboard");
     let pass = ui.ctx().cumulative_pass_nr();
     let top = ui.memory(|memory| memory.top_modal_layer());
+    let popup = egui::Popup::is_any_open(ui.ctx());
     let clicked = ui.data_mut(|data| {
         let Some(mut keyboard) = data.get_temp::<DialogKeyboard>(id) else {
             return false;
@@ -675,9 +766,11 @@ pub(super) fn dialog_button(ui: &Ui, response: &mut egui::Response, default: boo
             && response.enabled()
             && keyboard.enter
             && !keyboard.blocked
-            && top == Some(ui.layer_id())
+            && !popup
+            && (top.is_none() || top == Some(ui.layer_id()))
             && (keyboard.focused.is_none()
                 || keyboard.text_input
+                || keyboard.control_input
                 || keyboard.focused == Some(response.id));
         if activate {
             keyboard.enter = false;

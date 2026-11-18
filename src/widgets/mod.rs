@@ -28,7 +28,7 @@ pub use form::{Form, FormUi};
 pub use list::{ListBox, ListBoxOutput, ListBoxUi};
 pub use scroll::ScrollArea;
 pub use status::{ProgressBar, Spinner};
-pub use window::{window_frame, Dialog, TitleBar, ToolWindow, WindowAction};
+pub use window::{window_actions, window_frame, Dialog, TitleBar, ToolWindow, WindowAction};
 
 use crate::{paint, Colors, Look, Metrics};
 
@@ -65,10 +65,24 @@ impl Ctx {
         if resolved.theme.look == Look::Gtk && !ui.is_enabled() {
             c.disabled = c.fg;
         }
+        let mut metrics = resolved.theme.metrics.clone();
+        if matches!(resolved.theme.look, Look::Mac | Look::Ios)
+            && metrics.bold == metrics.body
+            && ui.fonts(|fonts| {
+                fonts
+                    .definitions()
+                    .families
+                    .contains_key(&crate::bold_family())
+            })
+        {
+            // Installing Apple's system faces should be sufficient for native emphasis.
+            // Preserve explicit custom bold metrics and the no-system-font fallback.
+            metrics = metrics.system_bold();
+        }
         Ctx {
             look: resolved.theme.look,
             c,
-            m: resolved.theme.metrics.clone(),
+            m: metrics,
         }
     }
 
@@ -237,6 +251,17 @@ fn click_response_with_reentry(
             response.flags.remove(Flags::FAKE_PRIMARY_CLICKED);
         }
     }
+    if !desktop_button
+        && crate::look(ui.ctx()) == Look::Mac
+        && response.has_focus()
+        && window::offer_default_enter(ui, response.id)
+        && !ui.input(|input| {
+            input.key_pressed(egui::Key::Space)
+                || input.has_accesskit_action_request(response.id, egui::accesskit::Action::Click)
+        })
+    {
+        response.flags.remove(Flags::FAKE_PRIMARY_CLICKED);
+    }
     let key = response.id.with("click-press");
     let frame = ui.ctx().cumulative_frame_nr();
     let (pressed, down, released, time, touch, cancelled, dragging) = ui.input(|input| {
@@ -267,19 +292,21 @@ fn click_response_with_reentry(
         });
     }
     let position = pointer_position(ui, &response);
+    // SwiftUI/AppKit tracks desktop buttons until release, including a pointer
+    // excursion and return. Touch still latches cancellation when it leaves.
+    let reentry = desktop_button && matches!(crate::look(ui.ctx()), Look::Gtk | Look::Mac);
     if let Some(press) = state.as_mut() {
         press.left |= position.is_some_and(|at| !response.interact_rect.contains(at));
         press.cancelled |= cancelled
             || !response.enabled()
             || frame.saturating_sub(press.frame) > 1
             || (down && press.time != time)
-            || ((!desktop_button || press.touch || crate::look(ui.ctx()) != Look::Gtk)
+            || ((!reentry || press.touch)
                 && position.is_some_and(|position| !response.interact_rect.contains(position)))
             || (press.touch && dragging);
         press.frame = frame;
-        if desktop_button
+        if reentry
             && press.left
-            && crate::look(ui.ctx()) == Look::Gtk
             && !press.touch
             && !press.cancelled
             && released

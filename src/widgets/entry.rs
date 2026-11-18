@@ -126,6 +126,13 @@ impl Widget for TextField<'_> {
 impl TextField<'_> {
     fn add_contents(self, ui: &mut Ui) -> Response {
         let mut x = Ctx::of(ui);
+        if x.look == Look::Ios && !ui.is_enabled() {
+            // UIKit keeps a disabled field's contents legible; it changes the
+            // background and edge, not the entered text's label colour.
+            x.c.entry = crate::lerp_color(x.c.bg, x.c.fg, 0.02);
+            x.c.entry_focused = x.c.entry;
+            x.c.control_border = crate::lerp_color(x.c.control_border, x.c.bg, 0.06);
+        }
         if self.invalid {
             let error = crate::colors::rgb(if x.c.dark { 0xff7b63 } else { 0xc01c28 });
             x.c.accent = error;
@@ -141,6 +148,7 @@ impl TextField<'_> {
         let material = x.look == Look::Material;
         let height = match x.look {
             Look::Mac => mac_field_height(ui, self.search),
+            Look::Ios => 34.0,
             Look::Material => ui.spacing().interact_size.y.max(48.0),
             _ => ui.spacing().interact_size.y,
         };
@@ -205,7 +213,7 @@ impl TextField<'_> {
         let mut buffer = OverwriteBuffer::new(ui, id, self.text, composing);
         let mut edit = egui::TextEdit::singleline(&mut buffer)
             .interactive(ui.is_enabled())
-            .text_color(if ui.is_enabled() {
+            .text_color(if ui.is_enabled() || x.look == Look::Ios {
                 x.c.fg
             } else {
                 x.c.disabled
@@ -1789,7 +1797,7 @@ fn entry_visuals(ui: &mut Ui, x: &Ctx) {
         _ if c.high_contrast => Stroke::new(1.0, c.control_border),
         Look::Gtk | Look::Material => Stroke::NONE,
         // iOS's rounded-border field: a hairline.
-        Look::Ios => Stroke::new(0.5, c.control_border),
+        Look::Ios => Stroke::new(1.0 / ui.pixels_per_point(), c.control_border),
         Look::Mac | Look::Windows => Stroke::new(1.0, c.control_border),
         Look::Plain => Stroke::new(1.0, c.border),
     };
@@ -1802,7 +1810,11 @@ fn entry_visuals(ui: &mut Ui, x: &Ctx) {
         (&mut w.hovered, c.entry),
         (&mut w.active, c.entry_focused),
     ] {
-        state.fg_stroke.color = if enabled { c.fg } else { c.disabled };
+        state.fg_stroke.color = if enabled || x.look == Look::Ios {
+            c.fg
+        } else {
+            c.disabled
+        };
         state.bg_fill = fill;
         state.weak_bg_fill = fill;
         state.bg_stroke = edge;
@@ -1847,15 +1859,15 @@ fn held(ui: &Ui, button: &Response) -> f64 {
 }
 
 /// The height of a macOS text field beside controls `interact_size.y` tall, as SwiftUI
-/// sizes them: a point above and below a regular 24-point button, 23 points for small
-/// controls and no taller than 26 for large ones; a search field always two points above
+/// sizes them: 24 points for regular/large and 21 for small controls;
+/// a search field always two points above
 /// the controls.
 fn mac_field_height(ui: &Ui, search: bool) -> f32 {
     let controls = ui.spacing().interact_size.y;
     if search {
         controls + 2.0
     } else {
-        (26.0 + (controls - 24.0).min(0.0) * 0.75).round()
+        (24.0 + (controls - 24.0).min(0.0) * 0.75).round()
     }
 }
 

@@ -74,7 +74,17 @@ impl Segmented<'_> {
         let name = super::form::accessible_name(ui, &self.label);
         let c = &x.c;
         let before = *self.selected;
-        let height = ui.spacing().interact_size.y.max(super::minimum_target(ui));
+        // SwiftUI's regular/small iOS segmented picker is 31 points tall. Its
+        // visual capsule stays inside the separate touch slot allocated below.
+        let height = if x.look == Look::Ios {
+            if ui.spacing().interact_size.y >= 50.0 {
+                48.0
+            } else {
+                31.0
+            }
+        } else {
+            ui.spacing().interact_size.y.max(super::minimum_target(ui))
+        };
         // macOS and libadwaita size their segments to the longest label rather than filling
         // the row.
         let width = self
@@ -162,7 +172,7 @@ impl Segmented<'_> {
             } else if ios {
                 (
                     CornerRadius::same((rect.height() / 2.0) as u8),
-                    crate::ink(c, 0.11, 0.066),
+                    crate::ink(c, 0.11, 0.066).gamma_multiply(if enabled { 1.0 } else { 0.5 }),
                 )
             } else {
                 (CornerRadius::same(r.saturating_add(1)), c.track)
@@ -211,7 +221,16 @@ impl Segmented<'_> {
             );
             let segment = super::interact(
                 ui,
-                slot,
+                if ios {
+                    // Keep the whole reserved touch slot interactive, including the
+                    // padding above and below the native-height capsule.
+                    Rect::from_min_max(
+                        egui::pos2(slot.left(), response.interact_rect.top()),
+                        egui::pos2(slot.right(), response.interact_rect.bottom()),
+                    )
+                } else {
+                    slot
+                },
                 id.with(i),
                 if enabled {
                     Sense::CLICK
@@ -223,12 +242,10 @@ impl Segmented<'_> {
             let on = i == *self.selected;
             let colour = if ios {
                 if on {
-                    // A capsule two points inside the track, lifted by a faint shadow.
+                    // SwiftUI's selected capsule has no drop shadow on iOS 26.5.
                     let body = slot.shrink(2.0);
                     let round = CornerRadius::same((body.height() / 2.0) as u8);
-                    ui.painter()
-                        .add(super::basic::mac_shadow(c.dark).as_shape(body, round));
-                    // Opaque, so the shadow beneath does not show through.
+                    // Keep the selected capsule opaque over the track.
                     let fill = if c.dark {
                         crate::lerp_color(c.bg, Color32::WHITE, 0.35)
                     } else {
@@ -240,14 +257,14 @@ impl Segmented<'_> {
                         if enabled {
                             fill
                         } else {
-                            fill.gamma_multiply(0.6)
+                            crate::lerp_color(c.bg, fill, 0.5)
                         },
                     );
                 }
                 if enabled {
                     c.fg
                 } else {
-                    c.disabled
+                    crate::lerp_color(c.bg, c.fg, 0.5)
                 }
             } else if mac {
                 if on {
@@ -342,10 +359,16 @@ impl Segmented<'_> {
                     c.fg
                 }
             };
-            // iOS 26 sets its segments in 13-point text, every one alike; libadwaita all
-            // of them in bold.
+            // iOS uses 13-point text, with the selected label in semibold.
             let font = if ios {
-                egui::FontId::new(13.0, x.m.body.family.clone())
+                egui::FontId::new(
+                    13.0,
+                    if on {
+                        x.m.bold.family.clone()
+                    } else {
+                        x.m.body.family.clone()
+                    },
+                )
             } else if x.look == Look::Gtk || on && system {
                 x.m.bold.clone()
             } else {
@@ -626,6 +649,9 @@ fn choice_keys(ui: &Ui, response: &Response, n: usize, selected: &mut usize, loo
     }
     focus.index = focus.index.min(n - 1);
     if has_focus {
+        if look == Look::Mac {
+            super::window::offer_default_enter(ui, response.id);
+        }
         let windows = look == Look::Windows;
         let gtk = look == Look::Gtk;
         ui.memory_mut(|memory| {
@@ -2296,7 +2322,11 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
     fn rail(&mut self, ui: &mut Ui) -> Response {
         let x = Ctx::of(ui);
         let c = &x.c;
-        let height = ui.spacing().interact_size.y;
+        let height = if x.look == Look::Ios {
+            31.0
+        } else {
+            ui.spacing().interact_size.y
+        };
         let width = self
             .width
             .unwrap_or_else(|| ui.spacing().slider_width.max(120.0));
@@ -2407,6 +2437,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 crate::lerp_color(c.bg, ink, if c.dark { 0.27 } else { 0.2 })
             }
             (true, _) | (false, Look::Gtk) => c.accent,
+            (false, Look::Ios) => crate::lerp_color(c.bg, c.accent, 0.5),
             // macOS greys a disabled slider's fill just past its rail.
             (false, Look::Mac) => {
                 let ink = if c.dark {
@@ -2429,7 +2460,16 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 egui::pos2(rect.left(), rail.center().y - half),
                 egui::pos2(rect.right(), rail.center().y + half),
             );
-            painter.rect_filled(wide, CornerRadius::same(half as u8), c.track);
+            let track = if x.look == Look::Ios {
+                crate::ink(
+                    c,
+                    if enabled { 0.1 } else { 0.05 },
+                    if enabled { 0.1 } else { 0.05 },
+                )
+            } else {
+                c.track
+            };
+            painter.rect_filled(wide, CornerRadius::same(half as u8), track);
             painter.rect_filled(
                 Rect::from_min_max(wide.min, egui::pos2(at.x, wide.max.y)),
                 CornerRadius::same(half as u8),
@@ -2486,9 +2526,26 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 };
                 let pill = Rect::from_center_size(at, egui::vec2(knob_r * 2.0, tall));
                 let round = CornerRadius::same((tall / 2.0) as u8);
-                // A disabled knob looks the same; only the fill greys.
-                painter.add(super::basic::mac_shadow(c.dark).as_shape(pill, round));
-                let fill = if c.dark && x.look == Look::Mac {
+                // macOS keeps its knob; iOS fades the knob and its shadow.
+                let mut shadow = if x.look == Look::Ios {
+                    // UIKit's pill has a broad, soft shadow, unlike AppKit's
+                    // compact knob shadow (measured in the SwiftUI fixture).
+                    egui::Shadow {
+                        offset: [0, 2],
+                        blur: 18,
+                        spread: 0,
+                        color: Color32::from_black_alpha(30),
+                    }
+                } else {
+                    super::basic::mac_shadow(c.dark)
+                };
+                if x.look == Look::Ios && !enabled {
+                    shadow.color = shadow.color.gamma_multiply(0.5);
+                }
+                painter.add(shadow.as_shape(pill, round));
+                let fill = if x.look == Look::Ios && !enabled {
+                    crate::lerp_color(c.bg, Color32::WHITE, 0.5)
+                } else if c.dark && x.look == Look::Mac {
                     crate::colors::rgb(0xe1e1e1)
                 } else {
                     Color32::WHITE
@@ -2929,6 +2986,10 @@ const GTK_ROW_ARROW: f32 = 22.0;
 fn popup_height(ui: &Ui, look: Look) -> f32 {
     if look == Look::Material {
         ui.spacing().interact_size.y.max(56.0)
+    } else if look == Look::Ios {
+        // The native menu picker keeps its regular height at every control size.
+        // allocate_control independently preserves the touch target.
+        103.0 / 3.0
     } else {
         ui.spacing().interact_size.y
     }

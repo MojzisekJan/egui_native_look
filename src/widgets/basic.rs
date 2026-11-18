@@ -57,16 +57,19 @@ impl Button {
         self.destructive = false;
         self
     }
-    /// Mark a destructive action, such as deleting an item, with a red fill.
+    /// Mark a destructive action, such as deleting an item. Apple looks follow
+    /// SwiftUI's bordered role: red text on iOS, an ordinary button on macOS
+    /// (red text in an alert). Other looks use a red fill.
     /// This changes appearance only; activation and confirmation remain the app's responsibility.
     pub fn destructive(mut self) -> Self {
         self.accent = true;
         self.destructive = true;
         self
     }
-    /// Activate on Enter in a [`crate::Dialog`] when a [`crate::TextField`] or no
+    /// Activate on Enter in a [`crate::Dialog`] or [`crate::window_actions`] when a [`crate::TextField`] or no
     /// control has focus. A focused button retains its own activation. Open popups
-    /// and input method confirmation suppress the default action. Appearance is unchanged.
+    /// and input method confirmation suppress the default action. iOS uses a bold
+    /// label; macOS keeps its ordinary label. Use [`Self::accent`] for an accent fill.
     pub fn default_action(mut self) -> Self {
         self.default_action = true;
         self
@@ -95,10 +98,26 @@ impl Widget for Button {
 impl Button {
     fn add_contents(self, ui: &mut Ui) -> Response {
         let mut x = Ctx::of(ui);
+        let apple = matches!(x.look, Look::Mac | Look::Ios);
+        let apple_destructive = self.destructive && apple;
+        let prominent = self.accent && !apple_destructive;
         if self.destructive {
-            x.c.accent = crate::colors::rgb(if x.c.dark { 0xc01c28 } else { 0xe01b24 });
+            x.c.accent = crate::colors::rgb(if apple {
+                if x.c.dark {
+                    0xff453a
+                } else {
+                    0xff3b30
+                }
+            } else if x.c.dark {
+                0xc01c28
+            } else {
+                0xe01b24
+            });
             x.c.on_accent = Color32::WHITE;
             x.c.accent_hover = lerp_color(x.c.accent, Color32::WHITE, 0.1);
+            if apple && super::window::in_dialog_actions(ui.ctx()) {
+                x.c.fg = x.c.accent;
+            }
         }
         let icon = self.icon.as_ref().map(|(glyph, font)| {
             ui.fonts_mut(|fonts| fonts.layout_no_wrap(glyph.clone(), font.clone(), x.c.fg))
@@ -123,16 +142,41 @@ impl Button {
             }
         });
         // Material sets its button labels in the medium weight, libadwaita in bold.
-        let font = if matches!(x.look, Look::Material | Look::Gtk) {
+        let mut font = if matches!(x.look, Look::Material | Look::Gtk)
+            || (x.look == Look::Ios && self.default_action)
+        {
             x.m.bold.clone()
         } else {
             x.m.body.clone()
         };
+        if x.look == Look::Ios
+            && self.default_action
+            && font.family == crate::bold_family()
+            && ui.fonts(|fonts| {
+                fonts
+                    .definitions()
+                    .families
+                    .contains_key(&crate::apple_emphasis_family())
+            })
+        {
+            font.family = crate::apple_emphasis_family();
+        }
+        if x.look == Look::Ios && height <= 28.0 && !super::window::in_dialog_actions(ui.ctx()) {
+            // SwiftUI small bordered buttons use 15-point labels; other controls
+            // retain their own text size rather than scaling the entire form.
+            font.size *= 15.0 / 17.0;
+        }
         let text_width = ui.fonts_mut(|f| {
             f.layout_no_wrap(self.label.clone(), font.clone(), x.c.fg)
                 .size()
                 .x
         });
+        let text_width = if apple {
+            // SwiftUI rounds the intrinsic text bounds out to physical pixels.
+            (text_width * ui.pixels_per_point()).ceil() / ui.pixels_per_point()
+        } else {
+            text_width
+        };
         // macOS pads its push buttons a little wider than WinUI and GTK, Material 3 its
         // capsules wider still.
         // A Material dialog's actions are text buttons: the label in the primary, without a
@@ -142,6 +186,10 @@ impl Button {
             Look::Mac => (12.0 * super::mac_scale(ui)).round(),
             // WinUI's ButtonPadding: 11 either side.
             Look::Windows => 11.0,
+            // Independently measured label insets: small 10, regular 12, large 20.
+            Look::Ios if height <= 28.0 => 10.0,
+            Look::Ios if height >= 50.0 => 20.0,
+            Look::Ios => 12.0,
             Look::Material if text_button => 12.0,
             Look::Material => 24.0,
             // libadwaita's text buttons.
@@ -301,12 +349,12 @@ impl Button {
                 if icon.is_some() { "" } else { &self.label },
                 font.clone(),
                 enabled,
-                self.accent,
+                prominent,
             );
             if let Some(icon) = icon {
                 let color = if !enabled && x.look != Look::Gtk {
                     x.c.disabled
-                } else if self.accent {
+                } else if prominent {
                     x.c.on_accent
                 } else if x.look == Look::Ios {
                     x.c.accent
@@ -375,12 +423,12 @@ impl<'a> Switch<'a> {
 }
 
 /// The width a [`Switch`] takes in `look` at the look's regular size, for a row that leaves
-/// room for one at its end. macOS's switch sits flush; the others keep a point either side.
-/// macOS's small and large controls ([`crate::Metrics::small`]) scale it in proportion.
+/// room for one at its end. Apple's and GTK's switches sit flush; the others keep
+/// a point either side.
 #[must_use]
 pub fn switch_width(look: Look) -> f32 {
     switch_size(look).x
-        + if matches!(look, Look::Mac | Look::Gtk) {
+        + if matches!(look, Look::Mac | Look::Gtk | Look::Ios) {
             0.0
         } else {
             2.0
@@ -395,7 +443,7 @@ pub(crate) fn switch_size(look: Look) -> egui::Vec2 {
         Look::Windows => egui::vec2(40.0, 20.0),
         // libadwaita: two 20-point sliders in 3 points of padding.
         Look::Gtk => egui::vec2(46.0, 26.0),
-        Look::Ios => egui::vec2(63.0, 28.0),
+        Look::Ios => egui::vec2(61.0, 28.0),
         Look::Material => egui::vec2(52.0, 32.0),
         Look::Plain => egui::vec2(34.0, 18.0),
     }
@@ -412,17 +460,19 @@ impl Switch<'_> {
         let x = Ctx::of(ui);
         let c = &x.c;
         let size = if x.look == Look::Mac {
-            (switch_size(x.look) * super::mac_scale(ui)).round()
+            let height = switch_size(x.look).y * super::mac_scale(ui);
+            // SwiftUI small/regular/large: 44×20, 54×24, 64×28 points.
+            egui::vec2((54.0 + (height - 24.0) * 2.5).max(height), height).round()
         } else {
             switch_size(x.look)
         };
-        let height = if x.look == Look::Gtk {
+        let height = if matches!(x.look, Look::Gtk | Look::Ios) {
             size.y
         } else {
             ui.spacing().interact_size.y.max(size.y)
         };
-        // macOS's switch starts flush with its row; the others keep a point either side.
-        let margin = if matches!(x.look, Look::Mac | Look::Gtk) {
+        // Apple and GTK switches start flush with their row.
+        let margin = if matches!(x.look, Look::Mac | Look::Gtk | Look::Ios) {
             0.0
         } else {
             2.0
@@ -527,7 +577,12 @@ impl Switch<'_> {
                     fill = fill.gamma_multiply(0.5);
                 }
                 painter.rect_filled(rect, round, fill);
-                pill_knob(painter, rect, t, c.dark, Color32::WHITE);
+                let thumb = if enabled {
+                    Color32::WHITE
+                } else {
+                    lerp_color(c.bg, Color32::WHITE, 0.5)
+                };
+                pill_knob(painter, rect, t, c.dark, thumb);
             }
             Look::Material => {
                 // Material 3: an outlined track whose thumb grows from 16 to 24 points and
@@ -796,7 +851,9 @@ fn pill_knob(painter: &egui::Painter, rect: Rect, t: f32, dark: bool, fill: Colo
     );
     let pill = Rect::from_center_size(egui::pos2(x, rect.center().y), size);
     let round = CornerRadius::same((size.y / 2.0) as u8);
-    painter.add(mac_shadow(dark).as_shape(pill, round));
+    if crate::look(painter.ctx()) != Look::Ios {
+        painter.add(mac_shadow(dark).as_shape(pill, round));
+    }
     painter.rect_filled(pill, round, fill);
 }
 

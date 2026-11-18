@@ -705,7 +705,7 @@ fn more_contrast_outlines_controls_and_darkens_secondary_text() {
         };
         let edged = output.shapes.iter().any(|shape| {
             matches!(&shape.shape, egui::Shape::Rect(r)
-                if r.rect == rect && r.stroke.width >= 1.0 && r.stroke.color.a() > 0)
+                if (r.rect.min - rect.min).length() <= 0.5 && (r.rect.max - rect.max).length() <= 0.5 && r.stroke.width >= 1.0 && r.stroke.color.a() > 0)
         });
         assert!(edged, "{chosen}: no edge round the button");
     }
@@ -1897,9 +1897,9 @@ fn mac_control_sizes_follow_swiftui() {
     assert_eq!((large.control_height, large.body.size), (28.0, 13.0));
     // Width of a switch and height of a text field, as SwiftUI draws them.
     for (metrics, switch, field) in [
-        (small, 45.0, 23.0),
-        (look::Metrics::of(look::Look::Mac), 54.0, 26.0),
-        (large, 63.0, 26.0),
+        (small, 44.0, 21.0),
+        (look::Metrics::of(look::Look::Mac), 54.0, 24.0),
+        (large, 64.0, 24.0),
     ] {
         let ctx = egui::Context::default();
         look::install(&ctx, look::Theme::new(look::Look::Mac).metrics(metrics));
@@ -1985,7 +1985,7 @@ fn mac_number_fields_stand_as_tall_as_text_fields() {
         );
     });
     output.textures_delta.clear();
-    assert_eq!(heights, (26.0, 26.0, 26.0));
+    assert_eq!(heights, (24.0, 24.0, 24.0));
 }
 
 #[test]
