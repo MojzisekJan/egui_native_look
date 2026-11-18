@@ -1,6 +1,6 @@
 {
   "date": "2026-11-19",
-  "rust_demo_tests": 3,
+  "rust_demo_tests": 4,
   "rust_ui_flow": "create task through dialog, search resulting task, accessibility validation",
   "swiftui_model_tests": "task creation, JSON roundtrip, focus start/pause/reset",
   "swiftui_ios": "typecheck for arm64 iOS 26 simulator; not a device run",
@@ -10,15 +10,45 @@
     800
   ],
   "remaining_differences": [
-    "sidebar selection and row height",
-    "scrollbar space and resulting content width",
-    "intrinsic segmented control sizing",
-    "text editor insets/wrapping",
-    "rasterization and native dialog behaviour"
+    "navigation selection styling",
+    "native text editing and application menus/dialog semantics",
+    "minor text rasterization and detailed scroll physics"
   ],
   "source_sha256": {
-    "examples/daybook.rs": "2e6004d2f73fdc57a65a490e1c22b8fc6ea506c8b67ca81a9ac62774cd4d7211",
+    "examples/daybook.rs": "85d5ba837699518c3ebb699a3f9b8fbf1c960979d9c9237311c3d83d1ae9783c",
     "examples/daybook/Daybook.swift": "013f6e410fee378809bce2d231b75835a90eeeeb7c5e4e32c9de9fd404917279",
-    "examples/daybook/seed.json": "0f91113cb784ce5c880112bc9f1a211d8b4a47d34ba2aec2cd2641abf64bb9d7"
-  }
+    "examples/daybook/seed.json": "0f91113cb784ce5c880112bc9f1a211d8b4a47d34ba2aec2cd2641abf64bb9d7",
+    "src/system.rs": "9ac3f73af63f79b7352b345e6c65910e2b4f4a5bedd3c3ead98487808d1075f1",
+    "src/widgets/scroll.rs": "ef5a5f9f3bfde6953918966a094e79cb8afceedb5a901d70a6624f414d9c1d4a"
+  },
+  "latest_checks": [
+    {
+      "check": "snapshots",
+      "status": 0
+    },
+    {
+      "check": "clippy",
+      "status": 0
+    },
+    {
+      "check": "ios",
+      "status": 0
+    },
+    {
+      "check": "format",
+      "status": 0
+    },
+    {
+      "check": "whitespace",
+      "status": 0
+    }
+  ],
+  "test_counts": {
+    "library": 363,
+    "without_system": 357,
+    "demo": 4,
+    "snapshots": 4
+  },
+  "alignment_regression": "Checkbox and Remove share vertical center within 0.5 points; short/wrapped title \u00d7 narrow/wide \u00d7 macOS/iOS, including click activation",
+  "macos_scrollbar_preference": "AppKit preferredScrollerStyle and scrollerWidthForControlSize; queried on UI/main thread, with system feature"
 }

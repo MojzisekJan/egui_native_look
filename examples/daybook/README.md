@@ -51,4 +51,8 @@ The first demo version had several application-level mismatches, since corrected
 - A NumberField was compared with a Stepper alone; both now combine an editable value and stepper.
 - An explicit SwiftUI tint coloured ordinary buttons; the native reference now follows the normal system tint policy.
 
-Remaining differences include sidebar row height/selection styling, native intrinsic segment widths inside fixed SwiftUI frames, scrollbar layout, text editor insets/line breaks, minor font rasterization and window/dialog behaviour. The egui sidebar uses the library ListBox; the SwiftUI sidebar uses application navigation buttons. The multiline notes editor is egui TextEdit versus SwiftUI TextEditor. This is a useful real-app comparison, not a claim of full SwiftUI equivalence.
+The follow-up also centers checkbox/Remove against the measured height of the complete wrapped text column, aligns 32-point navigation rows, centers the natural macOS segment width within its outer frame, and moves padding inside the scroll container. AppKit determines non-overlay scrollbar policy and gutter width on the main thread. Editor insets and persistent macOS editor scrolling now match the reference structure.
+
+Regression coverage includes short/wrapped titles at narrow/wide widths for both Apple looks, center alignment, right-edge containment and checkbox activation. A library regression checks that scrollbar styling cannot recolour content or sibling widgets.
+
+Remaining differences include sidebar selection styling, native editing/selection and application menus, detailed scroll physics, minor font rasterization and window/dialog behaviour. The egui sidebar uses the library ListBox; the SwiftUI sidebar uses application navigation buttons. The multiline notes editor is egui TextEdit versus SwiftUI TextEditor. This is a useful real-app comparison, not a claim of full SwiftUI equivalence.

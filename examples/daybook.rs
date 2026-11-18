@@ -113,6 +113,98 @@ fn card(ui: &egui::Ui) -> egui::Frame {
         .corner_radius(14)
         .inner_margin(20)
 }
+// Measure the whole text column before placing siblings. Immediate-mode horizontal
+// layout cannot retroactively re-center an earlier checkbox when a later label grows.
+fn task_row(ui: &mut egui::Ui, task: &mut Task) -> bool {
+    let metrics = look::theme(ui.ctx()).metrics;
+    let remove_width = ui
+        .fonts_mut(|f| {
+            f.layout_no_wrap(
+                "Remove".into(),
+                metrics.body.clone(),
+                ui.visuals().text_color(),
+            )
+            .size()
+            .x
+        })
+        .ceil()
+        + 24.0;
+    let checkbox_width = if look::look(ui.ctx()) == look::Look::Ios {
+        28.0
+    } else {
+        21.0
+    };
+    let gap = 8.0;
+    let text_width = (ui.available_width() - checkbox_width - remove_width - gap * 2.0).max(32.0);
+    let text = RichText::new(&task.title).size(14.0);
+    let text = if task.done {
+        text.strikethrough().weak()
+    } else {
+        text
+    };
+    let title = egui::WidgetText::from(text).into_galley(
+        ui,
+        Some(egui::TextWrapMode::Wrap),
+        text_width,
+        egui::FontSelection::Default,
+    );
+    let mut metadata = egui::text::LayoutJob::default();
+    metadata.wrap.max_width = text_width;
+    metadata.append(
+        PROJECTS[task.project],
+        0.0,
+        egui::TextFormat {
+            font_id: egui::FontId::proportional(11.0),
+            color: ui.visuals().weak_text_color(),
+            ..Default::default()
+        },
+    );
+    metadata.append(
+        &format!("  · {} priority", PRIORITIES[task.priority]),
+        0.0,
+        egui::TextFormat {
+            font_id: egui::FontId::proportional(11.0),
+            color: if task.priority == 0 {
+                rgb(192, 103, 52)
+            } else {
+                ui.visuals().weak_text_color()
+            },
+            ..Default::default()
+        },
+    );
+    let metadata = ui.fonts_mut(|f| f.layout_job(metadata));
+    let text_height = title.size().y + 5.0 + metadata.size().y;
+    let height = text_height.max(ui.spacing().interact_size.y);
+    ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), height),
+        egui::Layout::left_to_right(egui::Align::Center),
+        |ui| {
+            ui.spacing_mut().item_spacing.x = gap;
+            let completion = ui.add(look::Checkbox::new(&mut task.done, ""));
+            completion.widget_info(|| {
+                egui::WidgetInfo::selected(egui::Role::CheckBox, true, task.done, &task.title)
+            });
+            completion.on_hover_text("Mark task complete");
+            ui.allocate_ui_with_layout(
+                egui::vec2(text_width, text_height),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    ui.spacing_mut().item_spacing.y = 0.0;
+                    ui.add(egui::Label::new(title));
+                    ui.add_space(5.0);
+                    ui.add(egui::Label::new(metadata));
+                },
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add(look::Button::new("Remove").width(remove_width))
+                    .clicked()
+            })
+            .inner
+        },
+    )
+    .inner
+}
+
 impl Daybook {
     fn new(ctx: &egui::Context) -> Self {
         let demo = std::env::args().any(|a| a == "--demo");
@@ -236,6 +328,7 @@ impl Daybook {
                 .strong()
                 .family(egui::FontFamily::Name("daybook-heading".into())),
         );
+        ui.add_space(3.0);
         ui.label(RichText::new("A little more intention.").size(12.).weak());
         ui.add_space(36.);
         ui.label(
@@ -246,13 +339,16 @@ impl Daybook {
                 .weak(),
         );
         ui.add_space(8.);
-        look::ListBox::new("navigation", &mut self.page)
-            .accessible_label("Workspace")
-            .show(ui, |list| {
-                list.item(0, "My day");
-                list.item(1, "All tasks");
-                list.item(2, "Notes");
-            });
+        ui.scope(|ui| {
+            ui.spacing_mut().interact_size.y = 32.0;
+            look::ListBox::new("navigation", &mut self.page)
+                .accessible_label("Workspace")
+                .show(ui, |list| {
+                    list.item(0, "My day");
+                    list.item(1, "All tasks");
+                    list.item(2, "Notes");
+                });
+        });
         ui.add_space(30.);
         ui.label(
             RichText::new("PROJECTS")
@@ -262,13 +358,16 @@ impl Daybook {
                 .weak(),
         );
         ui.add_space(8.);
-        look::ListBox::new("projects", &mut self.page)
-            .accessible_label("Projects")
-            .show(ui, |list| {
-                for (i, p) in PROJECTS.iter().enumerate() {
-                    list.item(i + 3, *p);
-                }
-            });
+        ui.scope(|ui| {
+            ui.spacing_mut().interact_size.y = 32.0;
+            look::ListBox::new("projects", &mut self.page)
+                .accessible_label("Projects")
+                .show(ui, |list| {
+                    for (i, p) in PROJECTS.iter().enumerate() {
+                        list.item(i + 3, *p);
+                    }
+                });
+        });
         ui.add_space(40.);
         ui.separator();
         ui.add_space(14.);
@@ -314,7 +413,7 @@ impl Daybook {
                     .family(look::bold_family())
                     .weak(),
             );
-            ui.add_space(10.);
+            ui.add_space(12.);
             ui.label(
                 RichText::new("Make room for deep work.")
                     .size(15.)
@@ -356,7 +455,7 @@ impl Daybook {
                     self.message = "One thing at a time.".into();
                 }
             });
-            ui.add_space(14.);
+            ui.add_space(16.);
             ui.horizontal(|ui| {
                 ui.label("Minutes");
                 if ui
@@ -389,6 +488,11 @@ impl Daybook {
             let editor_height = if large { 360.0 } else { 170.0 };
             look::ScrollArea::vertical()
                 .id_salt(("notes-editor", large))
+                .scroll_bar_visibility(if look::look(ui.ctx()) == look::Look::Mac {
+                    egui::scroll_area::ScrollBarVisibility::AlwaysVisible
+                } else {
+                    egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded
+                })
                 .max_height(editor_height)
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
@@ -399,6 +503,7 @@ impl Daybook {
                             .min_size(egui::vec2(0.0, editor_height))
                             .font(egui::FontId::proportional(13.0))
                             .frame(egui::Frame::NONE)
+                            .margin(5)
                             .hint_text("Start writing…"),
                     );
                 });
@@ -490,9 +595,21 @@ impl Daybook {
         });
         ui.add_space(12.);
         ui.horizontal_wrapped(|ui| {
-            ui.add(
-                look::Segmented::new("filter", &mut self.filter, &["All", "Active", "Done"])
-                    .width(210.),
+            ui.allocate_ui_with_layout(
+                egui::vec2(210.0, ui.spacing().interact_size.y),
+                egui::Layout::top_down(egui::Align::Center),
+                |ui| {
+                    let picker = look::Segmented::new(
+                        "filter",
+                        &mut self.filter,
+                        &["All", "Active", "Done"],
+                    );
+                    ui.add(if look::look(ui.ctx()) == look::Look::Mac {
+                        picker
+                    } else {
+                        picker.width(210.0)
+                    });
+                },
             );
             ui.add(
                 look::TextField::new(&mut self.search)
@@ -522,58 +639,9 @@ impl Daybook {
             ui.push_id(task.id, |ui| {
                 card(ui).inner_margin(14).show(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    ui.horizontal(|ui| {
-                        let completion = ui.add(look::Checkbox::new(&mut task.done, ""));
-                        completion.widget_info(|| {
-                            egui::WidgetInfo::selected(
-                                egui::Role::CheckBox,
-                                true,
-                                task.done,
-                                &task.title,
-                            )
-                        });
-                        completion.on_hover_text("Mark task complete");
-                        ui.vertical(|ui| {
-                            let text = RichText::new(&task.title).size(14.);
-                            ui.label(if task.done {
-                                text.strikethrough().weak()
-                            } else {
-                                text
-                            });
-                            ui.add_space(5.);
-                            // A horizontal egui row reserves control height even for tiny labels.
-                            // One rich label keeps metadata at its actual text height.
-                            let mut metadata = egui::text::LayoutJob::default();
-                            metadata.append(
-                                PROJECTS[task.project],
-                                0.0,
-                                egui::TextFormat {
-                                    font_id: egui::FontId::proportional(11.0),
-                                    color: ui.visuals().weak_text_color(),
-                                    ..Default::default()
-                                },
-                            );
-                            metadata.append(
-                                &format!("  · {} priority", PRIORITIES[task.priority]),
-                                0.0,
-                                egui::TextFormat {
-                                    font_id: egui::FontId::proportional(11.0),
-                                    color: if task.priority == 0 {
-                                        rgb(192, 103, 52)
-                                    } else {
-                                        ui.visuals().weak_text_color()
-                                    },
-                                    ..Default::default()
-                                },
-                            );
-                            ui.label(metadata);
-                        });
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.add(look::Button::new("Remove")).clicked() {
-                                self.deleting = Some(task.id);
-                            }
-                        });
-                    });
+                    if task_row(ui, task) {
+                        self.deleting = Some(task.id);
+                    }
                 });
             });
             ui.add_space(8.);
@@ -743,43 +811,46 @@ impl Daybook {
                 });
         }
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(background).inner_margin(28))
+            .frame(egui::Frame::new().fill(background))
             .show(ui, |ui| {
-                if !sidebar {
-                    ui.horizontal_wrapped(|ui| {
-                        for (i, name) in ["My day", "All tasks", "Notes"].iter().enumerate() {
-                            if ui
-                                .add(look::Button::new(*name).selected(self.page == i))
-                                .clicked()
-                            {
-                                self.page = i;
+                look::ScrollArea::vertical().show(ui, |ui| {
+                    egui::Frame::new().inner_margin(28).show(ui, |ui| {
+                        if !sidebar {
+                            ui.horizontal_wrapped(|ui| {
+                                for (i, name) in ["My day", "All tasks", "Notes"].iter().enumerate()
+                                {
+                                    if ui
+                                        .add(look::Button::new(*name).selected(self.page == i))
+                                        .clicked()
+                                    {
+                                        self.page = i;
+                                    }
+                                }
+                                if ui
+                                    .add(
+                                        look::Switch::new(&mut self.data.dark)
+                                            .accessible_label("Dark mode"),
+                                    )
+                                    .changed()
+                                {
+                                    self.apply_theme(&ctx);
+                                }
+                            });
+                            ui.add_space(16.);
+                        }
+                        self.content(ui);
+                        if !wide {
+                            ui.add_space(24.);
+                            self.focus_card(ui);
+                            if self.page != 2 {
+                                ui.add_space(18.);
+                                self.notes(ui, false);
                             }
                         }
-                        if ui
-                            .add(
-                                look::Switch::new(&mut self.data.dark)
-                                    .accessible_label("Dark mode"),
-                            )
-                            .changed()
-                        {
-                            self.apply_theme(&ctx);
+                        if let Some(e) = &self.save_error {
+                            ui.colored_label(rgb(200, 70, 50), e);
                         }
                     });
-                    ui.add_space(16.);
-                }
-                look::ScrollArea::vertical().show(ui, |ui| {
-                    self.content(ui);
-                    if !wide {
-                        ui.add_space(24.);
-                        self.focus_card(ui);
-                        if self.page != 2 {
-                            ui.add_space(18.);
-                            self.notes(ui, false);
-                        }
-                    }
-                    if let Some(e) = &self.save_error {
-                        ui.colored_label(rgb(200, 70, 50), e);
-                    }
                 });
             });
         self.dialogs(&ctx);
@@ -906,5 +977,27 @@ mod tests {
         h.run_steps(3);
         assert!(h.query_by_label("Polish the onboarding flow").is_none());
         assert!(h.query_all_by_label("Review tomorrow").next().is_some());
+    }
+    #[test]
+    fn task_controls_stay_centered_for_wrapped_titles_and_both_apple_looks() {
+        use egui_kittest::kittest::Queryable;
+        for look_index in [0, 1] {
+            for width in [310.0, 580.0] {
+                for title in ["A short task", "Review the accessibility and keyboard navigation of every onboarding screen before the next release"] {
+                    let task=Task{id:1,title:title.into(),project:1,done:false,priority:0};
+                    let mut h=egui_kittest::Harness::builder().with_theme(egui::Theme::Light)
+                        .with_context_setup(move |ctx| Daybook::configure_theme(ctx,look_index,false))
+                        .with_size(egui::vec2(width+16.0,400.0))
+                        .build_ui_state(|ui,task:&mut Task| {ui.spacing_mut().item_spacing.y=0.0;task_row(ui,task);},task);
+                    h.run_steps(3);
+                    let checkbox=h.get_by_role_and_label(egui::accesskit::Role::CheckBox,title).rect();
+                    let remove=h.get_by_label("Remove").rect();
+                    assert!((checkbox.center().y-remove.center().y).abs()<0.5,"misaligned: {checkbox:?} / {remove:?}");
+                    assert!(remove.right()<=width+8.5,"button escaped the row: {remove:?}");
+                    h.get_by_role_and_label(egui::accesskit::Role::CheckBox,title).click();h.run_steps(3);
+                    assert!(h.state().done,"centered checkbox must remain clickable");
+                }
+            }
+        }
     }
 }

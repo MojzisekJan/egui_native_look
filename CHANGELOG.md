@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Respect AppKit non-overlay scrollbar preferences and native gutter widths on the macOS UI thread; keep scrollbar styling isolated from content.
+- Center Daybook task controls against wrapped text, preserve space for Remove, and align navigation, filters, scroll padding and editor insets with the SwiftUI reference.
+
 - Route macOS Return from focused switches and segmented controls to the window default action, retaining Space activation; support default actions outside dialogs with `window_actions`.
 - Correct San Francisco tracking through a local epaint point-size patch (downstream workspace opt-in required), use regular macOS/default-bold iOS button labels, and round Apple label bounds to display pixels.
 - Match iOS menu-picker height across control sizes, Apple progress layout heights and the iOS slider shadow.
