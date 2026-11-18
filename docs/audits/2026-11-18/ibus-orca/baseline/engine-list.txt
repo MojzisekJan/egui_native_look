@@ -1,0 +1,3 @@
+language: Other
+  m17n:t:latn-post - t-latn-post (m17n)
+  m17n:t:unicode - t-unicode (m17n)

@@ -1,0 +1,3040 @@
+[
+  {
+    "app": "gtk",
+    "case": "check.space",
+    "result": {
+      "check": true,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "check.Return",
+    "result": {
+      "check": true,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "check.KP_Enter",
+    "result": {
+      "check": true,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "check.ctrl+space",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "check.shift+space",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "check.alt+space",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "check.ctrl+Return",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "check.shift+Return",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "check.alt+Return",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.space",
+    "result": {
+      "switch": true,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.Return",
+    "result": {
+      "switch": true,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.KP_Enter",
+    "result": {
+      "switch": true,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.ctrl+space",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.shift+space",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.alt+space",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.ctrl+Return",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.shift+Return",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "switch.alt+Return",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.space",
+    "result": {
+      "button": 1,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.Return",
+    "result": {
+      "button": 1,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.KP_Enter",
+    "result": {
+      "button": 1,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.ctrl+space",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.shift+space",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.alt+space",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.ctrl+Return",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.shift+Return",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "button.alt+Return",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.closed.Down",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dialog"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.closed.Up",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.closed.Home",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.closed.End",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.closed.ctrl+Down",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dialog"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.closed.alt+Down",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.closed.space",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": true,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.closed.Return",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": true,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.open.Down",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.open.End",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.open.Home",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.open.Up",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dropdown.open.Return",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.0.Right",
+    "result": {
+      "radio": 1,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.0.Left",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.0.Down",
+    "result": {
+      "radio": 0,
+      "focus": []
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.0.Up",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "menu"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.0.Home",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.0.End",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.0.space",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.0.Return",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.2.Right",
+    "result": {
+      "radio": 2,
+      "focus": []
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.2.Left",
+    "result": {
+      "radio": 1,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.2.Down",
+    "result": {
+      "radio": 2,
+      "focus": []
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.2.Up",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "menu"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.2.Home",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.2.End",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.2.space",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "radio.2.Return",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.Up",
+    "result": {
+      "number": 5.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.Down",
+    "result": {
+      "number": 3.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.Page_Up",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.Page_Down",
+    "result": {
+      "number": -6.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.Home",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.End",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.ctrl+Right",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.ctrl+Home",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.ctrl+End",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.ctrl+Page_Up",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.ctrl+Page_Down",
+    "result": {
+      "number": -10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.'-'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.'-'",
+    "result": {
+      "number": 0.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.'abc'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.'abc'",
+    "result": {
+      "number": 0.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.''",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.''",
+    "result": {
+      "number": 0.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.'12.5'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.'12.5'",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.'-3.25'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.'-3.25'",
+    "result": {
+      "number": -3.25,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.'1e1'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.'1e1'",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.'1,5'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.'1,5'",
+    "result": {
+      "number": 1.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.'NaN'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.'NaN'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.input.'inf'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "number.commit.'inf'",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.Right",
+    "result": {
+      "slider": 41.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.Left",
+    "result": {
+      "slider": 39.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.Up",
+    "result": {
+      "slider": 41.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.Down",
+    "result": {
+      "slider": 39.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.Page_Up",
+    "result": {
+      "slider": 50.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.Page_Down",
+    "result": {
+      "slider": 30.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.Home",
+    "result": {
+      "slider": -10.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.End",
+    "result": {
+      "slider": 100.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.ctrl+Right",
+    "result": {
+      "slider": 50.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.ctrl+Home",
+    "result": {
+      "slider": 40.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.ctrl+End",
+    "result": {
+      "slider": 40.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.plus",
+    "result": {
+      "slider": 41.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "slider.minus",
+    "result": {
+      "slider": 39.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "entry.Home",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 0,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "entry.End",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 27,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "entry.ctrl+Left",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 21,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "entry.ctrl+Home,ctrl+Right",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 6,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "entry.Home,shift+Right",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [
+        0,
+        1
+      ],
+      "cursor": 1,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "entry.End,ctrl+shift+Left",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [
+        21,
+        27
+      ],
+      "cursor": 27,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "entry.End,ctrl+BackSpace",
+    "result": {
+      "entry": "Příliš žluťoučký kůň ",
+      "selection": [],
+      "cursor": 21,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "entry.Home,Delete",
+    "result": {
+      "entry": "říliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 0,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.0.Down",
+    "result": {
+      "list_selected": 1,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.1.Down",
+    "result": {
+      "list_selected": 2,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.2.Page_Down",
+    "result": {
+      "list_selected": 6,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.3.Page_Down",
+    "result": {
+      "list_selected": 10,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.4.Page_Up",
+    "result": {
+      "list_selected": 5,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.5.ctrl+Down",
+    "result": {
+      "list_selected": 5,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.6.space",
+    "result": {
+      "list_selected": 6,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.7.Home",
+    "result": {
+      "list_selected": 0,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.8.Up",
+    "result": {
+      "list_selected": 0,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.9.End",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.10.Down",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.disabled.11.Return",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.0.Down",
+    "result": {
+      "list_selected": 1,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.1.Down",
+    "result": {
+      "list_selected": 2,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.2.Page_Down",
+    "result": {
+      "list_selected": 6,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.3.Page_Down",
+    "result": {
+      "list_selected": 10,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.4.Page_Up",
+    "result": {
+      "list_selected": 5,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.5.ctrl+Down",
+    "result": {
+      "list_selected": 5,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.6.space",
+    "result": {
+      "list_selected": 6,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.7.Home",
+    "result": {
+      "list_selected": 0,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.8.Up",
+    "result": {
+      "list_selected": 0,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.9.End",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.10.Down",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "list.enabled.11.Return",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 4,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "pointer.button.press",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "button"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "pointer.button.release",
+    "result": {
+      "button": 1,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "button"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "pointer.switch.press",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "entry"
+      ],
+      "entry_focus": true,
+      "target_focus": false
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "pointer.switch.release",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": true,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "entry"
+      ],
+      "entry_focus": true,
+      "target_focus": false
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "pointer.check.press",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "check"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "pointer.check.release",
+    "result": {
+      "button": 0,
+      "check": true,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "check"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "pointer.dropdown.press",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "pointer.dropdown.release",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": [
+        "dropdown"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "menu.Right.Down.Enter",
+    "result": {
+      "menu_selected": 2,
+      "focus": [
+        "menu"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dialog.Enter",
+    "result": {
+      "dialog_save": 1,
+      "focus": [
+        "dialog"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "dialog.Escape",
+    "result": {
+      "dialog_save": 1,
+      "focus": [
+        "dialog"
+      ]
+    }
+  },
+  {
+    "app": "gtk",
+    "case": "scroll.nested.one-wheel",
+    "result": {
+      "scroll": [
+        0.0,
+        20.08298850246508
+      ],
+      "focus": [
+        "dialog"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.space",
+    "result": {
+      "check": true,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.Return",
+    "result": {
+      "check": true,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.KP_Enter",
+    "result": {
+      "check": true,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.ctrl+space",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.shift+space",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.alt+space",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.ctrl+Return",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.shift+Return",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "check.alt+Return",
+    "result": {
+      "check": false,
+      "focus": [
+        "check"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.space",
+    "result": {
+      "switch": true,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.Return",
+    "result": {
+      "switch": true,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.KP_Enter",
+    "result": {
+      "switch": true,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.ctrl+space",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.shift+space",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.alt+space",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.ctrl+Return",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.shift+Return",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "switch.alt+Return",
+    "result": {
+      "switch": false,
+      "focus": [
+        "switch"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.space",
+    "result": {
+      "button": 1,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.Return",
+    "result": {
+      "button": 1,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.KP_Enter",
+    "result": {
+      "button": 1,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.ctrl+space",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.shift+space",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.alt+space",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.ctrl+Return",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.shift+Return",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "button.alt+Return",
+    "result": {
+      "button": 0,
+      "focus": [
+        "button"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.closed.Down",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dialog"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.closed.Up",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.closed.Home",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.closed.End",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.closed.ctrl+Down",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.closed.alt+Down",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.closed.space",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": true,
+      "focus": []
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.closed.Return",
+    "result": {
+      "dropdown": 1,
+      "dropdown_open": true,
+      "focus": []
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.open.Down",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": []
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.open.End",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": []
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.open.Home",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": []
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.open.Up",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": []
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dropdown.open.Return",
+    "result": {
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.0.Right",
+    "result": {
+      "radio": 1,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.0.Left",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.0.Down",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.0.Up",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "menu"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.0.Home",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.0.End",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.0.space",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.0.Return",
+    "result": {
+      "radio": 0,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.2.Right",
+    "result": {
+      "radio": 2,
+      "focus": []
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.2.Left",
+    "result": {
+      "radio": 1,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.2.Down",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.2.Up",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "menu"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.2.Home",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.2.End",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.2.space",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "radio.2.Return",
+    "result": {
+      "radio": 2,
+      "focus": [
+        "radio"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.Up",
+    "result": {
+      "number": 5.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.Down",
+    "result": {
+      "number": 3.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.Page_Up",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.Page_Down",
+    "result": {
+      "number": -6.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.Home",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.End",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.ctrl+Right",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.ctrl+Home",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.ctrl+End",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.ctrl+Page_Up",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.ctrl+Page_Down",
+    "result": {
+      "number": -10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.'-'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.'-'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.'abc'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.'abc'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.''",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.''",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.'12.5'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.'12.5'",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.'-3.25'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.'-3.25'",
+    "result": {
+      "number": -3.25,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.'1e1'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.'1e1'",
+    "result": {
+      "number": 10.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.'1,5'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.'1,5'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.'NaN'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.'NaN'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.input.'inf'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "number.commit.'inf'",
+    "result": {
+      "number": 4.0,
+      "focus": [
+        "number"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.Right",
+    "result": {
+      "slider": 41.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.Left",
+    "result": {
+      "slider": 39.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.Up",
+    "result": {
+      "slider": 41.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.Down",
+    "result": {
+      "slider": 39.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.Page_Up",
+    "result": {
+      "slider": 50.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.Page_Down",
+    "result": {
+      "slider": 30.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.Home",
+    "result": {
+      "slider": -10.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.End",
+    "result": {
+      "slider": 100.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.ctrl+Right",
+    "result": {
+      "slider": 50.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.ctrl+Home",
+    "result": {
+      "slider": 40.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.ctrl+End",
+    "result": {
+      "slider": 40.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.plus",
+    "result": {
+      "slider": 41.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "slider.minus",
+    "result": {
+      "slider": 39.0,
+      "focus": [
+        "slider"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "entry.Home",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 0,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "entry.End",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 27,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "entry.ctrl+Left",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 21,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "entry.ctrl+Home,ctrl+Right",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 6,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "entry.Home,shift+Right",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [
+        0,
+        1
+      ],
+      "cursor": 1,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "entry.End,ctrl+shift+Left",
+    "result": {
+      "entry": "Příliš žluťoučký kůň skáče.",
+      "selection": [
+        21,
+        27
+      ],
+      "cursor": 21,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "entry.End,ctrl+BackSpace",
+    "result": {
+      "entry": "Příliš žluťoučký kůň ",
+      "selection": [],
+      "cursor": 21,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "entry.Home,Delete",
+    "result": {
+      "entry": "říliš žluťoučký kůň skáče.",
+      "selection": [],
+      "cursor": 0,
+      "focus": [
+        "entry"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.0.Down",
+    "result": {
+      "list_selected": 1,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.1.Down",
+    "result": {
+      "list_selected": 3,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.2.Page_Down",
+    "result": {
+      "list_selected": 7,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.3.Page_Down",
+    "result": {
+      "list_selected": 11,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.4.Page_Up",
+    "result": {
+      "list_selected": 6,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.5.ctrl+Down",
+    "result": {
+      "list_selected": 6,
+      "list_activated": 0,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.6.space",
+    "result": {
+      "list_selected": 7,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.7.Home",
+    "result": {
+      "list_selected": 0,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.8.Up",
+    "result": {
+      "list_selected": 0,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.9.End",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.10.Down",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 1,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.disabled.11.Return",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.0.Down",
+    "result": {
+      "list_selected": 1,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.1.Down",
+    "result": {
+      "list_selected": 2,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.2.Page_Down",
+    "result": {
+      "list_selected": 6,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.3.Page_Down",
+    "result": {
+      "list_selected": 10,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.4.Page_Up",
+    "result": {
+      "list_selected": 5,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.5.ctrl+Down",
+    "result": {
+      "list_selected": 5,
+      "list_activated": 2,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.6.space",
+    "result": {
+      "list_selected": 6,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.7.Home",
+    "result": {
+      "list_selected": 0,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.8.Up",
+    "result": {
+      "list_selected": 0,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.9.End",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.10.Down",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 3,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "list.enabled.11.Return",
+    "result": {
+      "list_selected": 19,
+      "list_activated": 4,
+      "focus": [
+        "listbox"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "pointer.button.press",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "button"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "egui",
+    "case": "pointer.button.release",
+    "result": {
+      "button": 1,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "button"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "egui",
+    "case": "pointer.switch.press",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "entry"
+      ],
+      "entry_focus": true,
+      "target_focus": false
+    }
+  },
+  {
+    "app": "egui",
+    "case": "pointer.switch.release",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": true,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "entry"
+      ],
+      "entry_focus": true,
+      "target_focus": false
+    }
+  },
+  {
+    "app": "egui",
+    "case": "pointer.check.press",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "check"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "egui",
+    "case": "pointer.check.release",
+    "result": {
+      "button": 0,
+      "check": true,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "check"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "egui",
+    "case": "pointer.dropdown.press",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": false,
+      "focus": [
+        "dropdown"
+      ],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "egui",
+    "case": "pointer.dropdown.release",
+    "result": {
+      "button": 0,
+      "check": false,
+      "switch": false,
+      "dropdown": 0,
+      "dropdown_open": true,
+      "focus": [],
+      "entry_focus": false,
+      "target_focus": true
+    }
+  },
+  {
+    "app": "egui",
+    "case": "menu.Right.Down.Enter",
+    "result": {
+      "menu_selected": 2,
+      "focus": [
+        "menu"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dialog.Enter",
+    "result": {
+      "dialog_save": 1,
+      "focus": [
+        "dialog"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "dialog.Escape",
+    "result": {
+      "dialog_save": 1,
+      "focus": [
+        "dialog"
+      ]
+    }
+  },
+  {
+    "app": "egui",
+    "case": "scroll.nested.one-wheel",
+    "result": {
+      "scroll": [
+        0.0,
+        20.082990646362305
+      ],
+      "focus": [
+        "dialog"
+      ]
+    }
+  }
+]

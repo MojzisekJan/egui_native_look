@@ -104,6 +104,12 @@ impl Dialog {
         body: impl FnOnce(&mut Ui),
         actions: impl FnOnce(&mut Ui),
     ) {
+        // TODO(ibus-x11): Diagnose and fix lost IME delivery after reopening a dialog.
+        // With eframe 0.37 / winit 0.30.13 / IBus 1.5.29, repeated opens can insert
+        // literal "c~" instead of composing "č", so the first Enter submits early.
+        // The responsible backend component is not isolated. Keep the failing
+        // tools/gtk-parity/live.py --dialog-cycles-only --dialog-cycles 20 regression.
+        // Evidence and setup: docs/audits/2026-11-18/ibus-orca/REPORT.md.
         if ctx.plugin_opt::<DialogFocusReturn>().is_none() {
             ctx.add_plugin(DialogFocusReturn);
         }
@@ -1048,7 +1054,8 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
             );
             let response = super::click_response(
                 ui,
-                ui.interact(
+                super::interact(
+                    ui,
                     Rect::from_center_size(
                         dot.center(),
                         super::target_size(ui, dot.expand(4.0).size()),
@@ -1087,7 +1094,8 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
             );
             let response = super::click_response(
                 ui,
-                ui.interact(
+                super::interact(
+                    ui,
                     Rect::from_center_size(rect.center(), super::target_size(ui, rect.size()))
                         .intersect(bar),
                     ui.scope_id().with("close"),
@@ -1196,7 +1204,8 @@ impl TitleBar {
     pub fn show(self, ui: &mut Ui, rect: Rect) -> Option<WindowAction> {
         let x = Ctx::of(ui);
         let c = &x.c;
-        let drag = ui.interact(
+        let drag = super::interact(
+            ui,
             rect,
             ui.scope_id().with("egui_native_look-title-bar"),
             Sense::click_and_drag(),
@@ -1237,7 +1246,8 @@ impl TitleBar {
                     egui::pos2(rect.right() - width * (slot + 1.0), rect.top()),
                     egui::vec2(width, rect.height()),
                 );
-                let response = ui.interact(
+                let response = super::interact(
+                    ui,
                     r,
                     ui.scope_id().with(("window-button", slot as i32)),
                     Sense::click(),
@@ -1309,7 +1319,8 @@ impl TitleBar {
                     ),
                     egui::Vec2::splat(side),
                 );
-                let response = ui.interact(
+                let response = super::interact(
+                    ui,
                     Rect::from_center_size(r.center(), super::target_size(ui, r.size()))
                         .intersect(rect),
                     ui.scope_id().with("window-close"),

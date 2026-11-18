@@ -1,0 +1,69 @@
+gtk entry-preedit '' 4.0 False 0
+gtk entry-commit 'č' 4.0 False 0
+gtk entry-second-preedit 'č' 4.0 False 0
+gtk entry-escape 'čá' 4.0 False 0
+gtk entry AT-SPI nodes 175
+gtk number-preedit 'čá' 4.0 False 0
+gtk number-ime-commit 'čá' 4.0 False 0
+gtk number-commit 'čá' 7.0 False 0
+gtk number AT-SPI nodes 175
+gtk dialog AT-SPI nodes 197
+/home/jan/rust/egui_native_look/tools/gtk-parity/live.py:127: DeprecationWarning: IBus.Bus.is_global_engine_enabled is deprecated
+  result['ibus'] = {'engine': current.get_name() if current else None, 'enabled': bus.is_global_engine_enabled()}
+gtk dialog-preedit 'Example' 4.0 True 0
+gtk dialog-ime-commit 'Example' 4.0 True 0
+gtk dialog-submit 'Example' 4.0 False 1
+gtk dialog-reopen 'Example' 4.0 True 1
+gtk dialog-first-escape 'Example' 4.0 False 1
+gtk dialog-second-escape 'Example' 4.0 False 1
+gtk navigation AT-SPI nodes 175
+gtk atspi-number-set 'Example' 6.0 False 0
+gtk atspi-number-clamp 'Example' 10.0 False 0
+gtk atspi-slider-set 'Example' 10.0 False 0
+gtk atspi-editable-text 'č7' 10.0 False 0
+gtk password AT-SPI nodes 175
+gtk atspi-disabled-number 'Example' 8.0 False 0
+gtk atspi-checkbox-action 'Example' 4.0 False 0
+gtk switch-preedit 'prefix|' 4.0 False 0
+gtk switch-focus-transfer 'prefix|' 4.0 False 0
+gtk switch-ime-commit 'prefix|č' 4.0 False 0
+gtk button-preedit 'prefix|' 4.0 False 0
+gtk button-focus-transfer 'prefix|č' 4.0 False 0
+egui entry-preedit 'č' 4.0 False 0
+egui entry-commit 'č' 4.0 False 0
+egui entry-second-preedit 'čá' 4.0 False 0
+egui entry-escape 'čá' 4.0 False 0
+egui entry AT-SPI nodes 74
+egui number-preedit 'čá' 4.0 False 0
+egui number-ime-commit 'čá' 4.0 False 0
+egui number-commit 'čá' 7.0 False 0
+egui number AT-SPI nodes 74
+egui dialog AT-SPI nodes 79
+egui dialog-preedit 'Example' 4.0 True 0
+egui dialog-ime-commit 'Example' 4.0 True 0
+egui dialog-submit 'Example' 4.0 False 1
+egui dialog-reopen 'Example' 4.0 True 1
+egui dialog-first-escape 'Example' 4.0 True 1
+egui dialog-second-escape 'Example' 4.0 False 1
+egui navigation AT-SPI nodes 74
+egui atspi-number-set 'Example' 6.0 False 0
+egui atspi-number-clamp 'Example' 10.0 False 0
+egui atspi-slider-set 'Example' 10.0 False 0
+egui atspi-number-nan 'Example' 10.0 False 0
+egui atspi-number-positive-infinity 'Example' 10.0 False 0
+egui atspi-number-negative-infinity 'Example' -10.0 False 0
+egui atspi-slider-nan 'Example' -10.0 False 0
+egui atspi-slider-positive-infinity 'Example' -10.0 False 0
+egui atspi-slider-negative-infinity 'Example' -10.0 False 0
+egui atspi-editable-text 'č7' -10.0 False 0
+egui password AT-SPI nodes 74
+egui atspi-disabled-number 'Example' 4.0 False 0
+egui atspi-checkbox-action 'Example' 4.0 False 0
+egui switch-preedit 'prefix|č' 4.0 False 0
+egui switch-focus-transfer 'prefix|č' 4.0 False 0
+egui switch-ime-commit 'prefix|č' 4.0 False 0
+egui button-preedit 'prefix|č' 4.0 False 0
+egui button-focus-transfer 'prefix|č' 4.0 False 0
+gallery navigation AT-SPI nodes 94
+{"apps": ["gtk", "egui"], "observations": 54, "announcements": 201, "status": "passed", "audio_playback": false}
+Live tests completed

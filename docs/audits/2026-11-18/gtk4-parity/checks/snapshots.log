@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.54s
+     Running tests/snapshots.rs (target/debug/build/egui_native_look/c613500527285771/out/snapshots-c613500527285771)
+
+running 4 tests
+test every_looks_open_menu_in_both_schemes ... ok
+test every_looks_dialog_in_both_schemes ... ok
+test the_toolbar_and_form_in_every_look_and_scheme ... ok
+test every_look_and_scheme ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.97s

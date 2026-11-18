@@ -1,0 +1,270 @@
+[
+  {
+    "name": "fixture-format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "tools/gtk-parity/Cargo.toml",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.17
+  },
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 1.77
+  },
+  {
+    "name": "test-all",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--all-features",
+      "--all-targets"
+    ],
+    "exit_code": 0,
+    "seconds": 63.64
+  },
+  {
+    "name": "test-doc",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--doc",
+      "--all-features"
+    ],
+    "exit_code": 0,
+    "seconds": 2.58
+  },
+  {
+    "name": "test-min",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features"
+    ],
+    "exit_code": 0,
+    "seconds": 49.74
+  },
+  {
+    "name": "clippy-all",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 7.89
+  },
+  {
+    "name": "clippy-min",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--no-default-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 4.6
+  },
+  {
+    "name": "snapshots",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "snapshots",
+      "--",
+      "--include-ignored"
+    ],
+    "exit_code": 0,
+    "seconds": 14.82
+  },
+  {
+    "name": "msrv",
+    "command": [
+      "cargo",
+      "+1.95.0",
+      "check",
+      "--lib",
+      "--locked",
+      "--target-dir",
+      "/tmp/egui-native-msrv"
+    ],
+    "exit_code": 0,
+    "seconds": 3.48
+  },
+  {
+    "name": "wasm32-unknown-unknown",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "wasm32-unknown-unknown"
+    ],
+    "exit_code": 0,
+    "seconds": 3.6
+  },
+  {
+    "name": "x86_64-pc-windows-gnu",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "x86_64-pc-windows-gnu"
+    ],
+    "exit_code": 0,
+    "seconds": 3.78
+  },
+  {
+    "name": "aarch64-apple-darwin",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-apple-darwin"
+    ],
+    "exit_code": 0,
+    "seconds": 5.32
+  },
+  {
+    "name": "aarch64-apple-ios",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-apple-ios"
+    ],
+    "exit_code": 0,
+    "seconds": 3.33
+  },
+  {
+    "name": "aarch64-linux-android",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-linux-android"
+    ],
+    "exit_code": 0,
+    "seconds": 2.71
+  },
+  {
+    "name": "wasm-gallery",
+    "command": [
+      "cargo",
+      "check",
+      "--locked",
+      "--example",
+      "gallery",
+      "--target",
+      "wasm32-unknown-unknown"
+    ],
+    "exit_code": 0,
+    "seconds": 2.84
+  },
+  {
+    "name": "web-viewport",
+    "command": [
+      "/home/jan/.local/share/pi-node/node-v22.23.3-linux-x64/bin/node",
+      "--test",
+      "web/viewport.test.mjs"
+    ],
+    "exit_code": 0,
+    "seconds": 0.63
+  },
+  {
+    "name": "audit",
+    "command": [
+      "cargo",
+      "audit",
+      "--json"
+    ],
+    "exit_code": 0,
+    "seconds": 6.03
+  },
+  {
+    "name": "package-list",
+    "command": [
+      "cargo",
+      "package",
+      "--list",
+      "--locked",
+      "--allow-dirty"
+    ],
+    "exit_code": 0,
+    "seconds": 0.57
+  },
+  {
+    "name": "fixture-clippy",
+    "command": [
+      "env",
+      "CARGO_TARGET_DIR=target",
+      "cargo",
+      "clippy",
+      "--locked",
+      "--manifest-path",
+      "tools/gtk-parity/Cargo.toml",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 4.24
+  },
+  {
+    "name": "fixture-audit",
+    "command": [
+      "cargo",
+      "audit",
+      "--file",
+      "tools/gtk-parity/Cargo.lock",
+      "--json"
+    ],
+    "exit_code": 0,
+    "seconds": 4.89
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.07
+  }
+]

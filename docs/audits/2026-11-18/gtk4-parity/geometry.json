@@ -1,0 +1,1402 @@
+[
+  {
+    "app": "gtk",
+    "mode": "light",
+    "disabled": false,
+    "widgets": {
+      "button": {
+        "x": 185.0,
+        "y": 65.0,
+        "width": 206,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": true
+      },
+      "check": {
+        "x": 185.0,
+        "y": 115.0,
+        "width": 116,
+        "height": 28.0,
+        "bounds_width": 124.0,
+        "focus": false
+      },
+      "switch": {
+        "x": 185.0,
+        "y": 165.0,
+        "width": 40,
+        "height": 26.0,
+        "bounds_width": 46.0,
+        "focus": false
+      },
+      "entry": {
+        "x": 185.0,
+        "y": 215.0,
+        "width": 222,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "number": {
+        "x": 185.0,
+        "y": 265.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "slider": {
+        "x": 185.0,
+        "y": 315.0,
+        "width": 216,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "dropdown": {
+        "x": 185.0,
+        "y": 365.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "progress": {
+        "x": 185.0,
+        "y": 415.0,
+        "width": 240,
+        "height": 8.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "dialog": {
+        "x": 185.0,
+        "y": 465.0,
+        "width": 206,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "menu": {
+        "x": 185.0,
+        "y": 515.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "plain": {
+        "x": 505.0,
+        "y": 65.0,
+        "width": 41,
+        "height": 34.0,
+        "bounds_width": 75.0,
+        "focus": false
+      },
+      "icon": {
+        "x": 505.0,
+        "y": 125.0,
+        "width": 24,
+        "height": 34.0,
+        "bounds_width": 34.0,
+        "focus": false
+      },
+      "icon_text": {
+        "x": 505.0,
+        "y": 185.0,
+        "width": 95,
+        "height": 34.0,
+        "bounds_width": 115.0,
+        "focus": false
+      },
+      "long": {
+        "x": 505.0,
+        "y": 245.0,
+        "width": 272,
+        "height": 34.0,
+        "bounds_width": 306.0,
+        "focus": false
+      },
+      "form": {
+        "x": 505.0,
+        "y": 305.0,
+        "width": 320,
+        "height": 50.0,
+        "bounds_width": 320.0,
+        "focus": false
+      },
+      "list": {
+        "x": 505.0,
+        "y": 365.0,
+        "width": 320,
+        "height": 34.0,
+        "bounds_width": 320.0,
+        "focus": false
+      },
+      "destructive": {
+        "x": 505.0,
+        "y": 425.0,
+        "width": 54,
+        "height": 34.0,
+        "bounds_width": 88.0,
+        "focus": false
+      },
+      "invalid": {
+        "x": 505.0,
+        "y": 485.0,
+        "width": 222,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "radio": {
+        "x": 185.0,
+        "y": 585.0,
+        "width": 233,
+        "height": 28.0,
+        "bounds_width": 233.0,
+        "focus": false
+      },
+      "listbox": {
+        "x": 185.0,
+        "y": 655.0,
+        "width": 240,
+        "height": 600.0,
+        "bounds_width": 240.0,
+        "focus": false
+      }
+    }
+  },
+  {
+    "app": "egui",
+    "mode": "light",
+    "disabled": false,
+    "widgets": {
+      "button": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 60.0
+      },
+      "check": {
+        "down": false,
+        "focus": false,
+        "height": 28.0,
+        "hover": false,
+        "width": 123.8125,
+        "x": 180.0,
+        "y": 110.0
+      },
+      "destructive": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 88.0625,
+        "x": 500.0,
+        "y": 430.0
+      },
+      "dialog": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 460.0
+      },
+      "dropdown": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 360.0
+      },
+      "entry": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 210.0
+      },
+      "form": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 138.0,
+        "x": 668.0,
+        "y": 310.0
+      },
+      "icon": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 34.0,
+        "x": 500.0,
+        "y": 130.0
+      },
+      "icon_text": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 114.75,
+        "x": 500.0,
+        "y": 190.0
+      },
+      "invalid": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 500.0,
+        "y": 490.0
+      },
+      "list": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 320.0,
+        "x": 500.0,
+        "y": 370.0
+      },
+      "listbox": {
+        "focus": false,
+        "height": 600.0,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 650.0
+      },
+      "long": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 306.25,
+        "x": 500.0,
+        "y": 250.0
+      },
+      "menu": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 510.0
+      },
+      "number": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 260.0
+      },
+      "plain": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 73.96875,
+        "x": 500.0,
+        "y": 70.0
+      },
+      "progress": {
+        "down": false,
+        "focus": false,
+        "height": 8.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 410.0
+      },
+      "radio": {
+        "focus": false,
+        "height": 40.0,
+        "width": 234.28125,
+        "x": 180.0,
+        "y": 580.0
+      },
+      "slider": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 310.0
+      },
+      "switch": {
+        "down": false,
+        "focus": false,
+        "height": 26.0,
+        "hover": false,
+        "width": 46.0,
+        "x": 180.0,
+        "y": 160.0
+      }
+    }
+  },
+  {
+    "app": "gtk",
+    "mode": "light",
+    "disabled": true,
+    "widgets": {
+      "button": {
+        "x": 185.0,
+        "y": 65.0,
+        "width": 206,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "check": {
+        "x": 185.0,
+        "y": 115.0,
+        "width": 116,
+        "height": 28.0,
+        "bounds_width": 124.0,
+        "focus": false
+      },
+      "switch": {
+        "x": 185.0,
+        "y": 165.0,
+        "width": 40,
+        "height": 26.0,
+        "bounds_width": 46.0,
+        "focus": false
+      },
+      "entry": {
+        "x": 185.0,
+        "y": 215.0,
+        "width": 222,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "number": {
+        "x": 185.0,
+        "y": 265.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "slider": {
+        "x": 185.0,
+        "y": 315.0,
+        "width": 216,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "dropdown": {
+        "x": 185.0,
+        "y": 365.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "progress": {
+        "x": 185.0,
+        "y": 415.0,
+        "width": 240,
+        "height": 8.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "dialog": {
+        "x": 185.0,
+        "y": 465.0,
+        "width": 206,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "menu": {
+        "x": 185.0,
+        "y": 515.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "plain": {
+        "x": 505.0,
+        "y": 65.0,
+        "width": 41,
+        "height": 34.0,
+        "bounds_width": 75.0,
+        "focus": false
+      },
+      "icon": {
+        "x": 505.0,
+        "y": 125.0,
+        "width": 24,
+        "height": 34.0,
+        "bounds_width": 34.0,
+        "focus": false
+      },
+      "icon_text": {
+        "x": 505.0,
+        "y": 185.0,
+        "width": 95,
+        "height": 34.0,
+        "bounds_width": 115.0,
+        "focus": false
+      },
+      "long": {
+        "x": 505.0,
+        "y": 245.0,
+        "width": 272,
+        "height": 34.0,
+        "bounds_width": 306.0,
+        "focus": false
+      },
+      "form": {
+        "x": 505.0,
+        "y": 305.0,
+        "width": 320,
+        "height": 50.0,
+        "bounds_width": 320.0,
+        "focus": false
+      },
+      "list": {
+        "x": 505.0,
+        "y": 365.0,
+        "width": 320,
+        "height": 34.0,
+        "bounds_width": 320.0,
+        "focus": false
+      },
+      "destructive": {
+        "x": 505.0,
+        "y": 425.0,
+        "width": 54,
+        "height": 34.0,
+        "bounds_width": 88.0,
+        "focus": false
+      },
+      "invalid": {
+        "x": 505.0,
+        "y": 485.0,
+        "width": 222,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "radio": {
+        "x": 185.0,
+        "y": 585.0,
+        "width": 233,
+        "height": 28.0,
+        "bounds_width": 233.0,
+        "focus": false
+      },
+      "listbox": {
+        "x": 185.0,
+        "y": 655.0,
+        "width": 240,
+        "height": 600.0,
+        "bounds_width": 240.0,
+        "focus": false
+      }
+    }
+  },
+  {
+    "app": "egui",
+    "mode": "light",
+    "disabled": true,
+    "widgets": {
+      "button": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 60.0
+      },
+      "check": {
+        "down": false,
+        "focus": false,
+        "height": 28.0,
+        "hover": false,
+        "width": 123.8125,
+        "x": 180.0,
+        "y": 110.0
+      },
+      "destructive": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 88.0625,
+        "x": 500.0,
+        "y": 430.0
+      },
+      "dialog": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 460.0
+      },
+      "dropdown": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 360.0
+      },
+      "entry": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 210.0
+      },
+      "form": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 138.0,
+        "x": 668.0,
+        "y": 310.0
+      },
+      "icon": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 34.0,
+        "x": 500.0,
+        "y": 130.0
+      },
+      "icon_text": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 114.75,
+        "x": 500.0,
+        "y": 190.0
+      },
+      "invalid": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 500.0,
+        "y": 490.0
+      },
+      "list": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 320.0,
+        "x": 500.0,
+        "y": 370.0
+      },
+      "listbox": {
+        "focus": false,
+        "height": 600.0,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 650.0
+      },
+      "long": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 306.25,
+        "x": 500.0,
+        "y": 250.0
+      },
+      "menu": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 510.0
+      },
+      "number": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 260.0
+      },
+      "plain": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 73.96875,
+        "x": 500.0,
+        "y": 70.0
+      },
+      "progress": {
+        "down": false,
+        "focus": false,
+        "height": 8.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 410.0
+      },
+      "radio": {
+        "focus": false,
+        "height": 40.0,
+        "width": 234.28125,
+        "x": 180.0,
+        "y": 580.0
+      },
+      "slider": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 310.0
+      },
+      "switch": {
+        "down": false,
+        "focus": false,
+        "height": 26.0,
+        "hover": false,
+        "width": 46.0,
+        "x": 180.0,
+        "y": 160.0
+      }
+    }
+  },
+  {
+    "app": "gtk",
+    "mode": "dark",
+    "disabled": false,
+    "widgets": {
+      "button": {
+        "x": 185.0,
+        "y": 65.0,
+        "width": 206,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": true
+      },
+      "check": {
+        "x": 185.0,
+        "y": 115.0,
+        "width": 116,
+        "height": 28.0,
+        "bounds_width": 124.0,
+        "focus": false
+      },
+      "switch": {
+        "x": 185.0,
+        "y": 165.0,
+        "width": 40,
+        "height": 26.0,
+        "bounds_width": 46.0,
+        "focus": false
+      },
+      "entry": {
+        "x": 185.0,
+        "y": 215.0,
+        "width": 222,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "number": {
+        "x": 185.0,
+        "y": 265.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "slider": {
+        "x": 185.0,
+        "y": 315.0,
+        "width": 216,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "dropdown": {
+        "x": 185.0,
+        "y": 365.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "progress": {
+        "x": 185.0,
+        "y": 415.0,
+        "width": 240,
+        "height": 8.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "dialog": {
+        "x": 185.0,
+        "y": 465.0,
+        "width": 206,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "menu": {
+        "x": 185.0,
+        "y": 515.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "plain": {
+        "x": 505.0,
+        "y": 65.0,
+        "width": 41,
+        "height": 34.0,
+        "bounds_width": 75.0,
+        "focus": false
+      },
+      "icon": {
+        "x": 505.0,
+        "y": 125.0,
+        "width": 24,
+        "height": 34.0,
+        "bounds_width": 34.0,
+        "focus": false
+      },
+      "icon_text": {
+        "x": 505.0,
+        "y": 185.0,
+        "width": 95,
+        "height": 34.0,
+        "bounds_width": 115.0,
+        "focus": false
+      },
+      "long": {
+        "x": 505.0,
+        "y": 245.0,
+        "width": 272,
+        "height": 34.0,
+        "bounds_width": 306.0,
+        "focus": false
+      },
+      "form": {
+        "x": 505.0,
+        "y": 305.0,
+        "width": 320,
+        "height": 50.0,
+        "bounds_width": 320.0,
+        "focus": false
+      },
+      "list": {
+        "x": 505.0,
+        "y": 365.0,
+        "width": 320,
+        "height": 34.0,
+        "bounds_width": 320.0,
+        "focus": false
+      },
+      "destructive": {
+        "x": 505.0,
+        "y": 425.0,
+        "width": 54,
+        "height": 34.0,
+        "bounds_width": 88.0,
+        "focus": false
+      },
+      "invalid": {
+        "x": 505.0,
+        "y": 485.0,
+        "width": 222,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "radio": {
+        "x": 185.0,
+        "y": 585.0,
+        "width": 233,
+        "height": 28.0,
+        "bounds_width": 233.0,
+        "focus": false
+      },
+      "listbox": {
+        "x": 185.0,
+        "y": 655.0,
+        "width": 240,
+        "height": 600.0,
+        "bounds_width": 240.0,
+        "focus": false
+      }
+    }
+  },
+  {
+    "app": "egui",
+    "mode": "dark",
+    "disabled": false,
+    "widgets": {
+      "button": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 60.0
+      },
+      "check": {
+        "down": false,
+        "focus": false,
+        "height": 28.0,
+        "hover": false,
+        "width": 123.8125,
+        "x": 180.0,
+        "y": 110.0
+      },
+      "destructive": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 88.0625,
+        "x": 500.0,
+        "y": 430.0
+      },
+      "dialog": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 460.0
+      },
+      "dropdown": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 360.0
+      },
+      "entry": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 210.0
+      },
+      "form": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 138.0,
+        "x": 668.0,
+        "y": 310.0
+      },
+      "icon": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 34.0,
+        "x": 500.0,
+        "y": 130.0
+      },
+      "icon_text": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 114.75,
+        "x": 500.0,
+        "y": 190.0
+      },
+      "invalid": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 500.0,
+        "y": 490.0
+      },
+      "list": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 320.0,
+        "x": 500.0,
+        "y": 370.0
+      },
+      "listbox": {
+        "focus": false,
+        "height": 600.0,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 650.0
+      },
+      "long": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 306.25,
+        "x": 500.0,
+        "y": 250.0
+      },
+      "menu": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 510.0
+      },
+      "number": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 260.0
+      },
+      "plain": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 73.96875,
+        "x": 500.0,
+        "y": 70.0
+      },
+      "progress": {
+        "down": false,
+        "focus": false,
+        "height": 8.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 410.0
+      },
+      "radio": {
+        "focus": false,
+        "height": 40.0,
+        "width": 234.28125,
+        "x": 180.0,
+        "y": 580.0
+      },
+      "slider": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 310.0
+      },
+      "switch": {
+        "down": false,
+        "focus": false,
+        "height": 26.0,
+        "hover": false,
+        "width": 46.0,
+        "x": 180.0,
+        "y": 160.0
+      }
+    }
+  },
+  {
+    "app": "gtk",
+    "mode": "dark",
+    "disabled": true,
+    "widgets": {
+      "button": {
+        "x": 185.0,
+        "y": 65.0,
+        "width": 206,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "check": {
+        "x": 185.0,
+        "y": 115.0,
+        "width": 116,
+        "height": 28.0,
+        "bounds_width": 124.0,
+        "focus": false
+      },
+      "switch": {
+        "x": 185.0,
+        "y": 165.0,
+        "width": 40,
+        "height": 26.0,
+        "bounds_width": 46.0,
+        "focus": false
+      },
+      "entry": {
+        "x": 185.0,
+        "y": 215.0,
+        "width": 222,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "number": {
+        "x": 185.0,
+        "y": 265.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "slider": {
+        "x": 185.0,
+        "y": 315.0,
+        "width": 216,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "dropdown": {
+        "x": 185.0,
+        "y": 365.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "progress": {
+        "x": 185.0,
+        "y": 415.0,
+        "width": 240,
+        "height": 8.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "dialog": {
+        "x": 185.0,
+        "y": 465.0,
+        "width": 206,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "menu": {
+        "x": 185.0,
+        "y": 515.0,
+        "width": 240,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "plain": {
+        "x": 505.0,
+        "y": 65.0,
+        "width": 41,
+        "height": 34.0,
+        "bounds_width": 75.0,
+        "focus": false
+      },
+      "icon": {
+        "x": 505.0,
+        "y": 125.0,
+        "width": 24,
+        "height": 34.0,
+        "bounds_width": 34.0,
+        "focus": false
+      },
+      "icon_text": {
+        "x": 505.0,
+        "y": 185.0,
+        "width": 95,
+        "height": 34.0,
+        "bounds_width": 115.0,
+        "focus": false
+      },
+      "long": {
+        "x": 505.0,
+        "y": 245.0,
+        "width": 272,
+        "height": 34.0,
+        "bounds_width": 306.0,
+        "focus": false
+      },
+      "form": {
+        "x": 505.0,
+        "y": 305.0,
+        "width": 320,
+        "height": 50.0,
+        "bounds_width": 320.0,
+        "focus": false
+      },
+      "list": {
+        "x": 505.0,
+        "y": 365.0,
+        "width": 320,
+        "height": 34.0,
+        "bounds_width": 320.0,
+        "focus": false
+      },
+      "destructive": {
+        "x": 505.0,
+        "y": 425.0,
+        "width": 54,
+        "height": 34.0,
+        "bounds_width": 88.0,
+        "focus": false
+      },
+      "invalid": {
+        "x": 505.0,
+        "y": 485.0,
+        "width": 222,
+        "height": 34.0,
+        "bounds_width": 240.0,
+        "focus": false
+      },
+      "radio": {
+        "x": 185.0,
+        "y": 585.0,
+        "width": 233,
+        "height": 28.0,
+        "bounds_width": 233.0,
+        "focus": false
+      },
+      "listbox": {
+        "x": 185.0,
+        "y": 655.0,
+        "width": 240,
+        "height": 600.0,
+        "bounds_width": 240.0,
+        "focus": false
+      }
+    }
+  },
+  {
+    "app": "egui",
+    "mode": "dark",
+    "disabled": true,
+    "widgets": {
+      "button": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 60.0
+      },
+      "check": {
+        "down": false,
+        "focus": false,
+        "height": 28.0,
+        "hover": false,
+        "width": 123.8125,
+        "x": 180.0,
+        "y": 110.0
+      },
+      "destructive": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 88.0625,
+        "x": 500.0,
+        "y": 430.0
+      },
+      "dialog": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 460.0
+      },
+      "dropdown": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 360.0
+      },
+      "entry": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 210.0
+      },
+      "form": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 138.0,
+        "x": 668.0,
+        "y": 310.0
+      },
+      "icon": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 34.0,
+        "x": 500.0,
+        "y": 130.0
+      },
+      "icon_text": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 114.75,
+        "x": 500.0,
+        "y": 190.0
+      },
+      "invalid": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 500.0,
+        "y": 490.0
+      },
+      "list": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 320.0,
+        "x": 500.0,
+        "y": 370.0
+      },
+      "listbox": {
+        "focus": false,
+        "height": 600.0,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 650.0
+      },
+      "long": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 306.25,
+        "x": 500.0,
+        "y": 250.0
+      },
+      "menu": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 510.0
+      },
+      "number": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 260.0
+      },
+      "plain": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 73.96875,
+        "x": 500.0,
+        "y": 70.0
+      },
+      "progress": {
+        "down": false,
+        "focus": false,
+        "height": 8.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 410.0
+      },
+      "radio": {
+        "focus": false,
+        "height": 40.0,
+        "width": 234.28125,
+        "x": 180.0,
+        "y": 580.0
+      },
+      "slider": {
+        "down": false,
+        "focus": false,
+        "height": 34.0,
+        "hover": false,
+        "width": 240.0,
+        "x": 180.0,
+        "y": 310.0
+      },
+      "switch": {
+        "down": false,
+        "focus": false,
+        "height": 26.0,
+        "hover": false,
+        "width": 46.0,
+        "x": 180.0,
+        "y": 160.0
+      }
+    }
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "target": "/tmp/egui-live-build",
+  "target_apparent_bytes_before": 2668827135,
+  "target_exists_after": false,
+  "extra_binary_bytes_removed": 130745448,
+  "free_bytes_before": 30539030528,
+  "free_bytes_after": 33450700800,
+  "cargo_clean": "Removed 5566 files, 2.6GiB total",
+  "cargo_registry_preserved": true,
+  "source_and_audit_preserved": true
+}

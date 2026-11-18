@@ -1,0 +1,38 @@
+{
+  "release_clearance": false,
+  "core_and_doc_tests": {
+    "passed": 349,
+    "ignored": 4
+  },
+  "gallery_tests": {
+    "passed": 9
+  },
+  "clippy": "passed",
+  "fixture_clippy": "passed",
+  "gtk_parity": {
+    "cases": 142,
+    "matched": 131,
+    "documented_differences": 11,
+    "unexpected_differences": 0
+  },
+  "baseline_live": {
+    "observations": 54,
+    "announcements": 201,
+    "passed_once": true,
+    "repeatable_clearance": false
+  },
+  "final_repeated_dialog": {
+    "status": "failed",
+    "observations": 5,
+    "error": "AssertionError()",
+    "last_case": "dialog-cycle-1-ime-commit"
+  },
+  "binary_sha256": "f6a6317dfd275b79972a63287d9856925d7d236a2cf4c936fadef7cdfe88ebaa",
+  "speculative_dependency_patch_applied": false,
+  "repeated_regression": {
+    "status": "failed",
+    "observations": 11,
+    "error": "AssertionError(\"cycle 3: expected composed \u010d and open dialog after IME Enter; got text='c~', open=False, save_count=4\")",
+    "last_case": "dialog-cycle-3-ime-commit"
+  }
+}

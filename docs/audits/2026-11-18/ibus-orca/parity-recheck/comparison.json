@@ -1,0 +1,118 @@
+{
+  "cases": 142,
+  "matched": 131,
+  "intentional": [
+    {
+      "case": "number.commit.'-'",
+      "gtk": {
+        "number": 0.0
+      },
+      "egui": {
+        "number": 4.0
+      }
+    },
+    {
+      "case": "number.commit.'abc'",
+      "gtk": {
+        "number": 0.0
+      },
+      "egui": {
+        "number": 4.0
+      }
+    },
+    {
+      "case": "number.commit.''",
+      "gtk": {
+        "number": 0.0
+      },
+      "egui": {
+        "number": 4.0
+      }
+    },
+    {
+      "case": "number.commit.'1,5'",
+      "gtk": {
+        "number": 1.0
+      },
+      "egui": {
+        "number": 4.0
+      }
+    },
+    {
+      "case": "number.commit.'inf'",
+      "gtk": {
+        "number": 10.0
+      },
+      "egui": {
+        "number": 4.0
+      }
+    },
+    {
+      "case": "list.disabled.1.Down",
+      "gtk": {
+        "list_selected": 2,
+        "list_activated": 0
+      },
+      "egui": {
+        "list_selected": 3,
+        "list_activated": 0
+      }
+    },
+    {
+      "case": "list.disabled.2.Page_Down",
+      "gtk": {
+        "list_selected": 6,
+        "list_activated": 0
+      },
+      "egui": {
+        "list_selected": 7,
+        "list_activated": 0
+      }
+    },
+    {
+      "case": "list.disabled.3.Page_Down",
+      "gtk": {
+        "list_selected": 10,
+        "list_activated": 0
+      },
+      "egui": {
+        "list_selected": 11,
+        "list_activated": 0
+      }
+    },
+    {
+      "case": "list.disabled.4.Page_Up",
+      "gtk": {
+        "list_selected": 5,
+        "list_activated": 0
+      },
+      "egui": {
+        "list_selected": 6,
+        "list_activated": 0
+      }
+    },
+    {
+      "case": "list.disabled.5.ctrl+Down",
+      "gtk": {
+        "list_selected": 5,
+        "list_activated": 0
+      },
+      "egui": {
+        "list_selected": 6,
+        "list_activated": 0
+      }
+    },
+    {
+      "case": "list.disabled.6.space",
+      "gtk": {
+        "list_selected": 6,
+        "list_activated": 1
+      },
+      "egui": {
+        "list_selected": 7,
+        "list_activated": 1
+      }
+    }
+  ],
+  "unexpected": []
+}

@@ -61,6 +61,17 @@ impl<'a> ListBox<'a> {
         ui: &mut Ui,
         contents: impl FnOnce(&mut ListBoxUi<'_>) -> R,
     ) -> ListBoxOutput<R> {
+        // GtkListBox paints the view background independently of row sensitivity.
+        // Reserve its place before drawing rows, whose full extent is known afterward.
+        let background = (crate::look(ui.ctx()) == crate::Look::Gtk).then(|| {
+            let mut painter = ui.painter().clone();
+            if !ui.is_enabled() {
+                painter
+                    .set_opacity((ui.opacity() / ui.visuals().disabled_alpha().max(0.01)).min(1.0));
+            }
+            let slot = painter.add(egui::Shape::Noop);
+            (painter, slot)
+        });
         let id = ui.make_persistent_id(self.id);
         let key = id.with("list-state");
         let mut state = ui
@@ -190,6 +201,17 @@ impl<'a> ListBox<'a> {
                 result
             },
         );
+        if let Some((painter, slot)) = background {
+            let dark = crate::colors(list.ui.ctx()).dark;
+            painter.set(
+                slot,
+                egui::Shape::rect_filled(
+                    scoped.response.rect,
+                    0.0,
+                    crate::colors::rgb(if dark { 0x1e1e1e } else { 0xffffff }),
+                ),
+            );
+        }
         // Reconcile against this frame's rows when filtering or enabled state changed.
         if list.items != state.items && (!navigation.is_empty() || activate) {
             let enabled: Vec<_> = list
@@ -246,7 +268,8 @@ impl<'a> ListBox<'a> {
                 .map(|(v, _)| *v);
         }
         let any_enabled = list.items.iter().any(|(_, enabled)| *enabled) && list.ui.is_enabled();
-        let mut response = list.ui.interact(
+        let mut response = super::interact(
+            list.ui,
             scoped.response.rect,
             id,
             if any_enabled {
@@ -331,7 +354,8 @@ impl ListBoxUi<'_> {
             Sense::hover(),
         );
         self.rects.push((value, rect));
-        let mut response = self.ui.interact(
+        let mut response = super::interact(
+            self.ui,
             rect,
             id,
             if enabled {

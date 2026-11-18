@@ -658,7 +658,11 @@ impl Switch<'_> {
             }
         }
         if response.has_focus() {
-            crate::paint::ring(painter, &x.paint(), rect, round);
+            if x.look == Look::Gtk {
+                crate::paint::gtk_button_ring(painter, &x.paint(), rect, round);
+            } else {
+                crate::paint::ring(painter, &x.paint(), rect, round);
+            }
         }
         response
     }
@@ -709,7 +713,9 @@ fn switch_drag(ui: &mut Ui, response: &Response, rect: Rect, on: &mut bool) -> O
         return None;
     }
     if pressed && response.is_pointer_button_down_on() {
-        response.request_focus();
+        if crate::look(ui.ctx()) != Look::Gtk {
+            response.request_focus();
+        }
         if let Some(origin) = response.interact_pointer_pos() {
             let initial = if *on { 1.0 } else { 0.0 };
             ui.data_mut(|data| {
@@ -924,7 +930,17 @@ impl Checkbox<'_> {
             painter.rect_filled(
                 mark,
                 round,
-                if enabled || x.look == Look::Gtk {
+                if enabled && x.look == Look::Gtk {
+                    crate::paint::gtk_state_fill(
+                        painter,
+                        &response,
+                        [
+                            c.accent,
+                            c.accent_hover,
+                            lerp_color(c.accent, Color32::BLACK, 0.2),
+                        ],
+                    )
+                } else if enabled || x.look == Look::Gtk {
                     c.accent
                 } else {
                     c.accent.gamma_multiply(0.5)
@@ -940,10 +956,17 @@ impl Checkbox<'_> {
                 check_mark(painter, mark.center(), c.on_accent);
             }
         } else {
-            paint_mark_box(painter, &x, mark, round, enabled, response.hovered());
+            paint_mark_box(painter, &x, mark, round, enabled, &response);
         }
-        if response.has_focus() {
-            crate::paint::ring(painter, &x.paint(), mark, round);
+        if response.has_focus()
+            && (x.look != Look::Gtk || crate::paint::gtk_focus_visible(ui.ctx()))
+        {
+            let (rect, corners) = if x.look == Look::Gtk {
+                (response.rect, CornerRadius::same(6))
+            } else {
+                (mark, round)
+            };
+            crate::paint::ring(painter, &x.paint(), rect, corners);
         }
         response
     }
@@ -1045,7 +1068,7 @@ impl Radio {
             painter.circle_filled(
                 mark.center(),
                 mark.width() / 2.0,
-                if enabled || x.look == Look::Gtk {
+                if enabled {
                     c.accent
                 } else {
                     c.accent.gamma_multiply(0.5)
@@ -1056,7 +1079,17 @@ impl Radio {
             painter.circle_filled(
                 mark.center(),
                 mark.width() / 2.0,
-                if enabled || x.look == Look::Gtk {
+                if enabled && x.look == Look::Gtk {
+                    crate::paint::gtk_state_fill(
+                        painter,
+                        &response,
+                        [
+                            c.accent,
+                            c.accent_hover,
+                            lerp_color(c.accent, Color32::BLACK, 0.2),
+                        ],
+                    )
+                } else if enabled || x.look == Look::Gtk {
                     c.accent
                 } else {
                     c.accent.gamma_multiply(0.5)
@@ -1077,10 +1110,17 @@ impl Radio {
             };
             painter.circle_filled(mark.center(), dot, c.on_accent);
         } else {
-            paint_mark_box(painter, &x, mark, round, enabled, response.hovered());
+            paint_mark_box(painter, &x, mark, round, enabled, &response);
         }
-        if response.has_focus() {
-            crate::paint::ring(painter, &x.paint(), mark, round);
+        if response.has_focus()
+            && (x.look != Look::Gtk || crate::paint::gtk_focus_visible(ui.ctx()))
+        {
+            let (rect, corners) = if x.look == Look::Gtk {
+                (response.rect, CornerRadius::same(6))
+            } else {
+                (mark, round)
+            };
+            crate::paint::ring(painter, &x.paint(), rect, corners);
         }
         response
     }
@@ -1104,7 +1144,8 @@ pub fn radio_value<T: PartialEq>(
 /// Radio buttons choosing one value for `current`, as one control for the keyboard: Tab
 /// stops only on the chosen option (the first enabled one while none is chosen), the
 /// arrows choose and focus the previous or next enabled option, wrapping round at the
-/// ends except on Windows, and Space chooses the focused one. Lay the options out with
+/// ends except on Windows and GTK, and Space chooses the focused one. GTK arrows
+/// follow the layout and leave the group at its edges. Lay the options out with
 /// the `Ui` the closure gets, in a row or a column.
 ///
 /// ```no_run
@@ -1175,14 +1216,66 @@ impl<'a, T: PartialEq + Clone> RadioGroup<'a, T> {
         });
         let focused = ui.memory(|memory| memory.focused());
         if let Some(at) = options.iter().position(|option| Some(option.id) == focused) {
-            let wrap = x.look != Look::Windows;
+            let wrap = !matches!(x.look, Look::Windows | Look::Gtk);
+            let gtk_direction = (x.look == Look::Gtk)
+                .then(|| {
+                    ui.input_mut(|input| {
+                        [
+                            egui::Key::ArrowLeft,
+                            egui::Key::ArrowRight,
+                            egui::Key::ArrowUp,
+                            egui::Key::ArrowDown,
+                        ]
+                        .into_iter()
+                        .find(|key| input.consume_key(egui::Modifiers::NONE, *key))
+                    })
+                })
+                .flatten();
             let (step, space) = ui.input_mut(|input| {
                 let mut take = |key| input.consume_key(egui::Modifiers::NONE, key);
                 let forward = take(egui::Key::ArrowDown) | take(egui::Key::ArrowRight);
                 let back = take(egui::Key::ArrowUp) | take(egui::Key::ArrowLeft);
                 (i32::from(forward) - i32::from(back), take(egui::Key::Space))
             });
-            let target = if step != 0 {
+            let target = if let Some(key) = gtk_direction {
+                let rect = options[at].rect;
+                let target = options
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, option)| option.enabled)
+                    .filter_map(|(index, option)| {
+                        let delta = option.rect.center() - rect.center();
+                        let (distance, aligned) = match key {
+                            egui::Key::ArrowLeft => {
+                                (-delta.x, option.rect.y_range().intersects(rect.y_range()))
+                            }
+                            egui::Key::ArrowRight => {
+                                (delta.x, option.rect.y_range().intersects(rect.y_range()))
+                            }
+                            egui::Key::ArrowUp => {
+                                (-delta.y, option.rect.x_range().intersects(rect.x_range()))
+                            }
+                            egui::Key::ArrowDown => {
+                                (delta.y, option.rect.x_range().intersects(rect.x_range()))
+                            }
+                            _ => unreachable!(),
+                        };
+                        (aligned && distance > 0.0).then_some((index, distance))
+                    })
+                    .min_by(|a, b| a.1.total_cmp(&b.1))
+                    .map(|(index, _)| index);
+                if target.is_none() {
+                    let direction = match key {
+                        egui::Key::ArrowLeft => egui::FocusDirection::Left,
+                        egui::Key::ArrowRight => egui::FocusDirection::Right,
+                        egui::Key::ArrowUp => egui::FocusDirection::Up,
+                        egui::Key::ArrowDown => egui::FocusDirection::Down,
+                        _ => unreachable!(),
+                    };
+                    ui.memory_mut(|memory| memory.move_focus(direction));
+                }
+                target
+            } else if step != 0 {
                 next_enabled(&options, at, step, wrap)
             } else if space {
                 Some(at)
@@ -1234,6 +1327,7 @@ fn next_enabled<T>(options: &[GroupOption<T>], at: usize, step: i32, wrap: bool)
 
 struct GroupOption<T> {
     id: egui::Id,
+    rect: Rect,
     value: T,
     enabled: bool,
     changed: bool,
@@ -1290,6 +1384,7 @@ impl<T: PartialEq + Clone> RadioGroupUi<'_, T> {
         }
         self.options.push(GroupOption {
             id: response.id,
+            rect: response.rect,
             value,
             enabled,
             changed,
@@ -1399,8 +1494,9 @@ fn paint_mark_box(
     mark: Rect,
     round: CornerRadius,
     enabled: bool,
-    hovered: bool,
+    response: &Response,
 ) {
+    let hovered = response.hovered();
     let c = &x.c;
     match x.look {
         Look::Mac => {
@@ -1410,6 +1506,9 @@ fn paint_mark_box(
                 lerp_color(c.bg, c.track, 0.5)
             };
             painter.rect_filled(mark, round, fill);
+        }
+        Look::Gtk if enabled && response.is_pointer_button_down_on() => {
+            painter.rect_filled(mark, round, c.fg.gamma_multiply(0.25));
         }
         Look::Gtk => {
             // libadwaita's trough colour, a step stronger under the pointer.

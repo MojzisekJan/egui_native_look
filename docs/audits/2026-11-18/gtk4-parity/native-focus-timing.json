@@ -1,0 +1,162 @@
+[
+  {
+    "phase": "initial",
+    "seconds": 0.15,
+    "visible": false
+  },
+  {
+    "phase": "tab",
+    "seconds": 0.15,
+    "visible": true
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 0.16,
+    "visible": true
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 0.72,
+    "visible": true
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 1.27,
+    "visible": true
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 1.82,
+    "visible": true
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 2.38,
+    "visible": true
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 2.93,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 3.46,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 4.0,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 4.53,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 5.08,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 5.64,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 6.2,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 6.75,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 7.31,
+    "visible": false
+  },
+  {
+    "phase": "click-after-tab",
+    "seconds": 7.86,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 0.13,
+    "visible": true
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 0.69,
+    "visible": true
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 1.25,
+    "visible": true
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 1.81,
+    "visible": true
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 2.36,
+    "visible": true
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 2.92,
+    "visible": true
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 3.47,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 4.02,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 4.58,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 5.13,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 5.69,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 6.25,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 6.8,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 7.36,
+    "visible": false
+  },
+  {
+    "phase": "tab-idle",
+    "seconds": 7.91,
+    "visible": false
+  }
+]

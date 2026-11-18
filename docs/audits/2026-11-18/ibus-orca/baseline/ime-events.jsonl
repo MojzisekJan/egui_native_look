@@ -1,0 +1,24 @@
+{"events":["Ime(Preedit { text: \"\", active_range_chars: None })"],"frame":43}
+{"events":["Ime(Preedit { text: \"c\", active_range_chars: Some(1..1) })"],"frame":44}
+{"events":["Ime(Preedit { text: \"c\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"č\", active_range_chars: Some(1..1) })"],"frame":51}
+{"events":["Ime(Preedit { text: \"č\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Commit(\"č\"))","Ime(Preedit { text: \"\", active_range_chars: None })"],"frame":62}
+{"events":["Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Preedit { text: \"a\", active_range_chars: Some(1..1) })"],"frame":67}
+{"events":["Ime(Preedit { text: \"a\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"á\", active_range_chars: Some(1..1) })"],"frame":71}
+{"events":["Ime(Preedit { text: \"á\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Commit(\"á\"))","Ime(Preedit { text: \"\", active_range_chars: None })"],"frame":83}
+{"events":["Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Preedit { text: \"U+\", active_range_chars: Some(2..2) })"],"frame":125}
+{"events":["Ime(Preedit { text: \"U+\", active_range_chars: Some(2..2) })","Ime(Preedit { text: \"U+0\", active_range_chars: Some(3..3) })"],"frame":130}
+{"events":["Ime(Preedit { text: \"U+0\", active_range_chars: Some(3..3) })","Ime(Preedit { text: \"U+00\", active_range_chars: Some(4..4) })"],"frame":135}
+{"events":["Ime(Preedit { text: \"U+00\", active_range_chars: Some(4..4) })","Ime(Preedit { text: \"U+003\", active_range_chars: Some(5..5) })"],"frame":140}
+{"events":["Ime(Preedit { text: \"U+003\", active_range_chars: Some(5..5) })","Ime(Preedit { text: \"U+0037\", active_range_chars: Some(6..6) })"],"frame":145}
+{"events":["Ime(Preedit { text: \"U+0037\", active_range_chars: Some(6..6) })","Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Commit(\"7\"))","Ime(Preedit { text: \"\", active_range_chars: None })"],"frame":153}
+{"events":["Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Preedit { text: \"c\", active_range_chars: Some(1..1) })"],"frame":51}
+{"events":["Ime(Preedit { text: \"c\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"č\", active_range_chars: Some(1..1) })"],"frame":58}
+{"events":["Ime(Preedit { text: \"č\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Commit(\"č\"))","Ime(Preedit { text: \"\", active_range_chars: None })"],"frame":81}
+{"events":["Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Preedit { text: \"a\", active_range_chars: Some(1..1) })"],"frame":156}
+{"events":["Ime(Preedit { text: \"a\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"á\", active_range_chars: Some(1..1) })"],"frame":160}
+{"events":["Ime(Preedit { text: \"á\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Commit(\"á\"))","Ime(Preedit { text: \"\", active_range_chars: None })"],"frame":168}
+{"events":["Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Preedit { text: \"c\", active_range_chars: Some(1..1) })"],"frame":142}
+{"events":["Ime(Preedit { text: \"c\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"č\", active_range_chars: Some(1..1) })"],"frame":149}
+{"events":["Ime(Preedit { text: \"č\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Commit(\"č\"))","Ime(Preedit { text: \"\", active_range_chars: None })"],"frame":176}
+{"events":["Ime(Preedit { text: \"\", active_range_chars: None })","Ime(Preedit { text: \"c\", active_range_chars: Some(1..1) })"],"frame":190}
+{"events":["Ime(Preedit { text: \"c\", active_range_chars: Some(1..1) })","Ime(Preedit { text: \"č\", active_range_chars: Some(1..1) })"],"frame":197}

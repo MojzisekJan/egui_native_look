@@ -557,10 +557,19 @@ fn a_radio_group_is_one_tab_stop_moved_through_by_the_arrows() {
             |ui| radios(ui, &mut current),
         );
         frame(&ctx, vec![], |ui| radios(ui, &mut current));
-        if chosen == look::Look::Windows {
+        if matches!(chosen, look::Look::Windows | look::Look::Gtk) {
             assert_eq!(current, 3, "{chosen}: no wrapping");
         } else {
             assert_eq!(current, 0, "{chosen}: Down from the last wraps");
+        }
+        if chosen == look::Look::Gtk {
+            assert_eq!(
+                focused(&ctx),
+                Some(r.after),
+                "GTK: Down at the edge leaves the group"
+            );
+            ctx.memory_mut(|memory| memory.request_focus(r.ids[3]));
+            frame(&ctx, vec![], |ui| radios(ui, &mut current));
         }
         frame(&ctx, key(egui::Key::Tab, egui::Modifiers::NONE), |ui| {
             radios(ui, &mut current)

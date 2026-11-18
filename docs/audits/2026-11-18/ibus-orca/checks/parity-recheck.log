@@ -1,0 +1,4 @@
+Measuring gtk
+Measuring egui
+Measured 284 native interaction states
+142 cases: 131 matched, 11 documented policy differences, 0 unexpected differences

@@ -9,7 +9,7 @@ repository = "https://github.com/MojzisekJan/egui_native_look"
 readme = "README.md"
 keywords = ["egui", "theme", "macos", "winui", "gtk"]
 categories = ["gui"]
-exclude = ["/tests/snapshots", "/docs", "/.github", "/web"]
+exclude = ["/tests/snapshots", "/docs", "/.github", "/web", "/tools"]
 
 [features]
 default = ["system"]

@@ -573,7 +573,7 @@ fn draw_toasts(
             galley,
             colour.gamma_multiply(shown),
         );
-        let response = ui.interact(rect, toasts_id().with(toast.serial), Sense::hover());
+        let response = super::interact(ui, rect, toasts_id().with(toast.serial), Sense::hover());
         response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Status, true, text));
         ctx.accesskit_node_builder(response.id, |node| {
             node.set_live(egui::accesskit::Live::Polite);

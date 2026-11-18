@@ -202,9 +202,20 @@ fn responsive_row<R>(
     }
 }
 
+// egui 0.37 creates an unnamed AccessKit root even when the native window has
+// a title. Publish the title every pass so screen readers can identify the app.
+fn accessible_window_title(ctx: &egui::Context) {
+    let title = ctx
+        .input(|input| input.viewport().title.clone())
+        .filter(|title| !title.is_empty())
+        .unwrap_or_else(|| "egui_native_look gallery".into());
+    ctx.accesskit_node_builder(egui::accesskit_root_id(), |node| node.set_label(title));
+}
+
 impl eframe::App for Gallery {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        accessible_window_title(&ctx);
         #[cfg(not(target_arch = "wasm32"))]
         self.save_shot(&ctx);
         look::follow_system(&ctx);
@@ -971,6 +982,39 @@ mod tests {
                 before - after > 200.0,
                 "{chosen}: the first swipe moved the content from {before} to {after}"
             );
+        }
+    }
+    #[test]
+    fn gallery_window_accessibility_name_follows_the_native_title() {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        for (title, expected) in [
+            (Some("Gallery window"), "Gallery window"),
+            (Some("Renamed č window"), "Renamed č window"),
+            (None, "egui_native_look gallery"),
+        ] {
+            let input = egui::RawInput {
+                viewports: [(
+                    egui::ViewportId::ROOT,
+                    egui::ViewportInfo {
+                        title: title.map(str::to_owned),
+                        ..Default::default()
+                    },
+                )]
+                .into_iter()
+                .collect(),
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(input, |ui| accessible_window_title(ui.ctx()));
+            output.textures_delta.clear();
+            let tree = output.platform_output.accesskit_update.unwrap();
+            let root = tree
+                .nodes
+                .iter()
+                .find(|(id, _)| *id == egui::accesskit_root_id().accesskit_id())
+                .unwrap();
+            assert_eq!(root.1.role(), egui::Role::Window);
+            assert_eq!(root.1.label(), Some(expected));
         }
     }
 }

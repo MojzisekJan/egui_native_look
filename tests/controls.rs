@@ -1201,26 +1201,39 @@ fn a_dropdown_can_be_chosen_and_cancelled_with_the_keyboard() {
             egui::Popup::is_any_open(&ctx),
             "{chosen}: focus did not return to the button"
         );
-        // The list wraps: Down from the last row (the chosen one) reaches the first.
+        // GTK stops at the edge; the other looks wrap.
         frame(&ctx, key(egui::Key::ArrowDown), |ui| {
             draw(ui, &mut selected)
         });
         frame(&ctx, vec![], |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
-        assert_eq!(selected, 0, "{chosen}: Down from the last row");
+        assert_eq!(
+            selected,
+            if chosen == look::Look::Gtk { 2 } else { 0 },
+            "{chosen}: Down from the last row"
+        );
+        selected = 0;
         frame(&ctx, vec![], |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
         frame(&ctx, vec![], |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::ArrowUp), |ui| draw(ui, &mut selected));
         frame(&ctx, vec![], |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
-        assert_eq!(selected, 2, "{chosen}: Up from the first row");
+        assert_eq!(
+            selected,
+            if chosen == look::Look::Gtk { 0 } else { 2 },
+            "{chosen}: Up from the first row"
+        );
         frame(&ctx, vec![], |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Enter), |ui| draw(ui, &mut selected));
         frame(&ctx, vec![], |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Home), |ui| draw(ui, &mut selected));
         frame(&ctx, key(egui::Key::Escape), |ui| draw(ui, &mut selected));
-        assert_eq!(selected, 2, "{chosen}: Escape committed the pending choice");
+        assert_eq!(
+            selected,
+            if chosen == look::Look::Gtk { 0 } else { 2 },
+            "{chosen}: Escape committed the pending choice"
+        );
         assert!(!egui::Popup::is_any_open(&ctx));
     }
 }
@@ -3100,7 +3113,7 @@ fn switch_drag_commits_only_on_release_and_uses_the_nearest_state() {
             let response = frame(&ctx, vec![primary_button(start, true)], |ui| {
                 draw(ui, &mut on)
             });
-            assert!(response.has_focus());
+            assert_eq!(response.has_focus(), chosen != look::Look::Gtk);
             let mut end = start;
             for distance in distances {
                 end = start + egui::vec2(distance, 0.0);
@@ -3778,8 +3791,8 @@ fn gtk_number_field_keyboard_steps_are_independent_of_drag_speed() {
             (Key::ArrowDown, Modifiers::NONE, 47.0),
             (Key::PageUp, Modifiers::NONE, 80.0),
             (Key::PageDown, Modifiers::NONE, 20.0),
-            (Key::Home, Modifiers::CTRL, 0.0),
-            (Key::End, Modifiers::CTRL, 100.0),
+            (Key::Home, Modifiers::CTRL, 50.0),
+            (Key::End, Modifiers::CTRL, 50.0),
             (Key::PageDown, Modifiers::CTRL, 0.0),
             (Key::PageUp, Modifiers::CTRL, 100.0),
         ] {
@@ -3802,7 +3815,7 @@ fn gtk_number_field_keyboard_steps_are_independent_of_drag_speed() {
                 draw(ui, &mut value)
             });
             assert_eq!(value, expected, "{key:?}, {modifiers:?}");
-            assert!(response.changed());
+            assert_eq!(response.changed(), expected != 50.0);
             assert!(response.has_focus());
         }
     }

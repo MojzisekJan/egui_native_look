@@ -1,0 +1,16 @@
+/home/jan/rust/egui_native_look/tools/gtk-parity/live.py:123: DeprecationWarning: IBus.Bus.is_global_engine_enabled is deprecated
+  result['ibus'] = {'engine': current.get_name() if current else None, 'enabled': bus.is_global_engine_enabled(), 'current_context': bus.current_input_context()}
+egui dialog-cycle-0-preedit 'Example' 4.0 True 0
+egui dialog-cycle-0-ime-commit 'Example' 4.0 True 0
+egui dialog-cycle-0-submit 'Example' 4.0 False 1
+egui dialog-cycle-1-preedit 'Example' 4.0 True 1
+egui dialog-cycle-1-ime-commit 'Example' 4.0 False 2
+Traceback (most recent call last):
+  File "/home/jan/rust/egui_native_look/tools/gtk-parity/live.py", line 427, in <module>
+    main()
+  File "/home/jan/rust/egui_native_look/tools/gtk-parity/live.py", line 406, in main
+    live.dialog_cycles(args.dialog_cycles)
+  File "/home/jan/rust/egui_native_look/tools/gtk-parity/live.py", line 318, in dialog_cycles
+    assert committed['dialog'] and committed['dialog_text'] == 'č'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

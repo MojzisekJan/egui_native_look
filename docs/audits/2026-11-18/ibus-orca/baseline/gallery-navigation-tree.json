@@ -1,0 +1,844 @@
+[
+  {
+    "name": "ibus-x11",
+    "role": "application",
+    "depth": 0,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "error": "atspi_error: Did not receive a reply. Possible causes include: the remote application did not send a reply, the message bus security policy blocked the reply, the reply timeout expired, or the network connection was broken. (1)",
+    "depth": 0
+  },
+  {
+    "name": "gallery",
+    "role": "application",
+    "depth": 0,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "name": "egui_native_look gallery",
+    "role": "frame",
+    "depth": 1,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "",
+    "role": "panel",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Toolbar",
+    "role": "label",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Toolbar"
+  },
+  {
+    "name": "Open",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Save",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Refresh",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "More",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Show details",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Form",
+    "role": "label",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Form"
+  },
+  {
+    "name": "Delay",
+    "role": "spin button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "8",
+    "value": [
+      8.0,
+      0.0,
+      1024.0,
+      1.0
+    ]
+  },
+  {
+    "name": "Decrease Delay",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Increase Delay",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Retries",
+    "role": "spin button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "4",
+    "value": [
+      4.0,
+      1.0,
+      64.0,
+      1.0
+    ]
+  },
+  {
+    "name": "Decrease Retries",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Increase Retries",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "On startup",
+    "role": "combo box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Colour",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Notifications",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Show a toast",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Tool window",
+    "role": "push button",
+    "depth": 3,
+    "focused": true,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Menus and lists",
+    "role": "label",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Menus and lists"
+  },
+  {
+    "name": "Seconds",
+    "role": "combo box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Menu",
+    "role": "combo box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Time units",
+    "role": "combo box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Time units",
+    "role": "label",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Overview",
+    "role": "page tab",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Activity",
+    "role": "page tab",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Settings",
+    "role": "page tab",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Speed",
+    "role": "slider",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "value": [
+      1.0,
+      0.009999999776482582,
+      100.0,
+      0.0
+    ]
+  },
+  {
+    "name": "Speed",
+    "role": "label",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Speed"
+  },
+  {
+    "name": "Item count",
+    "role": "slider",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "value": [
+      16.0,
+      1.0,
+      64.0,
+      1.0
+    ]
+  },
+  {
+    "name": "items",
+    "role": "spin button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "value": [
+      16.0,
+      1.0,
+      64.0,
+      0.315
+    ]
+  },
+  {
+    "name": "ms",
+    "role": "spin button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "250 ms",
+    "value": [
+      250.0,
+      0.0,
+      10000.0,
+      10.0
+    ]
+  },
+  {
+    "name": "Decrease",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Increase",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Min",
+    "role": "spin button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Min 0",
+    "value": [
+      0.0,
+      -3.4028234663852886e+38,
+      3.4028234663852886e+38,
+      1.0
+    ]
+  },
+  {
+    "name": "Max",
+    "role": "spin button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Max 100",
+    "value": [
+      100.0,
+      -3.4028234663852886e+38,
+      3.4028234663852886e+38,
+      1.0
+    ]
+  },
+  {
+    "name": "Step",
+    "role": "spin button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Step 1",
+    "value": [
+      1.0,
+      -3.4028234663852886e+38,
+      3.4028234663852886e+38,
+      1.0
+    ]
+  },
+  {
+    "name": "",
+    "role": "scroll bar",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Resize panel",
+    "role": "separator",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "value": [
+      0.38461539149284363,
+      0.38461539149284363,
+      0.38461539149284363,
+      0.03846153989434242
+    ]
+  },
+  {
+    "name": "",
+    "role": "panel",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "GTK",
+    "role": "panel",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "macOS",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Windows",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "GTK",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "iOS",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Material",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Plain",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Light",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Light",
+    "role": "label",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Light"
+  },
+  {
+    "name": "GTK",
+    "role": "label",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "GTK"
+  },
+  {
+    "name": "Button",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Disabled",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "name": "Delete",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Default",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Add item",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Save",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Refresh",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "name": "Switch",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Switch",
+    "role": "label",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Switch"
+  },
+  {
+    "name": "Check box",
+    "role": "check box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Mixed",
+    "role": "check box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Mode",
+    "role": "panel",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Automatic",
+    "role": "radio button",
+    "depth": 4,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Manual",
+    "role": "radio button",
+    "depth": 4,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Custom",
+    "role": "radio button",
+    "depth": 4,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Small",
+    "role": "panel",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Small",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Medium",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Large",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "",
+    "role": "page tab list",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "General",
+    "role": "page tab",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Appearance",
+    "role": "page tab",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Shortcuts",
+    "role": "page tab",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "English",
+    "role": "combo box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Delay",
+    "role": "spin button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "8",
+    "value": [
+      8.0,
+      0.0,
+      1024.0,
+      1.0
+    ]
+  },
+  {
+    "name": "Decrease Delay",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Increase Delay",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Volume",
+    "role": "slider",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "value": [
+      40.0,
+      0.0,
+      100.0,
+      1.0
+    ]
+  },
+  {
+    "name": "Progress",
+    "role": "progress bar",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "value": [
+      40.00000059604645,
+      0.0,
+      100.0,
+      0.0
+    ]
+  },
+  {
+    "name": "Loading",
+    "role": "progress bar",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "",
+    "role": "entry",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": ""
+  },
+  {
+    "name": "Show validation error",
+    "role": "check box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Dialog…",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Search items",
+    "role": "entry",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": ""
+  },
+  {
+    "name": "Clear search",
+    "role": "push button",
+    "depth": 3,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "name": "Items",
+    "role": "toggle button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Items",
+    "role": "list box",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "First row",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Second row",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Third row",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  }
+]

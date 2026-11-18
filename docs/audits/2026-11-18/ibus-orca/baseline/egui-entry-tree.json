@@ -1,0 +1,622 @@
+[
+  {
+    "name": "ibus-x11",
+    "role": "application",
+    "depth": 0,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "name": "orca",
+    "role": "application",
+    "depth": 0,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "name": "gtk-parity-compare",
+    "role": "application",
+    "depth": 0,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "name": "egui comparison",
+    "role": "frame",
+    "depth": 1,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Save",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Notifications",
+    "role": "check box",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Switch",
+    "role": "toggle button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Text field",
+    "role": "entry",
+    "depth": 2,
+    "focused": true,
+    "enabled": true,
+    "sensitive": true,
+    "text": "čá"
+  },
+  {
+    "name": "Number",
+    "role": "spin button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "4.00",
+    "value": [
+      4.0,
+      -10.0,
+      10.0,
+      1.0
+    ]
+  },
+  {
+    "name": "Decrease Number",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Increase Number",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Slider",
+    "role": "slider",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "value": [
+      40.0,
+      -10.0,
+      100.0,
+      1.0
+    ]
+  },
+  {
+    "name": "Alpha",
+    "role": "combo box",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Progress",
+    "role": "progress bar",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "value": [
+      40.00000059604645,
+      0.0,
+      100.0,
+      0.0
+    ]
+  },
+  {
+    "name": "Open dialog",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested menu",
+    "role": "combo box",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Save",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Add",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Add item",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Uložit všechny provedené změny",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Count",
+    "role": "spin button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "4.00",
+    "value": [
+      4.0,
+      -10.0,
+      10.0,
+      1.0
+    ]
+  },
+  {
+    "name": "Decrease Count",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Increase Count",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Documents",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Delete",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "",
+    "role": "entry",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true,
+    "text": "Example"
+  },
+  {
+    "name": "",
+    "role": "panel",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "First",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Second",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Third",
+    "role": "radio button",
+    "depth": 3,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "",
+    "role": "list box",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "",
+    "role": "scroll bar",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested item 0",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested item 1",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested item 2",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested item 3",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested item 4",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested item 5",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested item 6",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Nested item 7",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "",
+    "role": "scroll bar",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 0",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 1",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 2",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 3",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 4",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 5",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 6",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 7",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 8",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 9",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 10",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "Item 11",
+    "role": "push button",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "",
+    "role": "scroll bar",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 00",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 01",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 02",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": false,
+    "sensitive": false
+  },
+  {
+    "name": "File 03",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 04",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 05",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 06",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 07",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 08",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 09",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 10",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 11",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 12",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 13",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 14",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 15",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 16",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 17",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 18",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  },
+  {
+    "name": "File 19",
+    "role": "list item",
+    "depth": 2,
+    "focused": false,
+    "enabled": true,
+    "sensitive": true
+  }
+]

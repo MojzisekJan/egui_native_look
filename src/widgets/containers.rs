@@ -516,7 +516,9 @@ impl MenuItem {
         );
         // The row the keyboard is on lights as the pointer's does, as every system's menus
         // show it.
-        let hot = enabled && (response.hovered() || response.has_focus() || self.open);
+        let keyboard_focus = response.has_focus()
+            && (x.look != Look::Gtk || crate::paint::gtk_focus_visible(ui.ctx()));
+        let hot = enabled && (response.hovered() || keyboard_focus || self.open);
         let accent_row = matches!(x.look, Look::Mac | Look::Plain);
         if hot {
             // libadwaita lights its menu rows in its selection tint, rounded by 9.

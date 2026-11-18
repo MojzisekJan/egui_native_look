@@ -165,13 +165,15 @@ A toast stays while the pointer is over it and runs out after the pointer leaves
 
 ## Radio groups
 
-`RadioGroup` makes radio buttons one control for the keyboard: Tab stops only on the chosen option (the first enabled one while none is chosen), the arrows choose and focus the previous or next enabled option, wrapping round except in the Windows look, and Space chooses the focused option. Assistive technology receives a radio group with the options inside it. `radio_value` remains for single radio buttons laid out independently.
+`RadioGroup` makes radio buttons one control for the keyboard: Tab stops only on the chosen option (the first enabled one while none is chosen), the arrows choose and focus the previous or next enabled option, wrapping round except in the Windows and GTK looks, and Space chooses the focused option. GTK arrows follow the layout and leave the group at its edges. Assistive technology receives a radio group with the options inside it. `radio_value` remains for single radio buttons laid out independently.
 
 ## Sliders, steppers and search fields
 
 Sliders take all four arrows in every look: Up and Right raise the value, Down and Left lower it. Holding a number field's − or + (or a half of macOS's stepper) repeats the step after half a second, ten times a second, until the pointer is released or moves away. A search field shows a clear button while it holds text; the button empties the field, reports a change and keeps the focus in the field. A text field that gains the focus from the keyboard selects its whole text; a click places the caret. A secondary click or a long press on a text field opens Cut, Copy, Paste and Select All; Cut and Copy need a selection and stay off for passwords, and the field keeps its selection and focus for the command. `TextField::context_menu(false)` leaves the menu to the app.
 
 ## GTK interactions
+
+GTK button-like controls activate on unmodified Space or Enter. Modified shortcuts stay available to the application. Open dropdown lists stop at their first and last rows; navigation does not commit a choice until activation.
 
 In the GTK look, segmented choices and tabs move only the focus with the arrows and Home/End, as libadwaita's toggle groups do; Space or Enter chooses the focused option.
 
@@ -181,11 +183,13 @@ A switch in any system look lets the user drag its thumb and commits the nearest
 
 Slider drags preserve the grab offset on GTK and iOS thumbs. Touch interactions wait for a tap release or horizontal drag before changing the value, leaving vertical gestures to a scrolling container. Cancelling touch, disabling the control or losing window focus stops further pointer updates. In the GTK look, Escape stops an active drag at its current value; Shift reduces sensitivity without moving the thumb when the modifier changes.
 
-GTK number fields use their configured step for Up/Down and accessibility increment/decrement, independently of drag speed. Page Up/Down use ten steps; Ctrl+Home/End and Ctrl+Page Down/Up select the numeric minimum/maximum. Accessibility value edits stay in range even when existing out-of-range model values are allowed. Disabled fields ignore accessibility edits.
+GTK number fields use their configured step for Up/Down and accessibility increment/decrement, independently of drag speed. Page Up/Down use ten steps; Ctrl+Page Down/Up select the numeric minimum/maximum; Ctrl+Home/End move the text caret. Accessibility value edits stay in range even when existing out-of-range model values are allowed. Disabled fields ignore accessibility edits.
 
 Slider accessibility exposes finite values, sorted numeric bounds and the configured step. Increase/decrease actions follow numeric direction even on reversed rails and start from the visible knob position when an unclamped model is out of range. Direct value edits are clamped to the range; NaN requests are ignored. Boundary and disabled actions are not advertised, and disabled numeric editors ignore queued edits. Logarithmic sliders expose their bounds and actions without claiming a constant numeric step.
 
 Buttons can pair a decorative glyph with their text using `Button::new("Add item").icon("+", egui::FontId::proportional(16.0))`. The icon and text share one focus stop and touch target. The text supplies the accessible name; accent and disabled colours apply to both. Use an icon font through the supplied `FontId` when needed.
+
+The local native comparison is documented in [tools/gtk-parity/README.md](tools/gtk-parity/README.md). It runs actual GTK 4 / libadwaita beside this crate on an isolated display and records interaction traces, geometry and visual states. Number fields retain their strict finite-value parsing policy, and lists skip disabled items; these deliberate differences from GTK defaults are reported explicitly.
 
 ## Development
 
@@ -314,6 +318,11 @@ selected; clipboard pastes insert normally. Text shaping remains egui's.
 IME surrounding deletion is handled by the editor, but the bundled winit
 Wayland backend does not forward `delete_surrounding_text`. Full surrounding-text
 exchange therefore still requires backend support.
+
+Live IBus/Orca checks also found an unresolved X11 IME delivery failure after
+reopening a dialog with winit 0.30.13 and IBus 1.5.29. A single pass can succeed;
+the repeated-dialog regression still fails. See the [local audit](docs/audits/2026-11-18/ibus-orca/REPORT.md)
+for reproduction and the release limitation.
 
 Fractional-scale layout tests cover 125%, 150% and 200%. GTK and egui also pass
 keyboard, pointer, menu and dialog checks through a nested Wayland compositor at

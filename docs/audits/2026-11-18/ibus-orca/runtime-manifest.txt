@@ -1,0 +1,7 @@
+at-spi2-core 2.52.0-1build1
+ibus 1.5.29-2
+libgtk-4-1 4.14.5+ds-0ubuntu0.10
+orca 46.1-1ubuntu1
+python3-pyatspi 2.46.1-1
+
+Extracted engines: ibus-m17n 1.4.28-1build2, libm17n-0 1.8.4-1build2, m17n-db 1.8.5-1, libotf1 0.9.16-4build2

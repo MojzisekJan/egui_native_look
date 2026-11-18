@@ -50,9 +50,17 @@ pub fn apply_style(style: &mut egui::Style, theme: &Theme, dark: bool) {
         visuals.disabled_alpha = 0.5;
     }
     visuals.hyperlink_color = c.accent;
-    visuals.selection.bg_fill = c.accent.gamma_multiply(if dark { 0.55 } else { 0.35 });
+    visuals.selection.bg_fill = c.accent.gamma_multiply(if look == Look::Gtk {
+        0.3
+    } else if dark {
+        0.55
+    } else {
+        0.35
+    });
     visuals.selection.stroke = if look == Look::Mac {
         Stroke::new(2.0, c.accent.gamma_multiply(0.7))
+    } else if look == Look::Gtk {
+        Stroke::new(0.0, crate::lerp_color(c.fg, c.accent, 0.3))
     } else {
         Stroke::new(1.0, c.accent)
     };

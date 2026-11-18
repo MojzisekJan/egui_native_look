@@ -242,6 +242,79 @@ pub(crate) fn ring(painter: &egui::Painter, p: &Paint, rect: Rect, radius: Corne
     }
 }
 
+/// GTK keeps keyboard focus styling separate from pointer focus, per viewport.
+pub(crate) fn gtk_focus_visible(ctx: &egui::Context) -> bool {
+    #[derive(Clone, Copy)]
+    struct FocusMode {
+        frame: u64,
+        until: f64,
+    }
+    let key = egui::Id::unique(("egui_native_look::gtk-focus-mode", ctx.viewport_id()));
+    let frame = ctx.cumulative_frame_nr();
+    let time = ctx.input(|input| input.time);
+    let previous = ctx.data(|data| data.get_temp::<FocusMode>(key));
+    let until = if previous.is_some_and(|mode| mode.frame == frame) {
+        previous.map_or(f64::NEG_INFINITY, |mode| mode.until)
+    } else {
+        let navigation = ctx.input(|input| {
+            input.events.iter().any(|event| {
+                matches!(
+                    event,
+                    egui::Event::Key {
+                        key: egui::Key::Tab
+                            | egui::Key::ArrowLeft
+                            | egui::Key::ArrowRight
+                            | egui::Key::ArrowUp
+                            | egui::Key::ArrowDown
+                            | egui::Key::Home
+                            | egui::Key::End
+                            | egui::Key::PageUp
+                            | egui::Key::PageDown,
+                        pressed: true,
+                        ..
+                    }
+                )
+            })
+        });
+        // Native GTK keeps its keyboard outline for about three seconds, even
+        // across an intervening pointer click, then hides it while idle.
+        let until = if navigation {
+            time + 3.0
+        } else {
+            previous.map_or(f64::NEG_INFINITY, |mode| mode.until)
+        };
+        ctx.data_mut(|data| data.insert_temp(key, FocusMode { frame, until }));
+        until
+    };
+    let remaining = until - time;
+    if remaining.is_finite() && remaining > 0.0 {
+        ctx.request_repaint_after(std::time::Duration::from_secs_f64(remaining.min(3.0)));
+    }
+    time < until
+}
+
+/// GTK button/switch outlines sit three pixels outside the body, leaving a gap.
+pub(crate) fn gtk_button_ring(
+    painter: &egui::Painter,
+    p: &Paint,
+    rect: Rect,
+    radius: CornerRadius,
+) {
+    if !gtk_focus_visible(painter.ctx()) {
+        return;
+    }
+    let radius = CornerRadius {
+        nw: radius.nw.saturating_add(3),
+        ne: radius.ne.saturating_add(3),
+        sw: radius.sw.saturating_add(3),
+        se: radius.se.saturating_add(3),
+    };
+    let mut focus = *p;
+    // Destructive buttons change their fill accent, not GTK's keyboard outline.
+    focus.c.accent = crate::colors(painter.ctx()).accent;
+    ring(painter, &focus, rect.expand(3.0), radius);
+}
+
 /// macOS's keyboard focus colour from its accent: the hue turned toward violet and a
 /// little darker on the light scheme, toward cyan on the dark, as measured from AppKit
 /// with the blue accent.
@@ -379,7 +452,11 @@ pub(crate) fn button(
         }
     }
     if response.has_focus() {
-        ring(painter, p, rect, radius);
+        if look == Look::Gtk && accent {
+            gtk_button_ring(painter, p, rect, radius);
+        } else if look != Look::Gtk || gtk_focus_visible(painter.ctx()) {
+            ring(painter, p, rect, radius);
+        }
     }
     // WinUI dims a pressed button's text rather than darkening its fill much.
     // iOS sets an ordinary (bordered) button's text in the accent.

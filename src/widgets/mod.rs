@@ -58,6 +58,9 @@ impl Ctx {
     pub fn of(ui: &egui::Ui) -> Ctx {
         let resolved = crate::resolved(ui.ctx());
         let mut c = resolved.colors(ui.ctx());
+        if resolved.theme.look == Look::Gtk {
+            crate::paint::gtk_focus_visible(ui.ctx());
+        }
         // GTK fades the entire disabled widget once, including its foreground.
         if resolved.theme.look == Look::Gtk && !ui.is_enabled() {
             c.disabled = c.fg;
@@ -128,13 +131,49 @@ pub(crate) fn target_size(ui: &egui::Ui, size: egui::Vec2) -> egui::Vec2 {
     size.max(egui::Vec2::splat(minimum_target(ui)))
 }
 
+/// GTK moves focus explicitly to focus-taking controls; clicking a switch or
+/// empty space leaves the prior editor focused. Keep the caller's egui policy
+/// intact outside our widget evaluation.
+pub(crate) fn gtk_focus_policy<R>(ctx: &egui::Context, add: impl FnOnce() -> R) -> R {
+    if crate::look(ctx) != Look::Gtk {
+        return add();
+    }
+    struct Restore<'a>(&'a egui::Context, egui::SurrenderFocusOn);
+    impl Drop for Restore<'_> {
+        fn drop(&mut self) {
+            self.0
+                .options_mut(|options| options.input_options.surrender_focus_on = self.1);
+        }
+    }
+    let previous = ctx.options(|options| options.input_options.surrender_focus_on);
+    let restore = Restore(ctx, previous);
+    ctx.options_mut(|options| {
+        options.input_options.surrender_focus_on = egui::SurrenderFocusOn::Never
+    });
+    let result = add();
+    drop(restore);
+    result
+}
+
+pub(crate) fn interact(
+    ui: &egui::Ui,
+    rect: egui::Rect,
+    id: egui::Id,
+    sense: egui::Sense,
+) -> egui::Response {
+    gtk_focus_policy(ui.ctx(), || ui.interact(rect, id, sense))
+}
+
 /// The visual rectangle keeps its size inside the larger interaction slot.
 pub(crate) fn allocate_touch(
     ui: &mut egui::Ui,
     size: egui::Vec2,
     sense: egui::Sense,
 ) -> (egui::Rect, egui::Response) {
-    let (slot, response) = ui.allocate_exact_size(target_size(ui, size), sense);
+    let ctx = ui.ctx().clone();
+    let (slot, response) = gtk_focus_policy(&ctx, || {
+        ui.allocate_exact_size(target_size(ui, size), sense)
+    });
     (egui::Rect::from_center_size(slot.center(), size), response)
 }
 
@@ -144,7 +183,15 @@ pub(crate) fn allocate_control(
     sense: egui::Sense,
 ) -> (egui::Rect, egui::Response) {
     let (rect, response) = allocate_touch(ui, size, sense);
-    (rect, click_response_with_reentry(ui, response, true))
+    let response = click_response_with_reentry(ui, response, true);
+    if crate::look(ui.ctx()) == Look::Gtk
+        && response.enabled()
+        && sense.senses_click()
+        && (response.is_pointer_button_down_on() || response.clicked())
+    {
+        response.request_focus();
+    }
+    (rect, response)
 }
 
 #[derive(Clone, Copy)]
@@ -167,6 +214,29 @@ fn click_response_with_reentry(
     desktop_button: bool,
 ) -> egui::Response {
     use egui::response::Flags;
+    // egui turns Space/Enter into a synthetic click even with shortcut modifiers.
+    // GTK activates these controls only for an unmodified activation key. Keep
+    // independent pointer and accessibility clicks, including simultaneous input.
+    if crate::look(ui.ctx()) == Look::Gtk && response.has_focus() {
+        let modified_activation = ui.input(|input| {
+            let activation = |event: &egui::Event| {
+                matches!(event,
+                egui::Event::Key { key: egui::Key::Space | egui::Key::Enter,
+                    pressed: true, modifiers, .. } if modifiers.is_none())
+            };
+            let modified = input.events.iter().any(|event| {
+                matches!(event,
+                egui::Event::Key { key: egui::Key::Space | egui::Key::Enter,
+                    pressed: true, modifiers, .. } if !modifiers.is_none())
+            });
+            modified
+                && !input.events.iter().any(activation)
+                && !input.has_accesskit_action_request(response.id, egui::accesskit::Action::Click)
+        });
+        if modified_activation {
+            response.flags.remove(Flags::FAKE_PRIMARY_CLICKED);
+        }
+    }
     let key = response.id.with("click-press");
     let frame = ui.ctx().cumulative_frame_nr();
     let (pressed, down, released, time, touch, cancelled, dragging) = ui.input(|input| {
@@ -458,5 +528,27 @@ mod tests {
         assert!(number_changed(f64::NAN, 0.0));
         assert!(number_changed(0.0, f64::NAN));
         assert!(number_changed(f64::INFINITY, f64::NEG_INFINITY));
+    }
+    #[test]
+    fn gtk_focus_policy_restores_the_application_setting_after_unwinding() {
+        let ctx = egui::Context::default();
+        crate::install(&ctx, crate::Theme::new(crate::Look::Gtk));
+        ctx.options_mut(|options| {
+            options.input_options.surrender_focus_on = egui::SurrenderFocusOn::Presses
+        });
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            super::gtk_focus_policy(&ctx, || {
+                assert_eq!(
+                    ctx.options(|options| options.input_options.surrender_focus_on),
+                    egui::SurrenderFocusOn::Never
+                );
+                panic!("unwinding a widget evaluation");
+            });
+        }));
+        assert!(result.is_err());
+        assert_eq!(
+            ctx.options(|options| options.input_options.surrender_focus_on),
+            egui::SurrenderFocusOn::Presses
+        );
     }
 }

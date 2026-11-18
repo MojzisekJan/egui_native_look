@@ -1,0 +1,201 @@
+18:19:37.607907 - SPEECH OUTPUT: 'Save push button.' {'established': False}
+18:19:38.369398 - SPEECH OUTPUT: 'Text field text.' {'established': False}
+18:19:38.369513 - SPEECH OUTPUT: 'opens popup' {'established': False}
+18:19:38.430631 - SPEECH OUTPUT: 'left control' {'established': False}
+18:19:38.442948 - SPEECH OUTPUT: 'a' {'established': False}
+18:19:38.579258 - SPEECH OUTPUT: 'backspace' {'established': False}
+18:19:38.719026 - SPEECH OUTPUT: 'c' {'established': False}
+18:19:38.882392 - SPEECH OUTPUT: 'left shift' {'established': False}
+18:19:38.899512 - SPEECH OUTPUT: '~' {'established': False}
+18:19:39.234905 - SPEECH OUTPUT: 'return' {'established': False}
+18:19:39.256164 - SPEECH OUTPUT: 'č' {'established': False}
+18:19:39.408171 - SPEECH OUTPUT: 'a' {'established': False}
+18:19:39.551830 - SPEECH OUTPUT: ''' {'established': False}
+18:19:39.929262 - SPEECH OUTPUT: 'escape' {'established': False}
+18:19:41.109479 - SPEECH OUTPUT: 'Number 4.00 spin button.' {'established': False}
+18:19:41.158480 - SPEECH OUTPUT: 'left control' {'established': False}
+18:19:41.173987 - SPEECH OUTPUT: 'a' {'established': False}
+18:19:41.314837 - SPEECH OUTPUT: 'backspace' {'established': False}
+18:19:41.450371 - SPEECH OUTPUT: 'left control' {'established': False}
+18:19:41.465299 - SPEECH OUTPUT: 'u' {'established': False}
+18:19:41.606799 - SPEECH OUTPUT: '0' {'established': False}
+18:19:41.755055 - SPEECH OUTPUT: '0' {'established': False}
+18:19:41.884349 - SPEECH OUTPUT: '3' {'established': False}
+18:19:42.063556 - SPEECH OUTPUT: '7' {'established': False}
+18:19:42.334590 - SPEECH OUTPUT: 'space' {'established': False}
+18:19:42.651665 - SPEECH OUTPUT: 'return' {'established': False}
+18:19:42.737386 - SPEECH OUTPUT: '7.00' {'established': False}
+18:19:45.358025 - SPEECH OUTPUT: 'Save push button.' {'established': False}
+18:19:46.063666 - SPEECH OUTPUT: 'Open dialog push button.' {'established': False}
+18:19:46.128179 - SPEECH OUTPUT: 'return' {'established': False}
+18:19:46.425255 - SPEECH OUTPUT: 'dialog' {'established': False}
+18:19:46.425376 - SPEECH OUTPUT: 'dialog' {'established': False}
+18:19:46.425414 - SPEECH OUTPUT: 'Name text.' {'established': False}
+18:19:46.425442 - SPEECH OUTPUT: 'opens popup' {'established': False}
+18:19:46.592479 - SPEECH OUTPUT: 'c' {'established': False}
+18:19:46.729388 - SPEECH OUTPUT: 'left shift' {'established': False}
+18:19:46.739812 - SPEECH OUTPUT: '~' {'established': False}
+18:19:47.485279 - SPEECH OUTPUT: 'return' {'established': False}
+18:19:47.502121 - SPEECH OUTPUT: 'č' {'established': False}
+18:19:47.660557 - SPEECH OUTPUT: 'return' {'established': False}
+18:19:47.968958 - SPEECH OUTPUT: 'Open dialog push button.' {'established': False}
+18:19:49.111323 - SPEECH OUTPUT: 'return' {'established': False}
+18:19:49.591887 - SPEECH OUTPUT: 'dialog' {'established': False}
+18:19:49.592067 - SPEECH OUTPUT: 'dialog' {'established': False}
+18:19:49.592111 - SPEECH OUTPUT: 'Name text.' {'established': False}
+18:19:49.592147 - SPEECH OUTPUT: 'opens popup' {'established': False}
+18:19:49.893230 - SPEECH OUTPUT: 'a' {'established': False}
+18:19:50.032285 - SPEECH OUTPUT: ''' {'established': False}
+18:19:50.370091 - SPEECH OUTPUT: 'escape' {'established': False}
+18:19:50.522879 - SPEECH OUTPUT: 'escape' {'established': False}
+18:19:50.713327 - SPEECH OUTPUT: 'GTK reference' {'established': False}
+18:19:50.713459 - SPEECH OUTPUT: 'Open dialog push button.' {'established': False}
+18:19:50.957131 - SPEECH OUTPUT: 'Save push button.' {'established': False}
+18:19:50.968596 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:51.026067 - SPEECH OUTPUT: 'Notifications check box not checked.' {'established': False}
+18:19:51.096844 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:51.156664 - SPEECH OUTPUT: 'Switch check box not checked.' {'established': False}
+18:19:51.232177 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:51.295197 - SPEECH OUTPUT: 'Text field text.' {'established': False}
+18:19:51.295294 - SPEECH OUTPUT: 'Example selected.' {'established': False}
+18:19:51.295319 - SPEECH OUTPUT: 'opens popup' {'established': False}
+18:19:51.371114 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:51.435124 - SPEECH OUTPUT: 'Number 4.00 spin button.' {'established': False}
+18:19:51.507297 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:51.559944 - SPEECH OUTPUT: 'Slider horizontal slider 40.' {'established': False}
+18:19:51.643897 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:51.710903 - SPEECH OUTPUT: 'Alpha combo box.' {'established': False}
+18:19:51.711014 - SPEECH OUTPUT: 'opens popup' {'established': False}
+18:19:51.781292 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:51.844771 - SPEECH OUTPUT: 'Open dialog push button.' {'established': False}
+18:19:51.919339 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:51.982586 - SPEECH OUTPUT: 'Nested menu toggle button not pressed.' {'established': False}
+18:19:52.007288 - SPEECH OUTPUT: 'not pressed' {'established': False}
+18:19:52.055829 - SPEECH OUTPUT: 'tab' {'established': False}
+18:19:52.118048 - SPEECH OUTPUT: 'First check box checked.' {'established': False}
+18:19:52.792449 - SPEECH OUTPUT: 'Save push button.' {'established': False}
+18:19:53.161946 - SPEECH OUTPUT: 'Number 4.00 spin button.' {'established': False}
+18:19:53.273070 - SPEECH OUTPUT: '6.00' {'established': False}
+18:19:53.418343 - SPEECH OUTPUT: '10.00' {'established': False}
+18:19:53.648150 - SPEECH OUTPUT: 'Slider horizontal slider 40.' {'established': False}
+18:19:53.714684 - SPEECH OUTPUT: '75' {'established': False}
+18:19:53.918987 - SPEECH OUTPUT: 'Text field text.' {'established': False}
+18:19:53.919111 - SPEECH OUTPUT: 'Example selected.' {'established': False}
+18:19:53.919149 - SPEECH OUTPUT: 'opens popup' {'established': False}
+18:19:55.026788 - SPEECH OUTPUT: 'Notifications check box not checked.' {'established': False}
+18:19:55.819456 - SPEECH OUTPUT: 'Text field text.' {'established': False}
+18:19:55.819581 - SPEECH OUTPUT: 'prefix|' {'established': False}
+18:19:55.819608 - SPEECH OUTPUT: 'opens popup' {'established': False}
+18:19:55.829308 - SPEECH OUTPUT: 'c' {'established': False}
+18:19:55.944845 - SPEECH OUTPUT: 'left shift' {'established': False}
+18:19:55.951599 - SPEECH OUTPUT: '~' {'established': False}
+18:19:56.729241 - SPEECH OUTPUT: 'return' {'established': False}
+18:19:56.745896 - SPEECH OUTPUT: 'č' {'established': False}
+18:19:56.949599 - SPEECH OUTPUT: 'prefix|' {'established': False}
+18:19:57.185689 - SPEECH OUTPUT: 'c' {'established': False}
+18:19:57.324621 - SPEECH OUTPUT: 'left shift' {'established': False}
+18:19:57.329626 - SPEECH OUTPUT: '~' {'established': False}
+18:19:57.700501 - SPEECH OUTPUT: 'Save push button.' {'established': False}
+18:19:58.781772 - SPEECH OUTPUT: 'egui comparison frame.' {'established': False}
+18:19:59.068258 - SPEECH OUTPUT: 'left control' {'established': False}
+18:19:59.082256 - SPEECH OUTPUT: 'a' {'established': False}
+18:19:59.225781 - SPEECH OUTPUT: 'backspace' {'established': False}
+18:19:59.363708 - SPEECH OUTPUT: 'c' {'established': False}
+18:19:59.441222 - SPEECH OUTPUT: 'c' {'established': False}
+18:19:59.506421 - SPEECH OUTPUT: 'left shift' {'established': False}
+18:19:59.525629 - SPEECH OUTPUT: '~' {'established': False}
+18:19:59.679787 - SPEECH OUTPUT: 'č' {'established': False}
+18:19:59.789475 - SPEECH OUTPUT: 'return' {'established': False}
+18:20:00.018447 - SPEECH OUTPUT: 'a' {'established': False}
+18:20:00.137542 - SPEECH OUTPUT: 'a' {'established': False}
+18:20:00.194366 - SPEECH OUTPUT: ''' {'established': False}
+18:20:00.286236 - SPEECH OUTPUT: 'á' {'established': False}
+18:20:00.432144 - SPEECH OUTPUT: 'escape' {'established': False}
+18:20:01.491767 - SPEECH OUTPUT: 'Number 4.00 spin button.' {'established': False}
+18:20:01.514472 - SPEECH OUTPUT: 'left control' {'established': False}
+18:20:01.525423 - SPEECH OUTPUT: 'a' {'established': False}
+18:20:01.643352 - SPEECH OUTPUT: 'backspace' {'established': False}
+18:20:01.781588 - SPEECH OUTPUT: 'left control' {'established': False}
+18:20:01.796612 - SPEECH OUTPUT: 'u' {'established': False}
+18:20:01.861446 - SPEECH OUTPUT: 'U+' {'established': False}
+18:20:01.936410 - SPEECH OUTPUT: '0' {'established': False}
+18:20:01.992548 - SPEECH OUTPUT: '0' {'established': False}
+18:20:02.070740 - SPEECH OUTPUT: '0' {'established': False}
+18:20:02.117699 - SPEECH OUTPUT: '0' {'established': False}
+18:20:02.208771 - SPEECH OUTPUT: '3' {'established': False}
+18:20:02.253539 - SPEECH OUTPUT: '3' {'established': False}
+18:20:02.350410 - SPEECH OUTPUT: '7' {'established': False}
+18:20:02.395486 - SPEECH OUTPUT: '7' {'established': False}
+18:20:02.600220 - SPEECH OUTPUT: 'space' {'established': False}
+18:20:02.885346 - SPEECH OUTPUT: 'return' {'established': False}
+18:20:02.934009 - SPEECH OUTPUT: '7.00' {'established': False}
+18:20:04.517245 - SPEECH OUTPUT: 'egui comparison frame.' {'established': False}
+18:20:04.779234 - SPEECH OUTPUT: 'Open dialog push button.' {'established': False}
+18:20:04.805086 - SPEECH OUTPUT: 'return' {'established': False}
+18:20:05.040812 - SPEECH OUTPUT: 'Save changes? dialog Your preferences will be saved.' {'established': False}
+18:20:05.040957 - SPEECH OUTPUT: 'Name entry.' {'established': False}
+18:20:05.500785 - SPEECH OUTPUT: 'c' {'established': False}
+18:20:05.603886 - SPEECH OUTPUT: 'c' {'established': False}
+18:20:05.657820 - SPEECH OUTPUT: 'left shift' {'established': False}
+18:20:05.669470 - SPEECH OUTPUT: '~' {'established': False}
+18:20:05.816462 - SPEECH OUTPUT: 'č' {'established': False}
+18:20:06.433731 - SPEECH OUTPUT: 'return' {'established': False}
+18:20:06.661580 - SPEECH OUTPUT: 'return' {'established': False}
+18:20:06.847857 - SPEECH OUTPUT: 'Open dialog push button.' {'established': False}
+18:20:08.013699 - SPEECH OUTPUT: 'return' {'established': False}
+18:20:08.258107 - SPEECH OUTPUT: 'Save changes? dialog Your preferences will be saved.' {'established': False}
+18:20:08.258206 - SPEECH OUTPUT: 'Name entry.' {'established': False}
+18:20:08.765151 - SPEECH OUTPUT: 'a' {'established': False}
+18:20:08.868208 - SPEECH OUTPUT: 'a' {'established': False}
+18:20:08.904654 - SPEECH OUTPUT: ''' {'established': False}
+18:20:09.024946 - SPEECH OUTPUT: 'á' {'established': False}
+18:20:09.045585 - SPEECH OUTPUT: 'escape' {'established': False}
+18:20:09.302194 - SPEECH OUTPUT: 'escape' {'established': False}
+18:20:09.528594 - SPEECH OUTPUT: 'Open dialog push button.' {'established': False}
+18:20:09.676273 - SPEECH OUTPUT: 'Save push button.' {'established': False}
+18:20:09.695019 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:09.828286 - SPEECH OUTPUT: 'Notifications check box not checked.' {'established': False}
+18:20:09.845514 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:09.978395 - SPEECH OUTPUT: 'Switch toggle button not pressed.' {'established': False}
+18:20:10.003547 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:10.163382 - SPEECH OUTPUT: 'Text field entry Example.' {'established': False}
+18:20:10.191441 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:10.208621 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:10.369494 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:10.610960 - SPEECH OUTPUT: 'Alpha combo box.' {'established': False}
+18:20:10.639391 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:10.666123 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:10.908959 - SPEECH OUTPUT: 'Nested menu combo box.' {'established': False}
+18:20:10.946790 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:11.105982 - SPEECH OUTPUT: 'Save push button.' {'established': False}
+18:20:12.520460 - SPEECH OUTPUT: 'egui comparison frame.' {'established': False}
+18:20:12.680427 - SPEECH OUTPUT: 'Number 6.00 spin button.' {'established': False}
+18:20:12.879624 - SPEECH OUTPUT: '10.00' {'established': False}
+18:20:13.023761 - SPEECH OUTPUT: 'Slider slider 40.' {'established': False}
+18:20:13.142713 - SPEECH OUTPUT: '75' {'established': False}
+18:20:13.704683 - SPEECH OUTPUT: '100' {'established': False}
+18:20:13.861492 - SPEECH OUTPUT: '-10' {'established': False}
+18:20:14.158457 - SPEECH OUTPUT: 'Text field entry Example selected.' {'established': False}
+18:20:15.687878 - SPEECH OUTPUT: 'egui comparison frame.' {'established': False}
+18:20:15.894830 - SPEECH OUTPUT: 'Notifications check box checked.' {'established': False}
+18:20:16.334450 - SPEECH OUTPUT: 'Text field entry prefix|' {'established': False}
+18:20:16.434389 - SPEECH OUTPUT: 'c' {'established': False}
+18:20:16.490506 - SPEECH OUTPUT: 'c' {'established': False}
+18:20:16.545394 - SPEECH OUTPUT: 'left shift' {'established': False}
+18:20:16.561386 - SPEECH OUTPUT: '~' {'established': False}
+18:20:16.697729 - SPEECH OUTPUT: 'č' {'established': False}
+18:20:17.152593 - SPEECH OUTPUT: 'return' {'established': False}
+18:20:17.642067 - SPEECH OUTPUT: 'c' {'established': False}
+18:20:17.736847 - SPEECH OUTPUT: 'c' {'established': False}
+18:20:17.788218 - SPEECH OUTPUT: 'left shift' {'established': False}
+18:20:17.802802 - SPEECH OUTPUT: '~' {'established': False}
+18:20:17.949294 - SPEECH OUTPUT: 'č' {'established': False}
+18:20:19.307151 - SPEECH OUTPUT: 'egui_native_look gallery frame.' {'established': False}
+18:20:20.818764 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:21.446720 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:22.127902 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:22.776155 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:23.425601 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:24.087523 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:24.849799 - SPEECH OUTPUT: 'tab' {'established': False}
+18:20:25.638860 - SPEECH OUTPUT: 'tab' {'established': False}

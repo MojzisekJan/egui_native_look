@@ -1,0 +1,6 @@
+{
+  "rust_format": "passed",
+  "python_syntax": "passed",
+  "nonempty_output_preserved": "passed",
+  "git_diff_whitespace": "passed"
+}

@@ -783,3 +783,431 @@ fn gtk_numeric_ime_navigation_preserves_model_and_draft() {
         }
     }
 }
+
+#[test]
+fn gtk_modified_activation_keys_do_not_click_controls() {
+    for kind in 0..3 {
+        for key in [egui::Key::Space, egui::Key::Enter] {
+            for modifiers in [
+                egui::Modifiers::CTRL,
+                egui::Modifiers::SHIFT,
+                egui::Modifiers::ALT,
+            ] {
+                let ctx = context();
+                let mut value = false;
+                let draw = |ui: &mut egui::Ui, value: &mut bool| match kind {
+                    0 => ui.add(look::Button::new("Save")),
+                    1 => ui.add(look::Checkbox::new(value, "Enabled")),
+                    _ => ui.add(look::Switch::new(value)),
+                };
+                let response = frame(&ctx, vec![], |ui| draw(ui, &mut value));
+                ctx.memory_mut(|memory| memory.request_focus(response.id));
+                frame(&ctx, vec![], |ui| draw(ui, &mut value));
+                let event = egui::Event::Key {
+                    key,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers,
+                };
+                let response = frame(&ctx, vec![event], |ui| draw(ui, &mut value));
+                assert!(!response.clicked(), "kind={kind}, {key:?}, {modifiers:?}");
+                assert!(!value);
+                assert!(!response.changed());
+                // Rejecting a shortcut must not suppress the next plain activation.
+                let response = frame(&ctx, vec![key_event(key)], |ui| draw(ui, &mut value));
+                assert!(response.clicked());
+                assert_eq!(value, kind != 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn gtk_horizontal_radio_navigation_follows_layout_without_wrapping() {
+    for (start, key, expected) in [
+        (0, egui::Key::ArrowRight, 1),
+        (1, egui::Key::ArrowLeft, 0),
+        (0, egui::Key::ArrowLeft, 0),
+        (2, egui::Key::ArrowRight, 2),
+        (0, egui::Key::ArrowDown, 0),
+        (1, egui::Key::ArrowUp, 1),
+    ] {
+        let ctx = context();
+        let mut selected = start;
+        let draw = |ui: &mut egui::Ui, selected: &mut usize| {
+            let mut ids = Vec::new();
+            ui.horizontal(|ui| {
+                look::RadioGroup::new("reference-radio", selected).show(ui, |group| {
+                    for index in 0..3 {
+                        ids.push(group.option(index, format!("Option {index}")).id);
+                    }
+                });
+            });
+            ui.add(look::Button::new("After"));
+            ids
+        };
+        let ids = frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+        ctx.memory_mut(|memory| memory.request_focus(ids[start]));
+        frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+        frame(&ctx, vec![key_event(key)], |ui| draw(ui, &mut selected));
+        frame(&ctx, vec![], |ui| draw(ui, &mut selected));
+        assert_eq!(selected, expected, "start={start}, key={key:?}");
+        if start != expected {
+            assert!(ctx.memory(|memory| memory.has_focus(ids[expected])));
+        }
+    }
+}
+
+#[test]
+fn gtk_list_box_uses_the_native_view_background_even_when_disabled() {
+    for dark in [false, true] {
+        for enabled in [false, true] {
+            let ctx = context();
+            ctx.set_theme(if dark {
+                egui::Theme::Dark
+            } else {
+                egui::Theme::Light
+            });
+            let mut selected = 0;
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                ui.add_enabled_ui(enabled, |ui| {
+                    look::ListBox::new("background", &mut selected).show(ui, |list| {
+                        list.item(0, "First");
+                        list.item(1, "Second");
+                    });
+                });
+            });
+            output.textures_delta.clear();
+            let expected = if dark {
+                egui::Color32::from_gray(30)
+            } else {
+                egui::Color32::WHITE
+            };
+            assert!(
+                output.shapes.iter().any(|shape| matches!(&shape.shape,
+                egui::Shape::Rect(rect) if rect.fill == expected && rect.rect.height() >= 60.0)),
+                "dark={dark}, enabled={enabled}"
+            );
+        }
+    }
+}
+
+#[test]
+fn gtk_spin_button_focus_outline_includes_both_linked_steppers() {
+    let ctx = context();
+    let mut value = 4.0;
+    let draw = |ui: &mut egui::Ui, value: &mut f64| {
+        ui.add(
+            look::NumberField::new(value)
+                .range(-10.0..=10.0)
+                .width(240.0),
+        )
+    };
+    let response = frame(&ctx, vec![], |ui| draw(ui, &mut value));
+    ctx.memory_mut(|memory| memory.request_focus(response.id));
+    frame(&ctx, vec![], |ui| draw(ui, &mut value));
+    let mut field_rect = egui::Rect::NOTHING;
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+        field_rect = draw(ui, &mut value).rect;
+    });
+    output.textures_delta.clear();
+    let stroke = egui::Stroke::new(2.0, look::colors(&ctx).accent.gamma_multiply(0.5));
+    let rings: Vec<_> = output
+        .shapes
+        .iter()
+        .filter_map(|shape| match &shape.shape {
+            egui::Shape::Rect(rect) if rect.stroke == stroke => Some(rect.rect),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        rings.len(),
+        1,
+        "the editable portion must not keep its own outline"
+    );
+    assert_eq!(rings[0], field_rect);
+    assert_eq!(field_rect.width(), 240.0);
+}
+
+#[test]
+fn gtk_keyboard_focus_outlines_use_native_control_bounds() {
+    for kind in 0..6 {
+        let ctx = context();
+        let mut on = true;
+        let draw = |ui: &mut egui::Ui, on: &mut bool| match kind {
+            0 => ui.add(look::Button::new("Save").accent()),
+            1 => ui.add(look::Switch::new(on)),
+            2 => ui.add(look::Checkbox::new(on, "Notifications")),
+            3 => ui.add(look::Radio::new(true, "Automatic")),
+            4 => ui.add(look::Button::new("Save")),
+            _ => ui.add(look::Button::new("Delete").destructive()),
+        };
+        let response = frame(&ctx, vec![], |ui| draw(ui, &mut on));
+        frame(&ctx, vec![key_event(egui::Key::Tab)], |ui| {
+            draw(ui, &mut on)
+        });
+        ctx.memory_mut(|memory| memory.request_focus(response.id));
+        frame(&ctx, vec![], |ui| draw(ui, &mut on));
+        let mut rect = egui::Rect::NOTHING;
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            rect = draw(ui, &mut on).rect;
+        });
+        output.textures_delta.clear();
+        let expected = if matches!(kind, 0 | 1 | 5) {
+            rect.expand(3.0)
+        } else {
+            rect
+        };
+        let stroke = egui::Stroke::new(2.0, look::colors(&ctx).accent.gamma_multiply(0.5));
+        let rings: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Rect(rect) if rect.stroke == stroke => Some(rect.rect),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(rings, vec![expected], "kind={kind}");
+    }
+}
+
+#[test]
+fn gtk_unselected_check_and_radio_marks_fill_while_held_without_committing() {
+    for dark in [false, true] {
+        for radio in [false, true] {
+            let ctx = context();
+            ctx.set_theme(if dark {
+                egui::Theme::Dark
+            } else {
+                egui::Theme::Light
+            });
+            let mut on = false;
+            let draw = |ui: &mut egui::Ui, on: &mut bool| {
+                if radio {
+                    ui.add(look::Radio::new(false, "Option"))
+                } else {
+                    ui.add(look::Checkbox::new(on, "Option"))
+                }
+            };
+            let response = frame(&ctx, vec![], |ui| draw(ui, &mut on));
+            let at = response.rect.center();
+            frame(&ctx, vec![egui::Event::PointerMoved(at)], |ui| {
+                draw(ui, &mut on)
+            });
+            frame(&ctx, vec![pointer(at, true)], |ui| draw(ui, &mut on));
+            let mut clicked = false;
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                clicked = draw(ui, &mut on).clicked();
+            });
+            output.textures_delta.clear();
+            let fill = look::colors(&ctx).fg.gamma_multiply(0.25);
+            assert!(
+                output.shapes.iter().any(|shape| matches!(&shape.shape,
+                egui::Shape::Rect(rect) if rect.fill == fill)),
+                "dark={dark}, radio={radio}"
+            );
+            assert!(!clicked);
+            assert!(!on);
+        }
+    }
+}
+
+#[test]
+fn gtk_pointer_focus_hides_button_outlines_until_keyboard_navigation() {
+    for kind in 0..4 {
+        let ctx = context();
+        let mut on = false;
+        let draw = |ui: &mut egui::Ui, on: &mut bool| match kind {
+            0 => ui.add(look::Button::new("Save")),
+            1 => ui.add(look::Switch::new(on)),
+            2 => ui.add(look::Checkbox::new(on, "Notifications")),
+            _ => ui.add(look::Radio::new(false, "Automatic")),
+        };
+        let response = frame(&ctx, vec![], |ui| draw(ui, &mut on));
+        let at = response.rect.center();
+        frame(&ctx, vec![egui::Event::PointerMoved(at)], |ui| {
+            draw(ui, &mut on)
+        });
+        frame(&ctx, vec![pointer(at, true)], |ui| draw(ui, &mut on));
+        frame(&ctx, vec![pointer(at, false)], |ui| draw(ui, &mut on));
+        for keyboard in [false, true] {
+            if keyboard {
+                frame(&ctx, vec![key_event(egui::Key::Tab)], |ui| {
+                    draw(ui, &mut on)
+                });
+            }
+            let mut focused = false;
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                focused = draw(ui, &mut on).has_focus();
+            });
+            output.textures_delta.clear();
+            let stroke = egui::Stroke::new(2.0, look::colors(&ctx).accent.gamma_multiply(0.5));
+            let ring = output.shapes.iter().any(|shape| {
+                matches!(&shape.shape,
+                egui::Shape::Rect(rect) if rect.stroke == stroke)
+            });
+            assert_eq!(
+                ring, keyboard,
+                "kind={kind}, keyboard={keyboard}, focused={focused}"
+            );
+        }
+    }
+}
+
+#[test]
+fn gtk_keyboard_focus_survives_a_pointer_click_then_times_out() {
+    let ctx = context();
+    let sample = |time, events| {
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                time: Some(time),
+                events,
+                ..Default::default()
+            },
+            |ui| {
+                let response = ui.add(look::Button::new("Save").width(100.0));
+                response.request_focus();
+            },
+        );
+        output.textures_delta.clear();
+        let stroke = egui::Stroke::new(2.0, look::colors(&ctx).accent.gamma_multiply(0.5));
+        output.shapes.iter().any(|shape| {
+            matches!(&shape.shape,
+            egui::Shape::Rect(rect) if rect.stroke == stroke)
+        })
+    };
+    assert!(!sample(0.0, vec![]));
+    assert!(
+        !sample(0.1, vec![]),
+        "programmatic focus alone does not enable keyboard styling"
+    );
+    sample(1.0, vec![key_event(egui::Key::Tab)]);
+    assert!(sample(1.1, vec![]));
+    let at = egui::pos2(50.0, 17.0);
+    assert!(sample(
+        2.0,
+        vec![egui::Event::PointerMoved(at), pointer(at, true)]
+    ));
+    assert!(
+        sample(2.1, vec![pointer(at, false)]),
+        "clicks do not immediately clear GTK keyboard styling"
+    );
+    assert!(
+        !sample(4.1, vec![]),
+        "the native idle timeout expires without another input event"
+    );
+    sample(4.2, vec![key_event(egui::Key::Tab)]);
+    assert!(sample(4.3, vec![]));
+}
+
+#[test]
+fn gtk_pointer_focus_transfers_on_press_but_switches_preserve_the_editor() {
+    for number in [false, true] {
+        for kind in 0..4 {
+            let ctx = context();
+            ctx.options_mut(|options| {
+                options.input_options.surrender_focus_on = egui::SurrenderFocusOn::Presses
+            });
+            let mut value = 4.0;
+            let mut text = String::from("Example");
+            let mut on = false;
+            let mut selected = 0;
+            let mut draw = |ui: &mut egui::Ui| {
+                let editor = if number {
+                    ui.add(look::NumberField::new(&mut value).width(160.0))
+                } else {
+                    ui.add(look::TextField::new(&mut text).width(160.0))
+                };
+                let target = match kind {
+                    0 => ui.add(look::Button::new("Save")),
+                    1 => ui.add(look::Checkbox::new(&mut on, "Enabled")),
+                    2 => ui.add(look::Switch::new(&mut on)),
+                    _ => ui.add(look::Dropdown::new(
+                        "target",
+                        &mut selected,
+                        &["One", "Two"],
+                    )),
+                };
+                (editor, target)
+            };
+            let (editor, target) = frame(&ctx, vec![], &mut draw);
+            ctx.memory_mut(|memory| memory.request_focus(editor.id));
+            frame(&ctx, vec![], &mut draw);
+            let at = target.rect.center();
+            frame(&ctx, vec![egui::Event::PointerMoved(at)], &mut draw);
+            for pressed in [true, false] {
+                let (editor, target) = frame(&ctx, vec![pointer(at, pressed)], &mut draw);
+                assert_eq!(
+                    editor.has_focus(),
+                    kind == 2,
+                    "number={number}, kind={kind}, pressed={pressed}"
+                );
+                if pressed || kind != 3 {
+                    assert_eq!(
+                        target.has_focus(),
+                        kind != 2,
+                        "number={number}, kind={kind}, pressed={pressed}"
+                    );
+                }
+                assert_eq!(
+                    ctx.options(|options| options.input_options.surrender_focus_on),
+                    egui::SurrenderFocusOn::Presses
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn gtk_text_selection_uses_the_native_tint_in_both_schemes() {
+    for dark in [false, true] {
+        let ctx = context();
+        ctx.set_theme(if dark {
+            egui::Theme::Dark
+        } else {
+            egui::Theme::Light
+        });
+        let mut text = String::from("Example");
+        let draw =
+            |ui: &mut egui::Ui, text: &mut String| ui.add(look::TextField::new(text).width(240.0));
+        let response = frame(&ctx, vec![], |ui| draw(ui, &mut text));
+        ctx.memory_mut(|memory| memory.request_focus(response.id));
+        frame(&ctx, vec![], |ui| draw(ui, &mut text));
+        let select_all = egui::Event::Key {
+            key: egui::Key::A,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers {
+                ctrl: true,
+                command: true,
+                ..Default::default()
+            },
+        };
+        frame(&ctx, vec![select_all], |ui| draw(ui, &mut text));
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            draw(ui, &mut text);
+        });
+        output.textures_delta.clear();
+        let tint = egui::Color32::from_rgba_premultiplied(16, 40, 68, 77);
+        let glyph = if dark {
+            egui::Color32::from_rgb(194, 218, 247)
+        } else {
+            egui::Color32::from_rgb(51, 75, 103)
+        };
+        let primitives = ctx.tessellate(output.shapes, output.pixels_per_point);
+        for expected in [tint, glyph] {
+            assert!(
+                primitives
+                    .iter()
+                    .any(|primitive| match &primitive.primitive {
+                        egui::epaint::Primitive::Mesh(mesh) =>
+                            mesh.vertices.iter().any(|vertex| vertex.color == expected),
+                        _ => false,
+                    }),
+                "dark={dark}, expected={expected:?}"
+            );
+        }
+    }
+}

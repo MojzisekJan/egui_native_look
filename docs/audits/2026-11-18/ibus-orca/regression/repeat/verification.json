@@ -1,0 +1,6 @@
+{
+  "status": "failed",
+  "observations": 11,
+  "error": "AssertionError(\"cycle 3: expected composed \u010d and open dialog after IME Enter; got text='c~', open=False, save_count=4\")",
+  "last_case": "dialog-cycle-3-ime-commit"
+}

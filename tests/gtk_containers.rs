@@ -965,3 +965,107 @@ fn overwrite_commits_ime_once_without_overwriting_during_preedit() {
         assert_eq!(text, "abc");
     }
 }
+
+#[test]
+fn gtk_wheel_distance_survives_native_frame_timing_and_unknown_source() {
+    for dt in [1.0 / 60.0, 0.03, 0.1] {
+        for source in [
+            egui::MouseWheelSource::Wheel,
+            egui::MouseWheelSource::Unknown,
+        ] {
+            let ctx = context(look::Look::Gtk);
+            let mut tick = 0;
+            let mut draw = |events| {
+                tick += 1;
+                let mut result = None;
+                let mut out = ctx.run_ui(
+                    egui::RawInput {
+                        time: Some(tick as f64 * dt),
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(400.0, 300.0),
+                        )),
+                        events,
+                        ..Default::default()
+                    },
+                    |ui| {
+                        result = Some(
+                            look::ScrollArea::vertical()
+                                .max_height(90.0)
+                                .auto_shrink([false, false])
+                                .show(ui, |ui| ui.add_space(800.0)),
+                        );
+                    },
+                );
+                out.textures_delta.clear();
+                result.unwrap()
+            };
+            let rect = draw(vec![]).inner_rect;
+            draw(vec![egui::Event::PointerMoved(rect.center())]);
+            let mut event = wheel(egui::MouseWheelUnit::Line, -1.0);
+            if let egui::Event::MouseWheel {
+                source: event_source,
+                ..
+            } = &mut event
+            {
+                *event_source = source;
+            }
+            draw(vec![event]);
+            let mut offset = 0.0;
+            for _ in 0..100 {
+                offset = draw(vec![]).state.clamped_offset().y;
+            }
+            let expected = 90.0_f32.powf(2.0 / 3.0);
+            assert!(
+                (offset - expected).abs() < 0.1,
+                "dt={dt}, source={source:?}: {offset} vs {expected}"
+            );
+        }
+    }
+}
+
+#[test]
+fn gtk_sibling_scroll_areas_do_not_scale_each_others_wheel_input() {
+    let ctx = context(look::Look::Gtk);
+    let draw = |ui: &mut egui::Ui| {
+        let mut offsets = [0.0; 2];
+        for (index, height) in [160.0, 90.0].into_iter().enumerate() {
+            let scroll = ui
+                .scope_builder(
+                    egui::UiBuilder::new()
+                        .id_salt(index)
+                        .max_rect(egui::Rect::from_min_size(
+                            egui::pos2(index as f32 * 180.0, 0.0),
+                            egui::vec2(160.0, height),
+                        )),
+                    |ui| {
+                        look::ScrollArea::vertical()
+                            .max_height(height)
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| ui.add_space(800.0))
+                    },
+                )
+                .inner;
+            offsets[index] = scroll.state.clamped_offset().y;
+        }
+        offsets
+    };
+    frame(&ctx, vec![], draw);
+    frame(
+        &ctx,
+        vec![egui::Event::PointerMoved(egui::pos2(220.0, 40.0))],
+        draw,
+    );
+    frame(&ctx, vec![wheel(egui::MouseWheelUnit::Line, -1.0)], draw);
+    let mut offsets = [0.0; 2];
+    for _ in 0..50 {
+        offsets = frame(&ctx, vec![], draw);
+    }
+    assert_eq!(offsets[0], 0.0, "the left sibling must not scroll");
+    let expected = 90.0_f32.powf(2.0 / 3.0);
+    assert!(
+        (offsets[1] - expected).abs() < 0.1,
+        "{} vs {expected}",
+        offsets[1]
+    );
+}

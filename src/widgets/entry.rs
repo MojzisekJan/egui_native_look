@@ -421,7 +421,7 @@ fn edit_menu(ui: &Ui, x: &Ctx, response: &Response, text: &str, password: bool) 
 /// macOS and iOS, a cross elsewhere. Returns whether it was clicked.
 fn clear_button(ui: &mut Ui, x: &Ctx, slot: Rect, id: egui::Id, label: &str) -> bool {
     let c = &x.c;
-    let response = super::click_response(ui, ui.interact(slot, id, Sense::click()));
+    let response = super::click_response(ui, super::interact(ui, slot, id, Sense::click()));
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Button, true, label));
     let m = egui::pos2(slot.right() - 13.0, slot.center().y);
     let colour = if response.hovered() { c.fg } else { c.dim };
@@ -528,7 +528,8 @@ fn show_text_editor(
     if block {
         ui.visuals_mut().text_cursor.stroke.color = Color32::TRANSPARENT;
     }
-    let output = editor.show(ui);
+    let ctx = ui.ctx().clone();
+    let output = super::gtk_focus_policy(&ctx, || editor.show(ui));
     ui.visuals_mut().text_cursor = cursor_style.clone();
     if block && output.response.has_focus() && ui.is_enabled() && ui.input(|i| i.focused) {
         if let Some(cursor) = output.cursor_range.filter(|range| range.is_empty()) {
@@ -1039,7 +1040,7 @@ impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
     /// Keeps the value inside `range`: − and + stop at its ends, and dragging and typing
     /// stay in it. Endpoint order is ignored; non-finite endpoints leave the previous
     /// range unchanged. In the GTK look, Up/Down use one step, Page Up/Down ten;
-    /// Ctrl+Home/End and Ctrl+Page Down/Up select the numeric minimum/maximum.
+    /// Ctrl+Page Down/Up select the numeric minimum/maximum. Ctrl+Home/End move the caret.
     pub fn range<N: egui::emath::Numeric>(mut self, range: std::ops::RangeInclusive<N>) -> Self {
         let (lo, hi) = (range.start().to_f64(), range.end().to_f64());
         if lo.is_finite() && hi.is_finite() {
@@ -1295,7 +1296,10 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                         .accesskit_node_builder(number.id, |node| node.set_label(name.as_str()));
                 }
                 underline(ui.painter(), number.rect, number.has_focus());
-                if number.has_focus() && matches!(x.look, Look::Mac | Look::Gtk | Look::Ios) {
+                if number.has_focus()
+                    && matches!(x.look, Look::Mac | Look::Gtk | Look::Ios)
+                    && !(linked && !spin_row)
+                {
                     let rect = if spin_row {
                         super::form::boxed_row_rect(ui.ctx()).unwrap_or(number.rect)
                     } else {
@@ -1354,10 +1358,15 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                         node.set_numeric_value(value.to_f64());
                     });
                 }
-                [minus, plus]
+                let focused = number.has_focus();
+                let response = [minus, plus]
                     .into_iter()
                     .flatten()
-                    .fold(number, |all, button| all | button)
+                    .fold(number, |all, button| all | button);
+                if linked && !spin_row && focused {
+                    crate::paint::ring(ui.painter(), &x.paint(), response.rect, x.radius());
+                }
+                response
             },
         );
         let mut response = inner.inner;
@@ -1475,7 +1484,9 @@ pub(super) fn gtk_number<T: egui::emath::Numeric>(
         ui.input_mut(|input| {
             input.events.retain(|event| {
                 !matches!(event, egui::Event::Key { key, modifiers, pressed: true, .. }
-                    if number_key(*key, *modifiers).is_some())
+                    if number_key(*key, *modifiers).is_some()
+                        || (matches!(key, egui::Key::Home | egui::Key::End)
+                            && modifiers.ctrl && !modifiers.shift && !modifiers.alt && !modifiers.mac_cmd))
             });
         });
     }
@@ -1748,8 +1759,8 @@ fn number_key(key: egui::Key, modifiers: egui::Modifiers) -> Option<NumberKey> {
         (Key::ArrowDown, false) => Some(NumberKey::Step(-1.0)),
         (Key::PageUp, false) => Some(NumberKey::Step(10.0)),
         (Key::PageDown, false) => Some(NumberKey::Step(-10.0)),
-        (Key::Home | Key::PageDown, true) => Some(NumberKey::Start),
-        (Key::End | Key::PageUp, true) => Some(NumberKey::End),
+        (Key::PageDown, true) => Some(NumberKey::Start),
+        (Key::PageUp, true) => Some(NumberKey::End),
         _ => None,
     }
 }
@@ -1815,7 +1826,14 @@ fn entry_visuals(ui: &mut Ui, x: &Ctx) {
     // Where the look draws its own focus ring or, in Material, only thickens its indicator,
     // egui's focused outline is left out and selected text keeps the text colour.
     if matches!(x.look, Look::Mac | Look::Gtk | Look::Ios | Look::Material) {
-        ui.visuals_mut().selection.stroke = Stroke::new(0.0, c.fg);
+        let selected_text = if x.look == Look::Gtk {
+            ui.visuals_mut().selection.bg_fill = c.accent.gamma_multiply(0.3);
+            // GTK tints the selected glyphs together with their background.
+            crate::lerp_color(c.fg, c.accent, 0.3)
+        } else {
+            c.fg
+        };
+        ui.visuals_mut().selection.stroke = Stroke::new(0.0, selected_text);
     }
     // iOS's placeholder is its tertiary label, fainter than the secondary.
     if x.look == Look::Ios {
@@ -1869,7 +1887,8 @@ fn ios_stepper(
             Rect::from_min_max(egui::pos2(middle, rect.min.y), rect.max)
         };
         let on = enabled[i] && ui.is_enabled();
-        let mut response = ui.interact(
+        let mut response = super::interact(
+            ui,
             half,
             id.with(i),
             if on { Sense::click() } else { Sense::hover() },
@@ -1955,7 +1974,8 @@ fn gtk_spin_buttons(
             egui::pos2(left + GTK_SPIN_BUTTON, rect.bottom()),
         );
         let on = enabled[i] && ui.is_enabled();
-        let mut response = ui.interact(
+        let mut response = super::interact(
+            ui,
             half,
             id.with(i),
             if on { Sense::CLICK } else { Sense::hover() },
@@ -2019,7 +2039,8 @@ fn gtk_spin_row_buttons(
         let centre = egui::pos2(rect.left() + 6.0 + 17.0 + 34.0 * i as f32, rect.center().y);
         let hit = Rect::from_center_size(centre, egui::vec2(34.0, height));
         let on = enabled[i] && ui.is_enabled();
-        let mut response = ui.interact(
+        let mut response = super::interact(
+            ui,
             hit,
             id.with(i),
             if on { Sense::CLICK } else { Sense::hover() },
@@ -2113,7 +2134,8 @@ fn mac_stepper(
     let [down, up] = [0, 1].map(|i| {
         let (half, direction, corners) = halves[i];
         let on = enabled[i] && ui.is_enabled();
-        let mut response = ui.interact(
+        let mut response = super::interact(
+            ui,
             half,
             id.with(i),
             if on { Sense::click() } else { Sense::hover() },
@@ -2279,6 +2301,7 @@ mod tests {
         use egui::{Key, Modifiers};
         for key in [Key::Home, Key::End, Key::ArrowLeft, Key::ArrowRight] {
             assert_eq!(number_key(key, Modifiers::NONE), None);
+            assert_eq!(number_key(key, Modifiers::CTRL), None);
         }
         for modifiers in [Modifiers::ALT, Modifiers::SHIFT, Modifiers::MAC_CMD] {
             assert_eq!(number_key(Key::PageUp, modifiers), None);

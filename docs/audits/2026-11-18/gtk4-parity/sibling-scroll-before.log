@@ -1,0 +1,22 @@
+   Compiling egui_native_look v0.3.0 (/home/jan/rust/egui_native_look)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.98s
+     Running tests/gtk_containers.rs (target/debug/build/egui_native_look/83241f88910a51ce/out/gtk_containers-83241f88910a51ce)
+
+running 1 test
+test gtk_sibling_scroll_areas_do_not_scale_each_others_wheel_input ... FAILED
+
+failures:
+
+---- gtk_sibling_scroll_areas_do_not_scale_each_others_wheel_input stdout ----
+
+thread 'gtk_sibling_scroll_areas_do_not_scale_each_others_wheel_input' (2594932) panicked at tests/gtk_containers.rs:1066:5:
+14.797276 vs 20.08299
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    gtk_sibling_scroll_areas_do_not_scale_each_others_wheel_input
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `--test gtk_containers`

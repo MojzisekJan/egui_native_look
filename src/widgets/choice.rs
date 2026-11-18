@@ -209,7 +209,8 @@ impl Segmented<'_> {
                 egui::pos2(rect.left() + each * i as f32, rect.top()),
                 egui::vec2(each, rect.height()),
             );
-            let segment = ui.interact(
+            let segment = super::interact(
+                ui,
                 slot,
                 id.with(i),
                 if enabled {
@@ -444,7 +445,8 @@ fn material_segments(
             egui::pos2(rect.left() + each * i as f32, rect.top()),
             egui::vec2(each, rect.height()),
         );
-        let segment = ui.interact(
+        let segment = super::interact(
+            ui,
             slot,
             id.with(i),
             if enabled {
@@ -1020,13 +1022,19 @@ impl Dropdown<'_> {
                                 } else if input
                                     .consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown)
                                 {
-                                    // The list wraps round at its ends, as GTK's and
-                                    // Material's do.
-                                    Some((current + 1) % ids.len())
+                                    Some(if look == Look::Gtk {
+                                        (current + 1).min(ids.len() - 1)
+                                    } else {
+                                        (current + 1) % ids.len()
+                                    })
                                 } else if input
                                     .consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp)
                                 {
-                                    Some((current + ids.len() - 1) % ids.len())
+                                    Some(if look == Look::Gtk {
+                                        current.saturating_sub(1)
+                                    } else {
+                                        (current + ids.len() - 1) % ids.len()
+                                    })
                                 } else {
                                     None
                                 }

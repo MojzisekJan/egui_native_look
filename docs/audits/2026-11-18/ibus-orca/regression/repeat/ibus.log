@@ -1,0 +1,27 @@
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:23.288: 18:35:23.288102: Failed to unlink /tmp/egui-live-2026-11-18/documented-regression/config/ibus/bus/31b25b517613446fb2f67ee8244f2722-unix-1: No such file or directory
+portal is not running: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.portal.IBus was not provided by any .service files
+
+** (ibus-engine-m17n:2959848): WARNING **: 18:35:26.392: failed to parse /usr/share/ibus-m17n/default.xml
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:27.943: 18:35:27.943350: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:28.188: 18:35:28.188485: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:28.433: 18:35:28.433107: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:29.592: 18:35:29.592686: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:29.816: 18:35:29.816505: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:30.063: 18:35:30. 63062: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:31.220: 18:35:31.220789: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:31.466: 18:35:31.466527: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:31.739: 18:35:31.739521: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:32.873: 18:35:32.873517: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!
+
+(ibus-daemon:2959584): IBUS-WARNING **: 18:35:33.119: 18:35:33.119351: org.freedesktop.IBus.IsGlobalEngineEnabled() is deprecated!

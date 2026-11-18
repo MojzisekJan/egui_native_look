@@ -133,8 +133,16 @@ impl ScrollArea {
         let axes = self.axes;
         let wheel = self.wheel;
         let output = self.inner.show_viewport(ui, |child, viewport| {
+            // A vertical area's clip rect can span the parent's entire width, so
+            // text may overflow horizontally. Wheel hit testing must use the actual
+            // viewport instead, or an unrelated sibling scales the delta first.
+            let wheel_rect = egui::Rect::from_min_size(
+                child.max_rect().min + viewport.min.to_vec2(),
+                viewport.size(),
+            )
+            .intersect(child.clip_rect());
             let result = contents(child);
-            if wheel && child.is_enabled() && child.rect_contains_pointer(child.clip_rect()) {
+            if wheel && child.is_enabled() && child.rect_contains_pointer(wheel_rect) {
                 let page = viewport.size().max(Vec2::splat(1.0));
                 let line = child.ctx().options(|o| o.input_options.line_scroll_speed);
                 let factor = match unit {
