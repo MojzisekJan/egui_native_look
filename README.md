@@ -361,3 +361,10 @@ remain respected. This checkout also patches epaint to pass the point size to it
 text shaper, correcting San Francisco tracking. Downstream applications must apply
 the workspace patch described in [vendor/README.md](vendor/README.md); Cargo patches
 are not inherited from library dependencies.
+
+## Daybook example
+
+A complete task, notes and focus-timer demo is available with matching egui_native_look
+and SwiftUI implementations. Run `cargo run --example daybook`, or see
+[examples/daybook/README.md](examples/daybook/README.md) to build both macOS apps,
+reproduce screenshots and review the remaining visual differences.

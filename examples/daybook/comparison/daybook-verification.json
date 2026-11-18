@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-19",
+  "rust_demo_tests": 3,
+  "rust_ui_flow": "create task through dialog, search resulting task, accessibility validation",
+  "swiftui_model_tests": "task creation, JSON roundtrip, focus start/pause/reset",
+  "swiftui_ios": "typecheck for arm64 iOS 26 simulator; not a device run",
+  "macos_apps": "built and locally ad-hoc signed",
+  "reference_size_points": [
+    1180,
+    800
+  ],
+  "remaining_differences": [
+    "sidebar selection and row height",
+    "scrollbar space and resulting content width",
+    "intrinsic segmented control sizing",
+    "text editor insets/wrapping",
+    "rasterization and native dialog behaviour"
+  ],
+  "source_sha256": {
+    "examples/daybook.rs": "2e6004d2f73fdc57a65a490e1c22b8fc6ea506c8b67ca81a9ac62774cd4d7211",
+    "examples/daybook/Daybook.swift": "013f6e410fee378809bce2d231b75835a90eeeeb7c5e4e32c9de9fd404917279",
+    "examples/daybook/seed.json": "0f91113cb784ce5c880112bc9f1a211d8b4a47d34ba2aec2cd2641abf64bb9d7"
+  }
+}
