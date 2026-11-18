@@ -25,7 +25,7 @@ egui = { version = "0.37.0", default-features = false }
 # macOS: the accent colour and the appearance chosen in System Settings.
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = { version = "0.6.2", default-features = false, features = ["std"], optional = true }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSColor", "NSColorSpace", "NSAppearance", "NSApplication", "NSResponder", "objc2-core-foundation"], optional = true }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSColor", "NSColorSpace", "NSAppearance", "NSApplication", "NSResponder", "NSScroller", "NSControl", "NSCell", "NSView", "objc2-core-foundation"], optional = true }
 
 # Windows: the accent shades chosen in Personalization > Colors.
 [target.'cfg(target_os = "windows")'.dependencies]

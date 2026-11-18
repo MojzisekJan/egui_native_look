@@ -2,6 +2,7 @@
 use egui::{MouseWheelUnit, Ui, Vec2, Vec2b};
 
 /// A scroll area with GTK wheel distances and nested boundary handling.
+/// On macOS, system integration respects AppKit's non-overlay scrollbar preference.
 /// Other looks retain egui's scrolling behavior. Point-based touchpad input keeps
 /// its pixel distance; touch dragging and scrollbar interaction remain egui's.
 ///
@@ -100,6 +101,42 @@ impl ScrollArea {
         self.inner = self.inner.scroll_source(source);
         self
     }
+    fn show_with_legacy_scrollbar<R>(
+        self,
+        ui: &mut Ui,
+        width: f32,
+        contents: impl FnOnce(&mut Ui) -> R,
+    ) -> egui::scroll_area::ScrollAreaOutput<R> {
+        let previous = ui.spacing().scroll;
+        let previous_visuals = ui.visuals().clone();
+        let style = &mut ui.spacing_mut().scroll;
+        style.floating = false;
+        // AppKit's width includes the gutter around its narrower pill.
+        style.bar_width = (width - 7.0).max(1.0);
+        style.bar_inner_margin = 3.5;
+        style.bar_outer_margin = 3.5;
+        style.foreground_color = false;
+        let visuals = ui.visuals_mut();
+        visuals.extreme_bg_color = egui::Color32::TRANSPARENT;
+        for widget in [
+            &mut visuals.widgets.inactive,
+            &mut visuals.widgets.hovered,
+            &mut visuals.widgets.active,
+        ] {
+            widget.bg_fill =
+                egui::Color32::from_gray(if previous_visuals.dark_mode { 144 } else { 128 });
+            widget.corner_radius = egui::CornerRadius::same(5);
+        }
+        let output = self.inner.show(ui, |child| {
+            // Scrollbar paint must not recolour the controls in its contents.
+            *child.visuals_mut() = previous_visuals.clone();
+            contents(child)
+        });
+        ui.spacing_mut().scroll = previous;
+        *ui.visuals_mut() = previous_visuals;
+        output
+    }
+
     /// Draw the contents and return their result, viewport and scroll state.
     pub fn show<R>(
         mut self,
@@ -110,6 +147,11 @@ impl ScrollArea {
             .id
             .map_or_else(|| ui.next_auto_id(), |id| ui.make_persistent_id(id));
         self.inner = self.inner.id_salt(id);
+        if crate::look(ui.ctx()) == crate::Look::Mac {
+            if let Some(width) = crate::system::mac_scrollbar_width() {
+                return self.show_with_legacy_scrollbar(ui, width, contents);
+            }
+        }
         if crate::look(ui.ctx()) != crate::Look::Gtk {
             return self.inner.show(ui, contents);
         }
@@ -175,5 +217,27 @@ impl ScrollArea {
             });
         }
         output
+    }
+}
+
+#[cfg(test)]
+mod legacy_scrollbar_tests {
+    use super::*;
+    #[test]
+    fn native_scrollbar_style_does_not_leak_into_contents_or_siblings() {
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let visuals = ui.visuals().clone();
+            let scroll = ui.spacing().scroll;
+            ScrollArea::vertical()
+                .max_height(80.0)
+                .show_with_legacy_scrollbar(ui, 17.0, |child| {
+                    assert_eq!(child.visuals(), &visuals);
+                    child.allocate_space(egui::vec2(100.0, 400.0));
+                });
+            assert_eq!(ui.visuals(), &visuals);
+            assert_eq!(ui.spacing().scroll, scroll);
+        });
+        output.textures_delta.clear();
     }
 }

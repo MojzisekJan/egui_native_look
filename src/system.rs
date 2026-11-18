@@ -19,6 +19,26 @@ pub struct SystemFonts {
     pub mono: Option<FontData>,
 }
 
+/// Width reserved by AppKit's non-overlay scrollbars, when the host requests them.
+/// Query AppKit only on its main thread; workers and non-Mac previews keep the host style.
+pub(crate) fn mac_scrollbar_width() -> Option<f32> {
+    #[cfg(all(feature = "system", target_os = "macos"))]
+    {
+        use objc2_app_kit::{NSControlSize, NSScroller, NSScrollerStyle};
+        let main = objc2::MainThreadMarker::new()?;
+        let style = NSScroller::preferredScrollerStyle(main);
+        if style == NSScrollerStyle::Legacy {
+            let width = NSScroller::scrollerWidthForControlSize_scrollerStyle(
+                NSControlSize::Regular,
+                style,
+                main,
+            ) as f32;
+            return (width.is_finite() && width > 0.0).then_some(width);
+        }
+    }
+    None
+}
+
 /// What one read of the system found, for the look it was read for.
 struct Found {
     look: Look,
