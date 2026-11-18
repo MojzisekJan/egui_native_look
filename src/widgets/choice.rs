@@ -3,7 +3,7 @@
 use egui::{Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, Widget};
 
 use super::{menu_label_inset, truncated, Ctx};
-use crate::Look;
+use crate::{numeric, Look};
 
 /// A choice of one of `items` in equal segments: in the system looks a grey track with the
 /// chosen segment raised out of it, on macOS filled with the accent; in the plain look the
@@ -1598,6 +1598,8 @@ pub fn combo_icon(ui: &Ui, rect: Rect, visuals: &egui::style::WidgetVisuals, ope
 pub struct Slider<'a, T: egui::emath::Numeric> {
     value: &'a mut T,
     range: std::ops::RangeInclusive<f64>,
+    // Retain exact endpoints: wide integers cannot round-trip through f64.
+    bounds: std::ops::RangeInclusive<T>,
     width: Option<f32>,
     text: String,
     logarithmic: bool,
@@ -1613,14 +1615,21 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
     /// and preserve the value. Equal endpoints disable editing; `Always` clamping
     /// can still normalize the value. NaN values draw at the start and are replaced
     /// only by an edit or `Always` clamping.
+    /// Builtin integers up to 64 bits retain exact endpoints, unit keyboard steps,
+    /// decimal text input and accessibility increment/decrement operations even above
+    /// `2^53`. Pointer positions have the rail's finite resolution; use keys or text
+    /// to choose individual values in a large range. Custom `f64` callbacks and
+    /// numeric accessibility SetValue requests retain their own `f64` precision.
     /// In the GTK look, arrows and +/− move one step; Ctrl moves ten steps.
     /// Page Up/Down change the value by ten steps, and Home/End select the numeric
     /// minimum/maximum. Ctrl+Page Up/Down move toward the left/right rail endpoints.
     pub fn new(value: &'a mut T, range: std::ops::RangeInclusive<T>) -> Self {
-        let range = range.start().to_f64()..=range.end().to_f64();
+        let bounds = range;
+        let range = bounds.start().to_f64()..=bounds.end().to_f64();
         Slider {
             value,
             range,
+            bounds,
             width: None,
             text: String::new(),
             logarithmic: false,
@@ -1681,6 +1690,9 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
 
     fn log(&self) -> bool {
         self.logarithmic && *self.range.start() > 0.0 && self.range.end() > self.range.start()
+            // On a tiny relative integer interval ln(end) can equal ln(start).
+            // Relative linear offsets retain its individual values without a zero divisor.
+            && !(self.wide() && (self.range.end() - self.range.start()) / self.range.start() < 1e-6)
     }
 
     /// Where `value` sits along the rail, from 0 to 1.
@@ -1757,12 +1769,114 @@ impl<'a, T: egui::emath::Numeric> Slider<'a, T> {
         }
     }
 
-    fn set(&mut self, value: f64, response: &mut Response) {
-        let value = T::from_f64(value);
-        if super::number_changed(self.value.to_f64(), value.to_f64()) {
+    fn exact_bounds(&self) -> Option<(i128, i128)> {
+        numeric::bounds(*self.bounds.start(), *self.bounds.end())
+    }
+
+    fn wide(&self) -> bool {
+        numeric::wide(*self.value, self.exact_bounds())
+    }
+
+    fn set_typed(&mut self, value: T, response: &mut Response) {
+        if numeric::changed(*self.value, value) {
             *self.value = value;
             response.mark_changed();
         }
+    }
+
+    fn set(&mut self, value: f64, response: &mut Response) {
+        let typed = T::from_f64(value);
+        let typed = self
+            .exact_bounds()
+            .and_then(|bounds| numeric::clamp(typed, bounds))
+            .unwrap_or(typed);
+        self.set_typed(typed, response);
+    }
+
+    fn exact_nudge(&self, steps: f64, visual: bool, visible: bool) -> Option<T> {
+        if !self.wide() {
+            return None;
+        }
+        let limits = self.exact_bounds()?;
+        let current = if visible {
+            numeric::clamp(*self.value, limits)?
+        } else {
+            *self.value
+        };
+        let direction = if visual && self.bounds.start() > self.bounds.end() {
+            -1.0
+        } else {
+            1.0
+        };
+        numeric::stepped(
+            current,
+            self.step.unwrap_or(1.0),
+            steps * direction,
+            Some(limits),
+        )
+    }
+
+    fn move_by(&mut self, steps: f64, visual: bool, visible: bool, response: &mut Response) {
+        if let Some(value) = self.exact_nudge(steps, visual, visible) {
+            self.set_typed(value, response);
+        } else {
+            let value = if visible {
+                self.nudged_from(self.accessible_value(), steps, visual)
+            } else {
+                self.nudged(steps, visual)
+            };
+            self.set(value, response);
+        }
+    }
+
+    fn current_fraction(&self) -> f64 {
+        if self.wide() && !self.log() {
+            if let (Some(a), Some(b), Some(value)) = (
+                numeric::integer(*self.bounds.start()),
+                numeric::integer(*self.bounds.end()),
+                numeric::integer(*self.value),
+            ) {
+                if a == b {
+                    return 0.0;
+                }
+                return ((value - a) as f64 / (b - a) as f64).clamp(0.0, 1.0);
+            }
+        }
+        self.fraction(self.value.to_f64())
+    }
+
+    fn set_at(&mut self, fraction: f64, response: &mut Response) {
+        if fraction <= 0.0 {
+            self.set_typed(*self.bounds.start(), response);
+            return;
+        }
+        if fraction >= 1.0 {
+            self.set_typed(*self.bounds.end(), response);
+            return;
+        }
+        if self.wide() && !self.log() {
+            if let (Some(a), Some(b)) = (
+                numeric::integer(*self.bounds.start()),
+                numeric::integer(*self.bounds.end()),
+            ) {
+                let delta = ((b - a) as f64 * fraction.clamp(0.0, 1.0)).round() as i128;
+                let mut value = a.saturating_add(delta);
+                if let Some(step) = self.step {
+                    let step = (step.round() as i128).max(1);
+                    let offset = value - a;
+                    let remainder = offset % step;
+                    value -= remainder;
+                    if remainder.abs() >= step - remainder.abs() {
+                        value = value.saturating_add(step * remainder.signum());
+                    }
+                }
+                if let Some(value) = numeric::from_integer(value.clamp(a.min(b), a.max(b))) {
+                    self.set_typed(value, response);
+                    return;
+                }
+            }
+        }
+        self.set(self.value_at(fraction), response);
     }
 }
 
@@ -1780,7 +1894,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
             self.range = 0.0..=0.0;
             self.clamping = egui::SliderClamping::Never;
         }
-        if invalid || lo == hi {
+        if invalid || self.bounds.start() == self.bounds.end() {
             ui.add_enabled_ui(false, |ui| self.controls(ui)).inner
         } else {
             self.controls(ui)
@@ -1791,17 +1905,25 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
 impl<T: egui::emath::Numeric> Slider<'_, T> {
     fn controls(mut self, ui: &mut Ui) -> Response {
         let (lo, hi) = (*self.range.start(), *self.range.end());
-        let before = self.value.to_f64();
-        if self.clamping == egui::SliderClamping::Always {
-            let current = self.value.to_f64();
-            let clamped = if current.is_nan() {
-                lo
+        let clamped = if self.clamping == egui::SliderClamping::Always {
+            let current = *self.value;
+            let (start, end) = self.bounds.clone().into_inner();
+            let (min, max) = if start <= end {
+                (start, end)
             } else {
-                current.clamp(lo.min(hi), hi.max(lo))
+                (end, start)
             };
-            *self.value = T::from_f64(clamped);
-        }
-        let clamped = super::number_changed(before, self.value.to_f64());
+            if current.to_f64().is_nan() {
+                *self.value = start;
+            } else if current < min {
+                *self.value = min;
+            } else if current > max {
+                *self.value = max;
+            }
+            current != *self.value
+        } else {
+            false
+        };
         if !self.show_value && self.text.is_empty() {
             let mut response = self.rail(ui);
             if clamped {
@@ -1812,6 +1934,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
         let inner = ui.horizontal(|ui| {
             let mut response = self.rail(ui);
             if self.show_value {
+                let before_typed = *self.value;
                 let before = self.value.to_f64();
                 let mut shown = if before.is_nan() {
                     T::from_f64(lo)
@@ -1830,16 +1953,53 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                     .scope(|ui| {
                         ui.spacing_mut().interact_size.x = 56.0;
                         super::ignore_disabled_numeric_actions(ui, ui.next_auto_id());
-                        ui.add(
-                            format
-                                .apply(egui::DragValue::new(&mut shown).speed(speed).range(range)),
-                        )
+                        if self.wide() {
+                            let exact = if self.clamping == egui::SliderClamping::Never {
+                                numeric::bounds(T::MIN, T::MAX)
+                            } else {
+                                self.exact_bounds()
+                            };
+                            let id = ui.next_auto_id();
+                            let x = Ctx::of(ui);
+                            let size = egui::vec2(
+                                140.0_f32.min(ui.available_width().max(40.0)),
+                                ui.spacing().interact_size.y,
+                            );
+                            ui.allocate_ui_with_layout(
+                                size,
+                                egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+                                |ui| {
+                                    super::entry::gtk_number(
+                                        ui,
+                                        id,
+                                        &mut shown,
+                                        &format,
+                                        self.step.unwrap_or(1.0),
+                                        exact.map_or((lo.min(hi), lo.max(hi)), |(a, b)| {
+                                            (a as f64, b as f64)
+                                        }),
+                                        exact,
+                                        false,
+                                        false,
+                                        &x,
+                                    )
+                                    .0
+                                },
+                            )
+                            .inner
+                        } else {
+                            ui.add(
+                                format.apply(
+                                    egui::DragValue::new(&mut shown).speed(speed).range(range),
+                                ),
+                            )
+                        }
                     })
                     .inner;
                 if field.changed() {
                     *self.value = shown;
                 }
-                if super::number_changed(before, self.value.to_f64()) {
+                if numeric::changed(before_typed, *self.value) {
                     response.mark_changed();
                     self.update_accessible_node(ui, &response);
                 }
@@ -1875,6 +2035,21 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
         use egui::accesskit::{Action, ActionData};
         ui.input_mut(|input| {
             input.consume_accesskit_action_requests(response.id, |request| {
+                if response.enabled()
+                    && matches!(request.action, Action::Increment | Action::Decrement)
+                {
+                    self.move_by(
+                        if request.action == Action::Increment {
+                            1.0
+                        } else {
+                            -1.0
+                        },
+                        false,
+                        true,
+                        response,
+                    );
+                    return true;
+                }
                 let value = match request.action {
                     Action::Increment => response
                         .enabled()
@@ -1886,7 +2061,16 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                         if !response.enabled() {
                             return true;
                         }
-                        match request.data {
+                        match &request.data {
+                            Some(ActionData::Value(text)) if self.wide() => {
+                                if let Some(value) = self
+                                    .exact_bounds()
+                                    .and_then(|bounds| numeric::parse(text, bounds))
+                                {
+                                    self.set_typed(value, response);
+                                }
+                                return true;
+                            }
                             Some(ActionData::NumericValue(value)) if !value.is_nan() => {
                                 let (lo, hi) = (*self.range.start(), *self.range.end());
                                 Some(value.clamp(lo.min(hi), hi.max(lo)))
@@ -1927,6 +2111,15 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
             node.set_min_numeric_value(lo);
             node.set_max_numeric_value(hi);
             node.set_numeric_value(value);
+            if self.wide() {
+                if let Some(exact) = self
+                    .exact_bounds()
+                    .and_then(|bounds| numeric::clamp(*self.value, bounds))
+                    .and_then(numeric::integer)
+                {
+                    node.set_value(exact.to_string());
+                }
+            }
             node.clear_numeric_value_step();
             if let Some(step) = step.filter(|step| *step > 0.0 && step.is_finite()) {
                 node.set_numeric_value_step(step);
@@ -1936,10 +2129,16 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
             }
             if response.enabled() {
                 node.add_action(Action::SetValue);
-                if value < hi && increment > value {
+                let exact_inc = self
+                    .exact_nudge(1.0, false, true)
+                    .is_some_and(|v| v > *self.value);
+                let exact_dec = self
+                    .exact_nudge(-1.0, false, true)
+                    .is_some_and(|v| v < *self.value);
+                if (value < hi && increment > value) || exact_inc {
                     node.add_action(Action::Increment);
                 }
-                if value > lo && decrement < value {
+                if (value > lo && decrement < value) || exact_dec {
                     node.add_action(Action::Decrement);
                 }
             }
@@ -2013,7 +2212,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 || response.clicked_by(egui::PointerButton::Primary))
         {
             response.request_focus();
-            let fraction = self.fraction(self.value.to_f64());
+            let fraction = self.current_fraction();
             let thumb_x = egui::lerp(rail.left()..=rail.right(), fraction as f32);
             let relative =
                 matches!(look, Look::Gtk | Look::Ios) && (position.x - thumb_x).abs() <= radius;
@@ -2034,7 +2233,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 ignored: false,
             });
             if !touch && !relative {
-                self.set(self.value_at(fraction), response);
+                self.set_at(fraction, response);
             }
         }
         if let Some(state) = drag.as_mut() {
@@ -2054,7 +2253,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                     1.0
                 };
                 state.advance(position.x, rail.width(), fine);
-                self.set(self.value_at(state.fraction), response);
+                self.set_at(state.fraction, response);
                 if down {
                     ui.ctx().set_dragged_id(response.id);
                     response
@@ -2070,7 +2269,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 && !state.ignored
                 && response.clicked_by(egui::PointerButton::Primary)
             {
-                self.set(self.value_at(state.fraction), response);
+                self.set_at(state.fraction, response);
             }
         }
         let active = drag.is_some_and(|state| !state.ignored) && down;
@@ -2113,7 +2312,7 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
         if x.look == Look::Gtk {
             let wheel = super::gtk_wheel(ui, &response);
             if wheel != 0.0 {
-                self.set(self.nudged(wheel * 10.0, false), &mut response);
+                self.move_by(wheel * 10.0, false, false, &mut response);
             }
         }
         let dragging = self.pointer_input(ui, &mut response, rail, knob_r, x.look);
@@ -2150,12 +2349,28 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                 });
                 for command in commands {
                     let (lo, hi) = (*self.range.start(), *self.range.end());
-                    let value = match command {
-                        SliderKey::Start => lo.min(hi),
-                        SliderKey::End => hi.max(lo),
-                        SliderKey::Move { steps, visual } => self.nudged(steps, visual),
-                    };
-                    self.set(value, &mut response);
+                    match command {
+                        SliderKey::Move { steps, visual } => {
+                            self.move_by(steps, visual, false, &mut response)
+                        }
+                        command => {
+                            if let Some((a, b)) = self.exact_bounds().filter(|_| self.wide()) {
+                                let value = if command == SliderKey::Start { a } else { b };
+                                if let Some(value) = numeric::from_integer(value) {
+                                    self.set_typed(value, &mut response);
+                                }
+                            } else {
+                                self.set(
+                                    if command == SliderKey::Start {
+                                        lo.min(hi)
+                                    } else {
+                                        lo.max(hi)
+                                    },
+                                    &mut response,
+                                );
+                            }
+                        }
+                    }
                 }
             } else {
                 let steps = ui.input(|i| {
@@ -2165,12 +2380,12 @@ impl<T: egui::emath::Numeric> Slider<'_, T> {
                         - pressed(egui::Key::ArrowDown)
                 });
                 if steps != 0.0 {
-                    self.set(self.nudged(steps, true), &mut response);
+                    self.move_by(steps, true, false, &mut response);
                 }
             }
         }
         let enabled = ui.is_enabled();
-        let t = self.fraction(self.value.to_f64()) as f32;
+        let t = self.current_fraction() as f32;
         let painter = ui.painter();
         let at = egui::pos2(egui::lerp(rail.left()..=rail.right(), t), rail.center().y);
         let accent = match (enabled, x.look) {

@@ -168,10 +168,10 @@ pub fn focus_ring(painter: &egui::Painter, rect: Rect, radius: CornerRadius) {
 pub(crate) fn ring(painter: &egui::Painter, p: &Paint, rect: Rect, radius: CornerRadius) {
     let (look, c) = (p.look, p.c);
     let grown = CornerRadius {
-        nw: radius.nw + 2,
-        ne: radius.ne + 2,
-        sw: radius.sw + 2,
-        se: radius.se + 2,
+        nw: radius.nw.saturating_add(2),
+        ne: radius.ne.saturating_add(2),
+        sw: radius.sw.saturating_add(2),
+        se: radius.se.saturating_add(2),
     };
     match look {
         Look::Gtk => {

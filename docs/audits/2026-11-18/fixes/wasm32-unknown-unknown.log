@@ -1,0 +1,4 @@
+    Checking accesskit v0.25.2
+    Checking egui v0.37.0
+    Checking egui_native_look v0.3.0 (/home/jan/rust/egui_native_look)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 18.21s

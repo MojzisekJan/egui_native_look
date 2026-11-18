@@ -1,0 +1,55 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.51s
+   Doc-tests egui_native_look
+
+running 49 tests
+test src/lib.rs - Theme (line 582) - compile fail ... ok
+test src/lib.rs - Schemes (line 253) - compile fail ... ok
+test src/colors.rs - colors::Colors (line 14) - compile fail ... ok
+test src/lib.rs - Look (line 89) - compile fail ... ok
+test src/lib.rs - Metrics (line 432) - compile fail ... ok
+test src/lib.rs - Palette (line 209) - compile fail ... ok
+test src/lib.rs - (line 9) - compile ... ok
+test src/widgets/basic.rs - widgets::basic::Button::icon (line 42) - compile ... ok
+test src/widgets/basic.rs - widgets::basic::Button (line 12) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::Checkbox (line 813) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::Switch (line 350) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::Radio (line 957) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::RadioGroup (line 1121) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Segmented (line 16) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::RadioGroup (line 1110) - compile ... ok
+test src/widgets/choice.rs - widgets::choice::Slider (line 1592) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Dropdown (line 768) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::PopupButton (line 1262) - compile ... ok
+test src/widgets/choice.rs - widgets::choice::PopupButton (line 1275) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Tab (line 2582) - compile ... ok
+test src/widgets/choice.rs - widgets::choice::Tab (line 2596) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::TabBar (line 2637) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Slider (line 1582) - compile ... ok
+test src/widgets/containers.rs - widgets::containers::ListRow (line 186) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Tabs (line 2431) - compile fail ... ok
+test src/widgets/containers.rs - widgets::containers::Section (line 38) - compile fail ... ok
+test src/widgets/entry.rs - widgets::entry::NumberField (line 995) - compile fail ... ok
+test src/widgets/entry.rs - widgets::entry::NumberField (line 975) - compile ... ok
+test src/widgets/containers.rs - widgets::containers::MenuItem (line 349) - compile fail ... ok
+test src/widgets/containers.rs - widgets::containers::Section (line 29) - compile ... ok
+test src/widgets/extra.rs - widgets::extra::ColorWell (line 184) - compile ... ok
+test src/widgets/extra.rs - widgets::extra::ColorWell (line 191) - compile fail ... ok
+test src/widgets/containers.rs - widgets::containers::submenu (line 656) - compile ... ok
+test src/widgets/entry.rs - widgets::entry::TextField (line 22) - compile fail ... ok
+test src/widgets/form.rs - widgets::form::Form (line 13) - compile ... ok
+test src/widgets/entry.rs - widgets::entry::TextField (line 12) - compile ... ok
+test src/widgets/extra.rs - widgets::extra::IconButton (line 12) - compile ... ok
+test src/widgets/extra.rs - widgets::extra::IconButton (line 22) - compile fail ... ok
+test src/widgets/status.rs - widgets::status::ProgressBar (line 12) - compile fail ... ok
+test src/widgets/form.rs - widgets::form::Form (line 26) - compile fail ... ok
+test src/widgets/window.rs - widgets::window::Dialog (line 14) - compile ... ok
+test src/widgets/window.rs - widgets::window::Dialog (line 26) - compile fail ... ok
+test src/widgets/status.rs - widgets::status::Spinner (line 137) - compile fail ... ok
+test src/lib.rs - Look::touch (line 142) ... ok
+test src/widgets/window.rs - widgets::window::TitleBar (line 1155) - compile fail ... ok
+test src/widgets/window.rs - widgets::window::ToolWindow (line 696) - compile ... ok
+test src/widgets/window.rs - widgets::window::ToolWindow (line 704) - compile fail ... ok
+test src/widgets/list.rs - widgets::list::ListBox (line 8) ... ok
+test src/widgets/scroll.rs - widgets::scroll::ScrollArea (line 8) ... ok
+
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.28s

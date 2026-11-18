@@ -1,0 +1,228 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 1.28
+  },
+  {
+    "name": "test-all",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--all-features",
+      "--all-targets"
+    ],
+    "exit_code": 0,
+    "seconds": 64.22
+  },
+  {
+    "name": "test-doc",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--doc",
+      "--all-features"
+    ],
+    "exit_code": 0,
+    "seconds": 2.52
+  },
+  {
+    "name": "test-min",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features"
+    ],
+    "exit_code": 0,
+    "seconds": 33.09
+  },
+  {
+    "name": "clippy-all",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 3.37
+  },
+  {
+    "name": "clippy-min",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--no-default-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 3.87
+  },
+  {
+    "name": "snapshots",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "snapshots",
+      "--",
+      "--include-ignored"
+    ],
+    "exit_code": 0,
+    "seconds": 8.98
+  },
+  {
+    "name": "msrv",
+    "command": [
+      "cargo",
+      "+1.95.0",
+      "check",
+      "--lib",
+      "--locked",
+      "--target-dir",
+      "/tmp/egui-native-msrv"
+    ],
+    "exit_code": 0,
+    "seconds": 2.05
+  },
+  {
+    "name": "wasm32-unknown-unknown",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "wasm32-unknown-unknown"
+    ],
+    "exit_code": 0,
+    "seconds": 1.23
+  },
+  {
+    "name": "x86_64-pc-windows-gnu",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "x86_64-pc-windows-gnu"
+    ],
+    "exit_code": 0,
+    "seconds": 1.66
+  },
+  {
+    "name": "aarch64-apple-darwin",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-apple-darwin"
+    ],
+    "exit_code": 0,
+    "seconds": 1.68
+  },
+  {
+    "name": "aarch64-apple-ios",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-apple-ios"
+    ],
+    "exit_code": 0,
+    "seconds": 2.4
+  },
+  {
+    "name": "aarch64-linux-android",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-linux-android"
+    ],
+    "exit_code": 0,
+    "seconds": 1.67
+  },
+  {
+    "name": "wasm-gallery",
+    "command": [
+      "cargo",
+      "check",
+      "--locked",
+      "--example",
+      "gallery",
+      "--target",
+      "wasm32-unknown-unknown"
+    ],
+    "exit_code": 0,
+    "seconds": 0.53
+  },
+  {
+    "name": "web-viewport",
+    "command": [
+      "/home/jan/.local/share/pi-node/node-v22.23.3-linux-x64/bin/node",
+      "--test",
+      "web/viewport.test.mjs"
+    ],
+    "exit_code": 0,
+    "seconds": 0.28
+  },
+  {
+    "name": "audit",
+    "command": [
+      "cargo",
+      "audit",
+      "--json"
+    ],
+    "exit_code": 0,
+    "seconds": 5.28
+  },
+  {
+    "name": "package-list",
+    "command": [
+      "cargo",
+      "package",
+      "--list",
+      "--locked",
+      "--allow-dirty"
+    ],
+    "exit_code": 0,
+    "seconds": 0.21
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.03
+  }
+]

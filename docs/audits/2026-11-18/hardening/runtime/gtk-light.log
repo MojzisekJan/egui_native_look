@@ -1,0 +1,4 @@
+    Blocking waiting for file lock on build directory
+   Compiling egui_native_look v0.3.0 (/home/jan/rust/egui_native_look)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 23.47s
+     Running `target/debug/examples/gallery gtk light`

@@ -1,0 +1,48 @@
+   Compiling egui-native-audit-probes v0.0.0 (/tmp/egui-native-audit)
+warning: unused dependency `egui_native_look`
+ --> Cargo.toml:6:1
+  |
+6 | egui_native_look = { path = "/home/jan/rust/egui_native_look", default-features = false }
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `egui_native_look`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `egui-native-audit-probes` (manifest) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.37s
+     Running unittests src/lib.rs (/tmp/egui-native-audit/target/debug/build/egui-native-audit-probes/a3d3763c2df063d4/out/egui_native_audit_probes-a3d3763c2df063d4)
+
+running 3 tests
+test tests::maximum_corner_radius_does_not_panic ... FAILED
+test tests::numeric_ime_arrow_must_not_change_model ... FAILED
+test tests::wide_integer_must_not_change_without_input ... FAILED
+
+failures:
+
+---- tests::maximum_corner_radius_does_not_panic stdout ----
+
+thread 'tests::maximum_corner_radius_does_not_panic' (149) panicked at /home/jan/rust/egui_native_look/src/paint.rs:171:13:
+attempt to add with overflow
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tests::numeric_ime_arrow_must_not_change_model stdout ----
+
+thread 'tests::numeric_ime_arrow_must_not_change_model' (150) panicked at src/lib.rs:54:9:
+assertion `left == right` failed: IME candidate navigation changed the numeric model
+  left: 6.0
+ right: 5.0
+
+---- tests::wide_integer_must_not_change_without_input stdout ----
+
+thread 'tests::wide_integer_must_not_change_without_input' (151) panicked at src/lib.rs:89:9:
+Gtk: 9007199254740993 -> 9007199254740992, changed=false; Mac: 9007199254740993 -> 9007199254740992, changed=false; Plain: 9007199254740993 -> 9007199254740992, changed=false; Windows: 9007199254740993 -> 9007199254740992, changed=false; Ios: 9007199254740993 -> 9007199254740992, changed=false; Material: 9007199254740993 -> 9007199254740992, changed=false
+
+
+failures:
+    tests::maximum_corner_radius_does_not_panic
+    tests::numeric_ime_arrow_must_not_change_model
+    tests::wide_integer_must_not_change_without_input
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `--lib`

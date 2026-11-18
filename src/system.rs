@@ -4,6 +4,9 @@ use egui::FontData;
 
 use crate::Look;
 
+#[cfg(all(feature = "system", any(target_os = "linux", target_os = "macos")))]
+mod process;
+
 /// The system's faces for a look: San Francisco on macOS, Segoe UI Variable (or Segoe
 /// UI) on Windows, each with its monospaced face where there is one.
 #[non_exhaustive]
@@ -124,7 +127,8 @@ fn apply(ctx: &egui::Context, found: Found) {
 /// macOS, the apps' mode on Windows, GNOME's style. `None` where it cannot be read
 /// (another system, the web, where the browser tells eframe, or without the `system`
 /// feature). On GNOME, and on macOS off the main thread, it takes a process, so call it
-/// off the UI thread or seldom.
+/// off the UI thread or seldom. External queries have a 500 ms deadline and accept
+/// at most 64 KiB of output; failure or timeout uses the existing fallback.
 pub fn system_scheme() -> Option<egui::Theme> {
     #[cfg(all(target_os = "macos", feature = "system"))]
     return mac::scheme();
@@ -278,12 +282,12 @@ mod mac {
                 egui::Theme::Light
             });
         }
-        let out = std::process::Command::new("defaults")
-            .args(["read", "-g", "AppleInterfaceStyle"])
-            .output()
-            .ok()?;
-        // Light has no value at all, and `defaults` fails for it.
-        Some(if String::from_utf8_lossy(&out.stdout).trim() == "Dark" {
+        let out = super::process::query_allow_failure(
+            "defaults",
+            &["read", "-g", "AppleInterfaceStyle"],
+        )?;
+        // Light has no value at all, and `defaults` exits unsuccessfully for it.
+        Some(if String::from_utf8_lossy(&out).trim() == "Dark" {
             egui::Theme::Dark
         } else {
             egui::Theme::Light
@@ -482,16 +486,13 @@ mod gnome {
         } else {
             "org.gnome.desktop.interface"
         };
-        let output = std::process::Command::new("gsettings")
-            .args(["get", schema, key])
-            .output()
-            .ok()?;
-        output.status.success().then(|| {
-            String::from_utf8_lossy(&output.stdout)
+        let output = super::process::query("gsettings", &["get", schema, key])?;
+        Some(
+            String::from_utf8_lossy(&output)
                 .trim()
                 .trim_matches('\'')
-                .to_owned()
-        })
+                .to_owned(),
+        )
     }
 
     fn parse_font(description: &str) -> Option<(String, f32)> {
@@ -505,14 +506,9 @@ mod gnome {
 
     fn matched_font(family: &str, weight: &str, numeric_weight: f32) -> Option<FontData> {
         let pattern = format!("{family}:weight={weight}");
-        let output = std::process::Command::new("fc-match")
-            .args(["--format=%{file}\n%{index}", "--", &pattern])
-            .output()
-            .ok()?;
-        if !output.status.success() {
-            return None;
-        }
-        let output = String::from_utf8(output.stdout).ok()?;
+        let output =
+            super::process::query("fc-match", &["--format=%{file}\n%{index}", "--", &pattern])?;
+        let output = String::from_utf8(output).ok()?;
         let mut lines = output.lines();
         let bytes = std::fs::read(lines.next()?).ok()?;
         let mut data = super::weighted(&bytes, numeric_weight);
@@ -659,26 +655,24 @@ mod gnome {
     /// GNOME's style (`org.gnome.desktop.interface color-scheme`): dark when it prefers
     /// dark.
     pub fn scheme() -> Option<egui::Theme> {
-        let out = std::process::Command::new("gsettings")
-            .args(["get", "org.gnome.desktop.interface", "color-scheme"])
-            .output()
-            .ok()?;
-        out.status.success().then(|| {
-            if String::from_utf8_lossy(&out.stdout).contains("dark") {
-                egui::Theme::Dark
-            } else {
-                egui::Theme::Light
-            }
+        let out = super::process::query(
+            "gsettings",
+            &["get", "org.gnome.desktop.interface", "color-scheme"],
+        )?;
+        Some(if String::from_utf8_lossy(&out).contains("dark") {
+            egui::Theme::Dark
+        } else {
+            egui::Theme::Light
         })
     }
 
     /// GNOME's accent (`org.gnome.desktop.interface accent-color`) as libadwaita draws it.
     pub fn accent() -> Option<u32> {
-        let out = std::process::Command::new("gsettings")
-            .args(["get", "org.gnome.desktop.interface", "accent-color"])
-            .output()
-            .ok()?;
-        let name = String::from_utf8_lossy(&out.stdout)
+        let out = super::process::query(
+            "gsettings",
+            &["get", "org.gnome.desktop.interface", "accent-color"],
+        )?;
+        let name = String::from_utf8_lossy(&out)
             .trim()
             .trim_matches('\'')
             .to_string();

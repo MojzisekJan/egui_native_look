@@ -1,0 +1,14 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+   Compiling egui_native_look v0.3.0 (/home/jan/rust/egui_native_look)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.47s
+     Running unittests src/lib.rs (target/debug/build/egui_native_look/1d2380d8d2ef9d28/out/egui_native_look-1d2380d8d2ef9d28)
+
+running 3 tests
+test system::process::tests::inherited_stdout_does_not_extend_the_deadline ... ok
+test system::process::tests::captures_success_and_rejects_failed_commands ... ok
+test system::process::tests::bounds_output_and_reaps_a_timed_out_child ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.05s

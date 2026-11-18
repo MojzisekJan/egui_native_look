@@ -1,0 +1,246 @@
+[
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 2.93,
+    "log": "format-final.log"
+  },
+  {
+    "name": "test-all",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--all-features",
+      "--all-targets"
+    ],
+    "exit_code": 0,
+    "seconds": 146.8,
+    "log": "test-all-final.log"
+  },
+  {
+    "name": "test-doc",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--doc",
+      "--all-features"
+    ],
+    "exit_code": 0,
+    "seconds": 4.47,
+    "log": "test-doc.log"
+  },
+  {
+    "name": "test-min",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--no-default-features"
+    ],
+    "exit_code": 0,
+    "seconds": 60.63,
+    "log": "test-min-final.log"
+  },
+  {
+    "name": "clippy-all",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 93.11,
+    "log": "clippy-all.log"
+  },
+  {
+    "name": "clippy-min",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--no-default-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "seconds": 41.75,
+    "log": "clippy-min.log"
+  },
+  {
+    "name": "snapshots",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--test",
+      "snapshots",
+      "--",
+      "--include-ignored"
+    ],
+    "exit_code": 0,
+    "seconds": 15.41,
+    "log": "snapshots.log"
+  },
+  {
+    "name": "msrv",
+    "command": [
+      "cargo",
+      "+1.95.0",
+      "check",
+      "--lib",
+      "--locked",
+      "--target-dir",
+      "/tmp/egui-native-msrv"
+    ],
+    "exit_code": 0,
+    "seconds": 26.71,
+    "log": "msrv.log"
+  },
+  {
+    "name": "wasm32-unknown-unknown",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "wasm32-unknown-unknown"
+    ],
+    "exit_code": 0,
+    "seconds": 18.38,
+    "log": "wasm32-unknown-unknown.log"
+  },
+  {
+    "name": "x86_64-pc-windows-gnu",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "x86_64-pc-windows-gnu"
+    ],
+    "exit_code": 0,
+    "seconds": 46.7,
+    "log": "x86_64-pc-windows-gnu.log"
+  },
+  {
+    "name": "aarch64-apple-darwin",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-apple-darwin"
+    ],
+    "exit_code": 0,
+    "seconds": 22.56,
+    "log": "aarch64-apple-darwin.log"
+  },
+  {
+    "name": "aarch64-apple-ios",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-apple-ios"
+    ],
+    "exit_code": 0,
+    "seconds": 19.08,
+    "log": "aarch64-apple-ios.log"
+  },
+  {
+    "name": "aarch64-linux-android",
+    "command": [
+      "cargo",
+      "check",
+      "--lib",
+      "--locked",
+      "--target",
+      "aarch64-linux-android"
+    ],
+    "exit_code": 0,
+    "seconds": 20.61,
+    "log": "aarch64-linux-android.log"
+  },
+  {
+    "name": "wasm-gallery",
+    "command": [
+      "cargo",
+      "check",
+      "--locked",
+      "--example",
+      "gallery",
+      "--target",
+      "wasm32-unknown-unknown"
+    ],
+    "exit_code": 0,
+    "seconds": 92.91,
+    "log": "wasm-gallery.log"
+  },
+  {
+    "name": "web-viewport",
+    "command": [
+      "/home/jan/.local/share/pi-node/node-v22.23.3-linux-x64/bin/node",
+      "--test",
+      "web/viewport.test.mjs"
+    ],
+    "exit_code": 0,
+    "seconds": 0.53,
+    "log": "web-viewport.log"
+  },
+  {
+    "name": "audit",
+    "command": [
+      "cargo",
+      "audit",
+      "--json"
+    ],
+    "exit_code": 0,
+    "seconds": 5.24,
+    "log": "audit.log"
+  },
+  {
+    "name": "package-list",
+    "command": [
+      "cargo",
+      "package",
+      "--list",
+      "--locked",
+      "--allow-dirty"
+    ],
+    "exit_code": 0,
+    "seconds": 0.24,
+    "log": "package-list.log"
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "seconds": 0.02,
+    "log": "diff-check.log"
+  }
+]

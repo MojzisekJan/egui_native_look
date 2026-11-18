@@ -715,3 +715,71 @@ fn gtk_disabled_slider_keeps_its_accent_and_white_thumb_under_opacity() {
     assert!(output.shapes.iter().any(|s| matches!(&s.shape, egui::Shape::Circle(c) if c.fill == egui::Color32::WHITE.gamma_multiply(0.5))));
     assert_eq!(value, 0.5);
 }
+
+#[test]
+fn gtk_numeric_ime_navigation_preserves_model_and_draft() {
+    for boxed in [false, true] {
+        for (key, modifiers) in [
+            (egui::Key::ArrowUp, egui::Modifiers::NONE),
+            (egui::Key::ArrowDown, egui::Modifiers::NONE),
+            (egui::Key::PageUp, egui::Modifiers::NONE),
+            (egui::Key::PageDown, egui::Modifiers::NONE),
+            (egui::Key::Home, egui::Modifiers::CTRL),
+            (egui::Key::End, egui::Modifiers::CTRL),
+            (egui::Key::PageUp, egui::Modifiers::CTRL),
+            (egui::Key::PageDown, egui::Modifiers::CTRL),
+        ] {
+            let ctx = context();
+            let mut value = 5.0;
+            let draw = |ui: &mut egui::Ui, value: &mut f64| {
+                let mut field =
+                    |ui: &mut egui::Ui| ui.add(look::NumberField::new(value).range(0.0..=100.0));
+                if boxed {
+                    look::Form::new("ime").show(ui, |form| form.row("Number", field))
+                } else {
+                    field(ui)
+                }
+            };
+            frame(&ctx, vec![], |ui| draw(ui, &mut value)).request_focus();
+            frame(&ctx, vec![], |ui| draw(ui, &mut value));
+            let event = || egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers,
+            };
+            for events in [
+                vec![
+                    egui::Event::Ime(egui::ImeEvent::Preedit {
+                        text: "7".into(),
+                        active_range_chars: Some(0..1),
+                    }),
+                    event(),
+                ],
+                vec![event()],
+                vec![
+                    egui::Event::Ime(egui::ImeEvent::Commit("7".into())),
+                    event(),
+                ],
+            ] {
+                let response = frame(&ctx, events, |ui| draw(ui, &mut value));
+                assert_eq!(value, 5.0, "{key:?}, {modifiers:?}, boxed={boxed}");
+                assert!(!response.changed());
+                assert!(response.has_focus());
+            }
+            frame(&ctx, vec![key_event(egui::Key::Enter)], |ui| {
+                draw(ui, &mut value)
+            });
+            assert_eq!(
+                value, 7.0,
+                "IME draft must survive {key:?}, {modifiers:?}, boxed={boxed}"
+            );
+            let response = frame(&ctx, vec![key_event(egui::Key::ArrowUp)], |ui| {
+                draw(ui, &mut value)
+            });
+            assert_eq!(value, 8.0, "numeric stepping must resume after composition");
+            assert!(response.changed());
+        }
+    }
+}

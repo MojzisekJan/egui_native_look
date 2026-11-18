@@ -1,0 +1,44 @@
+[
+  {
+    "name": "gtk-light",
+    "exit_code": 0,
+    "screenshot": true,
+    "seconds": 28.08
+  },
+  {
+    "name": "gtk-dark",
+    "exit_code": 0,
+    "screenshot": true,
+    "seconds": 5.6
+  },
+  {
+    "name": "mac-light",
+    "exit_code": 0,
+    "screenshot": true,
+    "seconds": 4.32
+  },
+  {
+    "name": "windows-light",
+    "exit_code": 0,
+    "screenshot": true,
+    "seconds": 5.47
+  },
+  {
+    "name": "ios-light",
+    "exit_code": 0,
+    "screenshot": true,
+    "seconds": 5.45
+  },
+  {
+    "name": "material-light",
+    "exit_code": 0,
+    "screenshot": true,
+    "seconds": 3.96
+  },
+  {
+    "name": "plain-light",
+    "exit_code": 0,
+    "screenshot": true,
+    "seconds": 3.82
+  }
+]

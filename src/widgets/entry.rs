@@ -3,6 +3,7 @@
 use egui::{Color32, Rect, Response, Sense, Stroke, Ui, Widget};
 
 use super::Ctx;
+use crate::numeric;
 use crate::{entry_margin, underline, Look};
 
 /// A one-line text entry, as tall as the controls around it, its text centred on its
@@ -961,7 +962,12 @@ pub(crate) use format_methods;
 
 /// A number in an entry of the look, with − and + beside it (on macOS a stepper after it,
 /// except on a touch screen) unless [`NumberField::steppers`] leaves them out, stepping
-/// by `step` and staying inside the [`NumberField::range`] if it has one. GTK uses
+/// by `step` and staying inside the [`NumberField::range`] if it has one.
+/// Builtin integer types up to 64 bits use exact decimal text editing and arithmetic
+/// when their value or bounds exceed the consecutive-integer precision of `f64`.
+/// These wide ranges use a text editor instead of drag scrubbing in every look.
+/// Custom parsers and formatters still receive `f64`, as their signatures specify.
+/// GTK uses
 /// an editable text field; dragging selects text and a focused field takes wheel steps.
 /// Enter or leaving the field commits valid text; Enter keeps focus. Invalid or
 /// incomplete text leaves the value unchanged. Use a custom parser and formatter
@@ -1001,6 +1007,7 @@ pub(crate) use format_methods;
 pub struct NumberField<'a, T: egui::emath::Numeric> {
     value: &'a mut T,
     range: std::ops::RangeInclusive<f64>,
+    integer_bounds: Option<(i128, i128)>,
     step: f64,
     speed: Option<f64>,
     width: Option<f32>,
@@ -1018,6 +1025,7 @@ impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
         NumberField {
             value,
             range: T::MIN.to_f64()..=T::MAX.to_f64(),
+            integer_bounds: numeric::bounds(T::MIN, T::MAX),
             step: 1.0,
             speed: None,
             width: None,
@@ -1036,6 +1044,12 @@ impl<'a, T: egui::emath::Numeric> NumberField<'a, T> {
         let (lo, hi) = (range.start().to_f64(), range.end().to_f64());
         if lo.is_finite() && hi.is_finite() {
             self.range = lo..=hi;
+            self.integer_bounds = numeric::bounds(T::MIN, T::MAX).and_then(|(min, max)| {
+                let (a, b) = numeric::bounds(*range.start(), *range.end())
+                    .unwrap_or((lo.min(hi).ceil() as i128, lo.max(hi).floor() as i128));
+                let (a, b) = (a.max(min), b.min(max));
+                (a <= b).then_some((a, b))
+            });
         }
         self
     }
@@ -1101,6 +1115,7 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
         let NumberField {
             value,
             range: _,
+            integer_bounds,
             step,
             speed,
             width,
@@ -1132,6 +1147,23 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                 format!("{label} {name}")
             }
         });
+        let exact = numeric::wide(*value, integer_bounds)
+            .then_some(integer_bounds)
+            .flatten();
+        let less = |v: T| {
+            integer_bounds.map_or(v.to_f64() > lo, |(a, _)| {
+                numeric::integer(v).is_some_and(|v| v > a)
+            })
+        };
+        let more = |v: T| {
+            integer_bounds.map_or(v.to_f64() < hi, |(_, b)| {
+                numeric::integer(v).is_some_and(|v| v < b)
+            })
+        };
+        let advance = |v: T, count: f64| {
+            numeric::stepped(v, step, count, integer_bounds)
+                .unwrap_or_else(|| T::from_f64(stepped_number(v.to_f64(), step, count, lo, hi)))
+        };
         let x = Ctx::of(ui);
         // macOS puts a narrow stepper after the field; it is too small for a finger, so
         // touch screens keep − and + on either side.
@@ -1159,11 +1191,11 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                 ui.spacing_mut().item_spacing.x = if linked { 0.0 } else { 4.0 };
                 let side = ui.spacing().interact_size.y.max(super::minimum_target(ui));
                 let minus = (steppers && !stepper && !capsule && !linked)
-                    .then(|| step_button(ui, value.to_f64() > lo, false, &step_names[0]));
+                    .then(|| step_button(ui, less(*value), false, &step_names[0]));
                 if let Some(minus) = &minus {
                     let count = f64::from(u8::from(minus.clicked())) + held(ui, minus);
                     if count > 0.0 {
-                        *value = T::from_f64(stepped_number(value.to_f64(), step, -count, lo, hi));
+                        *value = advance(*value, -count);
                     }
                 }
                 let buttons = match (steppers, stepper) {
@@ -1224,7 +1256,7 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                             ui.memory_mut(|memory| memory.request_focus(id));
                         }
                         super::ignore_disabled_numeric_actions(ui, id);
-                        if x.look == Look::Gtk {
+                        if x.look == Look::Gtk || exact.is_some() {
                             let (mut response, handled) = gtk_number(
                                 ui,
                                 id,
@@ -1232,6 +1264,7 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                                 &format,
                                 step,
                                 (lo, hi),
+                                exact,
                                 clamp_existing,
                                 spin_row,
                                 &x,
@@ -1280,7 +1313,7 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                     );
                 }
                 let (minus, plus) = if stepper || capsule || linked {
-                    let enabled = [value.to_f64() > lo, value.to_f64() < hi];
+                    let enabled = [less(*value), more(*value)];
                     let (down, up) = if capsule {
                         ui.add_space(4.0);
                         ios_stepper(ui, &x, enabled, &step_names)
@@ -1301,18 +1334,18 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
                     }
                     let count = f64::from(u8::from(down.clicked())) + held(ui, &down);
                     if count > 0.0 {
-                        *value = T::from_f64(stepped_number(value.to_f64(), step, -count, lo, hi));
+                        *value = advance(*value, -count);
                     }
                     (Some(down), Some(up))
                 } else {
-                    let plus = steppers
-                        .then(|| step_button(ui, value.to_f64() < hi, true, &step_names[1]));
+                    let plus =
+                        steppers.then(|| step_button(ui, more(*value), true, &step_names[1]));
                     (minus, plus)
                 };
                 if let Some(plus) = &plus {
                     let count = f64::from(u8::from(plus.clicked())) + held(ui, plus);
                     if count > 0.0 {
-                        *value = T::from_f64(stepped_number(value.to_f64(), step, count, lo, hi));
+                        *value = advance(*value, count);
                     }
                 }
                 if x.look == Look::Gtk {
@@ -1328,7 +1361,7 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
             },
         );
         let mut response = inner.inner;
-        if super::number_changed(before.to_f64(), value.to_f64()) {
+        if numeric::changed(before, *value) {
             response.mark_changed();
         }
         response
@@ -1339,30 +1372,35 @@ impl<T: egui::emath::Numeric> NumberField<'_, T> {
 struct NumericEdit {
     text: String,
     value: f64,
+    exact_value: Option<i128>,
     focused: bool,
 }
 
 /// GTK spin entries always edit text; dragging selects instead of changing the number.
 #[allow(clippy::too_many_arguments)]
-fn gtk_number<T: egui::emath::Numeric>(
+pub(super) fn gtk_number<T: egui::emath::Numeric>(
     ui: &mut Ui,
     id: egui::Id,
     value: &mut T,
     format: &Format<'_>,
     step: f64,
     (lo, hi): (f64, f64),
+    exact: Option<(i128, i128)>,
     clamp_existing: bool,
     spin_row: bool,
     x: &Ctx,
 ) -> (Response, bool) {
-    let before = value.to_f64();
+    let before = *value;
     if clamp_existing {
-        *value = T::from_f64(before.clamp(lo, hi));
+        *value = exact
+            .and_then(|bounds| numeric::clamp(*value, bounds))
+            .unwrap_or_else(|| T::from_f64(before.to_f64().clamp(lo, hi)));
     }
     let current = value.to_f64();
     let key = id.with("numeric-edit");
     let number_formatter = ui.style().number_formatter.clone();
-    let render = |value| {
+    let render = |number: T| {
+        let value = number.to_f64();
         let min = format.decimals.0.unwrap_or(0).min(15);
         let max = format
             .decimals
@@ -1371,7 +1409,23 @@ fn gtk_number<T: egui::emath::Numeric>(
             .max(min)
             .min(15);
         let number = format.formatter.as_ref().map_or_else(
-            || number_formatter.format(value, min..=max),
+            || {
+                if exact.is_some() {
+                    numeric::integer(number).map_or_else(
+                        || number_formatter.format(value, min..=max),
+                        |value| {
+                            let mut text = value.to_string();
+                            if min > 0 {
+                                text.push('.');
+                                text.push_str(&"0".repeat(min));
+                            }
+                            text
+                        },
+                    )
+                } else {
+                    number_formatter.format(value, min..=max)
+                }
+            },
             |formatter| formatter(value, min..=max),
         );
         format!("{}{}{}", format.prefix, number, format.suffix)
@@ -1381,19 +1435,50 @@ fn gtk_number<T: egui::emath::Numeric>(
     let newly_focused = focused && previous.as_ref().is_none_or(|state| !state.focused);
     let was_focused = previous.as_ref().is_some_and(|state| state.focused);
     let mut text = previous
-        .filter(|state| (focused || state.focused) && !super::number_changed(state.value, current))
-        .map_or_else(|| render(current), |state| state.text);
+        .filter(|state| {
+            (focused || state.focused)
+                && !super::number_changed(state.value, current)
+                && state.exact_value == numeric::integer(*value)
+        })
+        .map_or_else(|| render(*value), |state| state.text);
     let parse = |text: &str| {
         let raw = text.strip_prefix(&format.prefix).unwrap_or(text);
         let raw = raw.strip_suffix(&format.suffix).unwrap_or(raw).trim();
+        if let Some(bounds) = exact.filter(|_| format.parser.is_none()) {
+            return numeric::parse::<T>(raw, bounds);
+        }
         format
             .parser
             .as_ref()
             .map_or_else(|| raw.parse::<f64>().ok(), |parse| parse(raw))
             .filter(|value| value.is_finite())
-            .map(|value| T::from_f64(value.clamp(lo, hi)))
+            .map(|value| {
+                let value = T::from_f64(value.clamp(lo, hi));
+                exact
+                    .and_then(|bounds| numeric::clamp(value, bounds))
+                    .unwrap_or(value)
+            })
     };
-    let composing = prepare_text_input(ui, id);
+    // A commit ends active composition, but keys in that frame still belong to the IME.
+    let composing = prepare_text_input(ui, id)
+        || ui.input(|input| {
+            input.events.iter().any(|event| {
+                matches!(
+                    event,
+                    egui::Event::Ime(egui::ImeEvent::Preedit { .. } | egui::ImeEvent::Commit(_))
+                )
+            })
+        });
+    if composing && focused && ui.is_enabled() {
+        // Candidate navigation must not reach TextEdit either: it can cancel preedit
+        // and make the eventual commit insert the same text a second time.
+        ui.input_mut(|input| {
+            input.events.retain(|event| {
+                !matches!(event, egui::Event::Key { key, modifiers, pressed: true, .. }
+                    if number_key(*key, *modifiers).is_some())
+            });
+        });
+    }
     let enter = focused
         && ui.is_enabled()
         && !composing
@@ -1419,11 +1504,12 @@ fn gtk_number<T: egui::emath::Numeric>(
         if let Some(parsed) = parse(&text) {
             *value = parsed;
         }
-        text = render(value.to_f64());
+        text = render(*value);
     }
-    let handled = ui.is_enabled() && number_input(ui, id, value, step, (lo, hi));
+    let handled =
+        ui.is_enabled() && !composing && number_input(ui, id, value, step, (lo, hi), exact);
     if handled {
-        text = render(value.to_f64());
+        text = render(*value);
     }
     if newly_focused && !composing && !ui.input(|input| input.pointer.any_down()) {
         select_all_text(ui.ctx(), id, &text);
@@ -1431,7 +1517,9 @@ fn gtk_number<T: egui::emath::Numeric>(
     if ui.is_enabled() {
         super::window::dialog_field(ui, id);
     }
-    gtk_history_input(ui, id, &mut text, composing);
+    if x.look == Look::Gtk {
+        gtk_history_input(ui, id, &mut text, composing);
+    }
     let mut buffer = OverwriteBuffer::new(ui, id, &mut text, composing);
     let editor = egui::TextEdit::singleline(&mut buffer)
         .id(id)
@@ -1467,15 +1555,20 @@ fn gtk_number<T: egui::emath::Numeric>(
         if let Some(parsed) = parse(&text) {
             *value = parsed;
         }
-        text = render(value.to_f64());
+        text = render(*value);
     }
-    let wheel = super::gtk_wheel(ui, &response);
+    let wheel = if composing || x.look != Look::Gtk {
+        0.0
+    } else {
+        super::gtk_wheel(ui, &response)
+    };
     if wheel != 0.0 {
         if let Some(parsed) = parse(&text) {
             *value = parsed;
         }
-        *value = T::from_f64(stepped_number(value.to_f64(), step, wheel, lo, hi));
-        text = render(value.to_f64());
+        *value = numeric::stepped(*value, step, wheel, exact)
+            .unwrap_or_else(|| T::from_f64(stepped_number(value.to_f64(), step, wheel, lo, hi)));
+        text = render(*value);
     }
     if response.gained_focus() && !ui.input(|input| input.pointer.any_down()) && !composing {
         select_all_text(ui.ctx(), id, &text);
@@ -1487,12 +1580,13 @@ fn gtk_number<T: egui::emath::Numeric>(
             NumericEdit {
                 text: text.clone(),
                 value: value.to_f64(),
+                exact_value: numeric::integer(*value),
                 focused: editing,
             },
         )
     });
     response.flags.remove(egui::response::Flags::CHANGED);
-    if super::number_changed(before, value.to_f64()) {
+    if numeric::changed(before, *value) {
         response.mark_changed();
     }
     response.widget_info(|| egui::WidgetInfo::drag_value(ui.is_enabled(), value.to_f64()));
@@ -1512,10 +1606,14 @@ fn gtk_number<T: egui::emath::Numeric>(
         node.set_value(text);
         if ui.is_enabled() {
             node.add_action(egui::accesskit::Action::SetValue);
-            if value.to_f64() < hi {
+            if exact.map_or(value.to_f64() < hi, |(_, max)| {
+                numeric::integer(*value).is_some_and(|v| v < max)
+            }) {
                 node.add_action(egui::accesskit::Action::Increment);
             }
-            if value.to_f64() > lo {
+            if exact.map_or(value.to_f64() > lo, |(min, _)| {
+                numeric::integer(*value).is_some_and(|v| v > min)
+            }) {
                 node.add_action(egui::accesskit::Action::Decrement);
             }
         }
@@ -1530,6 +1628,7 @@ enum NumberKey {
     End,
     Step(f64),
     Set(f64),
+    SetInteger(i128),
 }
 
 /// Apply input before building the editor so its text buffer observes the updated value.
@@ -1539,6 +1638,7 @@ fn number_input<T: egui::emath::Numeric>(
     value: &mut T,
     step: f64,
     bounds: (f64, f64),
+    exact: Option<(i128, i128)>,
 ) -> bool {
     let focused = ui.memory(|memory| memory.has_focus(id));
     if focused {
@@ -1579,10 +1679,18 @@ fn number_input<T: egui::emath::Numeric>(
                 egui::accesskit::Action::Increment => NumberKey::Step(1.0),
                 egui::accesskit::Action::Decrement => NumberKey::Step(-1.0),
                 egui::accesskit::Action::SetValue => {
-                    if let Some(egui::accesskit::ActionData::NumericValue(value)) = request.data {
-                        if !value.is_nan() {
-                            commands.push(NumberKey::Set(value));
+                    match &request.data {
+                        Some(egui::accesskit::ActionData::NumericValue(value))
+                            if !value.is_nan() =>
+                        {
+                            commands.push(NumberKey::Set(*value))
                         }
+                        Some(egui::accesskit::ActionData::Value(text)) if exact.is_some() => {
+                            if let Ok(value) = text.trim().parse() {
+                                commands.push(NumberKey::SetInteger(value));
+                            }
+                        }
+                        _ => {}
                     }
                     return true;
                 }
@@ -1596,12 +1704,31 @@ fn number_input<T: egui::emath::Numeric>(
     let handled = !commands.is_empty();
     let (lo, hi) = bounds;
     for command in commands {
+        if let Some(limits) = exact {
+            let typed = match command {
+                NumberKey::Start => numeric::from_integer(limits.0),
+                NumberKey::End => numeric::from_integer(limits.1),
+                NumberKey::Step(count) => numeric::stepped(*value, step, count, exact),
+                NumberKey::SetInteger(number) => {
+                    numeric::from_integer(number.clamp(limits.0, limits.1))
+                }
+                NumberKey::Set(_) => None,
+            };
+            if let Some(typed) = typed {
+                *value = typed;
+                continue;
+            }
+        }
         *value = T::from_f64(match command {
             NumberKey::Start => lo,
             NumberKey::End => hi,
             NumberKey::Set(value) => value.clamp(lo, hi),
+            NumberKey::SetInteger(value) => (value as f64).clamp(lo, hi),
             NumberKey::Step(count) => stepped_number(value.to_f64(), step, count, lo, hi),
         });
+        if let Some(bounds) = exact {
+            *value = numeric::clamp(*value, bounds).unwrap_or(*value);
+        }
     }
     handled
 }

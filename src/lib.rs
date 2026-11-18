@@ -65,6 +65,7 @@
 //! differently at each size.
 
 mod colors;
+mod numeric;
 mod paint;
 mod style;
 mod system;

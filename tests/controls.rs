@@ -5493,3 +5493,90 @@ fn destructive_button_activates_once_and_disabled_button_stays_inert() {
         }
     }
 }
+
+#[test]
+fn always_clamped_sliders_preserve_wide_integers_and_exact_bounds() {
+    fn check<T: egui::emath::Numeric + std::fmt::Debug>(
+        chosen: look::Look,
+        mut value: T,
+        range: std::ops::RangeInclusive<T>,
+        expected: T,
+        changed: bool,
+        show_value: bool,
+    ) {
+        let ctx = context(chosen, false);
+        for pass in 0..2 {
+            let response = frame(&ctx, vec![], |ui| {
+                ui.add(
+                    look::Slider::new(&mut value, range.clone())
+                        .clamping(egui::SliderClamping::Always)
+                        .show_value(show_value),
+                )
+            });
+            assert_eq!(value, expected, "{chosen:?}, pass {pass}");
+            assert_eq!(response.changed(), pass == 0 && changed, "{chosen:?}");
+        }
+    }
+    let wide = (1u64 << 53) + 1;
+    for chosen in LOOKS {
+        for show_value in [false, true] {
+            for value in [wide - 2, wide - 1, wide, wide + 1, u64::MAX] {
+                check(chosen, value, 0..=u64::MAX, value, false, show_value);
+            }
+            for value in [-(wide as i64), wide as i64, i64::MIN, i64::MAX] {
+                check(chosen, value, i64::MIN..=i64::MAX, value, false, show_value);
+            }
+            // These adjacent endpoints can be equal after conversion to f64.
+            for range in [wide - 1..=wide, wide..=wide - 1] {
+                check(chosen, wide + 1, range, wide, true, show_value);
+            }
+            for range in [wide..=wide + 2, wide + 2..=wide] {
+                check(chosen, wide - 1, range.clone(), wide, true, show_value);
+                check(chosen, wide + 3, range, wide + 2, true, show_value);
+            }
+            for range in [-(wide as i64)..=-1, -1..=-(wide as i64)] {
+                check(chosen, i64::MIN, range, -(wide as i64), true, show_value);
+            }
+        }
+    }
+}
+
+#[test]
+fn focus_rings_accept_large_and_asymmetric_corner_radii() {
+    for chosen in LOOKS {
+        let ctx = context(chosen, false);
+        for radius in [253, 254, 255] {
+            let mut theme = look::theme(&ctx);
+            theme.metrics.radius = radius;
+            look::install(&ctx, theme);
+            for pass in 0..2 {
+                let button = frame(&ctx, vec![], |ui| {
+                    look::focus_ring(
+                        ui.painter(),
+                        egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(100.0, 40.0)),
+                        egui::CornerRadius {
+                            nw: radius,
+                            ne: 254,
+                            sw: 255,
+                            se: 0,
+                        },
+                    );
+                    ui.add(look::Button::new("Focused"))
+                });
+                button.request_focus();
+                if pass == 1 {
+                    assert!(button.has_focus());
+                }
+            }
+        }
+    }
+    let ctx = context(look::Look::Windows, false);
+    let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(100.0, 40.0));
+    let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+        look::focus_ring(ui.painter(), rect, egui::CornerRadius::same(255));
+    });
+    output.textures_delta.clear();
+    assert!(output.shapes.iter().any(|shape| matches!(&shape.shape,
+        egui::Shape::Rect(shape) if shape.rect == rect.expand(1.0)
+            && shape.corner_radius == egui::CornerRadius::same(255))));
+}

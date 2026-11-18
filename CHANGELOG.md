@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Bound external system queries to 500 ms and 64 KiB of accepted output, terminate and reap timed-out children, and avoid waiting for inherited stdout pipes.
+- Use exact 64-bit integer arithmetic, decimal editing and accessibility steps for wide numeric controls; resolve short pointer ranges relative to their integer endpoints.
+
+- Preserve exact wide integer values and endpoints when sliders clamp existing values, and report actual normalization through `changed()`.
+- Saturate focus ring corner radii instead of overflowing at 254 or 255.
+- Keep GTK numeric navigation inactive during IME composition and commit frames.
+- Refresh affected development dependencies to patched versions.
+
 ## 0.3.0 - 2026-10-27
 
 - Preserve GTK theme palette accents when no explicit or system accent overrides them.
