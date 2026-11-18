@@ -1,0 +1,38 @@
+--- a/src/text/text_layout.rs
++++ b/src/text/text_layout.rs
+@@ -598,7 +598,14 @@
+                 flags |= harfrust::BufferFlags::END_OF_TEXT;
+             }
+ 
+-            let glyph_buffer = shape_text(font_face, run_text, &format.coords, shape_buffer, flags);
++            let glyph_buffer = shape_text(
++                font_face,
++                run_text,
++                font_size,
++                &format.coords,
++                shape_buffer,
++                flags,
++            );
+ 
+             layout_shaped_run(
+                 fonts,
+@@ -1572,6 +1579,7 @@
+ fn shape_text(
+     font_face: &FontFace,
+     text: &str,
++    point_size: f32,
+     coords: &VariationCoords,
+     mut buffer: harfrust::UnicodeBuffer,
+     flags: harfrust::BufferFlags,
+@@ -1602,7 +1610,10 @@
+     buffer.push_str(text);
+     buffer.guess_segment_properties();
+ 
+-    shaper.shape(buffer, harfrust::ShapeOptions::new())
++    shaper.shape(
++        buffer,
++        harfrust::ShapeOptions::new().point_size(Some(point_size)),
++    )
+ }
+ 
+ // ----------------------------------------------------------------------------

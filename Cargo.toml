@@ -9,7 +9,7 @@ repository = "https://github.com/MojzisekJan/egui_native_look"
 readme = "README.md"
 keywords = ["egui", "theme", "macos", "winui", "gtk"]
 categories = ["gui"]
-exclude = ["/tests/snapshots", "/docs", "/.github", "/web", "/tools"]
+exclude = ["/tests/snapshots", "/docs", "/.github", "/web", "/tools", "/vendor"]
 
 [features]
 default = ["system"]
@@ -61,3 +61,6 @@ unused_must_use = "deny"
 
 [lints.clippy]
 undocumented_unsafe_blocks = "deny"
+
+[patch.crates-io]
+epaint = { path = "vendor/epaint" }
