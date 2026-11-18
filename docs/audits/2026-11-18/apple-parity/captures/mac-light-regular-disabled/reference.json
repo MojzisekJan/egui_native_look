@@ -1,0 +1,111 @@
+{
+  "geometry" : {
+    "alert" : [
+      120,
+      529,
+      89,
+      24
+    ],
+    "button" : [
+      120,
+      25,
+      54,
+      24
+    ],
+    "checkbox" : [
+      120,
+      154.9600830078125,
+      70,
+      16.079833984375
+    ],
+    "default" : [
+      120,
+      67,
+      79,
+      24
+    ],
+    "destructive" : [
+      120,
+      109,
+      64,
+      24
+    ],
+    "password" : [
+      120,
+      403,
+      216,
+      24
+    ],
+    "picker" : [
+      120,
+      277,
+      160,
+      24
+    ],
+    "progress" : [
+      120,
+      489,
+      216,
+      20
+    ],
+    "root" : [
+      0,
+      32,
+      360,
+      620
+    ],
+    "segmented" : [
+      120,
+      235,
+      216,
+      24
+    ],
+    "slider" : [
+      120,
+      323,
+      216,
+      16
+    ],
+    "stepper" : [
+      120,
+      445,
+      160,
+      24
+    ],
+    "switch" : [
+      120,
+      193,
+      54,
+      24
+    ],
+    "text" : [
+      120,
+      361,
+      216,
+      24
+    ]
+  },
+  "metadata" : {
+    "actual_app_active" : true,
+    "actual_key_window" : true,
+    "disabled" : true,
+    "platform" : "macOS",
+    "scale" : 1,
+    "scheme" : "light",
+    "size" : "regular",
+    "version" : "Version 27.0.1 (Build 26A434)"
+  },
+  "state" : {
+    "checked" : true,
+    "choice" : 1,
+    "count" : 0,
+    "number" : 3,
+    "segment" : 1,
+    "slider" : 0.40000000000000002,
+    "switched" : true,
+    "text" : "Hello"
+  },
+  "trace" : [
+
+  ]
+}

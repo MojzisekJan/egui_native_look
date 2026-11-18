@@ -1,0 +1,120 @@
+[
+  {
+    "name": "tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--all-features"
+    ],
+    "exit_status": 0,
+    "passed": 351
+  },
+  {
+    "name": "snapshots",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--test",
+      "snapshots",
+      "--",
+      "--include-ignored"
+    ],
+    "exit_status": 0,
+    "passed": 4
+  },
+  {
+    "name": "tests-no-system",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--no-default-features"
+    ],
+    "exit_status": 0,
+    "passed": 347
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--offline",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_status": 0
+  },
+  {
+    "name": "clippy-ios",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--offline",
+      "--target",
+      "aarch64-apple-ios-sim",
+      "--lib",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_status": 0
+  },
+  {
+    "name": "format",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--",
+      "--check"
+    ],
+    "exit_status": 0
+  },
+  {
+    "name": "format-fixture",
+    "command": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "tools/apple-parity/Cargo.toml",
+      "--",
+      "--check"
+    ],
+    "exit_status": 0
+  },
+  {
+    "name": "format-ios-probe",
+    "command": [
+      "cargo",
+      "fmt",
+      "--manifest-path",
+      "tools/apple-parity/ios-probe/Cargo.toml",
+      "--",
+      "--check"
+    ],
+    "exit_status": 0
+  },
+  {
+    "name": "whitespace",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_status": 0
+  },
+  {
+    "name": "python-syntax",
+    "exit_status": 0
+  }
+]

@@ -1,0 +1,136 @@
+{
+  "base_revision": "a8d5ce96bfa7e91cfee0913100c5c9f9f2b4b7cc",
+  "native": {
+    "native_cases": 12,
+    "mac_input_assertions": 8,
+    "ios_rust_font_probe": true,
+    "note": "egui is rendered on the host; the iOS Rust probe exercises fonts and input geometry, not UIKit event delivery."
+  },
+  "checks": [
+    {
+      "name": "tests",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--all-features"
+      ],
+      "exit_status": 0,
+      "passed": 351
+    },
+    {
+      "name": "snapshots",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--test",
+        "snapshots",
+        "--",
+        "--include-ignored"
+      ],
+      "exit_status": 0,
+      "passed": 4
+    },
+    {
+      "name": "tests-no-system",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--no-default-features"
+      ],
+      "exit_status": 0,
+      "passed": 347
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_status": 0
+    },
+    {
+      "name": "clippy-ios",
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "--target",
+        "aarch64-apple-ios-sim",
+        "--lib",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit_status": 0
+    },
+    {
+      "name": "format",
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_status": 0
+    },
+    {
+      "name": "format-fixture",
+      "command": [
+        "cargo",
+        "fmt",
+        "--manifest-path",
+        "tools/apple-parity/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "exit_status": 0
+    },
+    {
+      "name": "format-ios-probe",
+      "command": [
+        "cargo",
+        "fmt",
+        "--manifest-path",
+        "tools/apple-parity/ios-probe/Cargo.toml",
+        "--",
+        "--check"
+      ],
+      "exit_status": 0
+    },
+    {
+      "name": "whitespace",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_status": 0
+    },
+    {
+      "name": "python-syntax",
+      "exit_status": 0
+    }
+  ],
+  "rust_passed_including_docs_and_gpu_groups": 355,
+  "limitations": [
+    "No physical iPhone or VoiceOver listening session.",
+    "The iOS Rust probe verifies fonts and layout; UIKit event delivery is not tested.",
+    "Visual egui fixtures render on macOS.",
+    "This is a measured baseline with fixes, not a claim of complete SwiftUI parity."
+  ]
+}

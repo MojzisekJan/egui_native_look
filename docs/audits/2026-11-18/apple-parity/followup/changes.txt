@@ -1,0 +1,5 @@
+Follow-up: window_actions(ui, body, actions) enables default Return outside dialogs. Editors must be drawn in body before actions. IME confirmation, popup/modal guards, shortcut modifiers and first enabled action are handled. Focused ordinary buttons retain their existing activation policy.
+
+iOS small/regular/large button heights: 28, 103/3, 151/3 points; segments: 31, 31, 48. Fields: 34, switch: 28, slider: 31 independent of controlSize. Geometry is pixel-aligned. This is not Dynamic Type support or complete native text integration.
+
+359 tests including documentation and GPU groups passed; 351 without default features. Host and iOS Clippy passed. Earlier audit images and hashes describe the earlier baseline; this followup records subsequent changes.

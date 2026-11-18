@@ -1,0 +1,631 @@
+[
+  {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--manifest-path",
+      "/Users/mojzisekjan/egui_native_look/tools/apple-parity/Cargo.toml"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": "   Compiling egui_native_look v0.3.0 (/Users/mojzisekjan/egui_native_look)\n   Compiling apple-parity v0.0.0 (/Users/mojzisekjan/egui_native_look/tools/apple-parity)\n    Finished `dev` profile [unoptimized] target(s) in 3.30s\n"
+  },
+  {
+    "command": [
+      "xcrun",
+      "swiftc",
+      "-parse-as-library",
+      "-target",
+      "arm64-apple-macos26.0",
+      "/Users/mojzisekjan/egui_native_look/tools/apple-parity/NativeReference.swift",
+      "-module-cache-path",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/swift-cache",
+      "-o",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/MacReference.app/Contents/MacOS/NativeReference"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "cargo",
+      "build",
+      "--locked",
+      "--manifest-path",
+      "/Users/mojzisekjan/egui_native_look/tools/apple-parity/ios-probe/Cargo.toml",
+      "--target",
+      "aarch64-apple-ios-sim"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": "   Compiling egui_native_look v0.3.0 (/Users/mojzisekjan/egui_native_look)\n   Compiling apple-parity-ios-probe v0.0.0 (/Users/mojzisekjan/egui_native_look/tools/apple-parity/ios-probe)\n    Finished `dev` profile [unoptimized] target(s) in 2.04s\n"
+  },
+  {
+    "command": [
+      "xcrun",
+      "--sdk",
+      "iphonesimulator",
+      "--show-sdk-path"
+    ],
+    "status": 0,
+    "stdout": "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "--sdk",
+      "iphonesimulator",
+      "swiftc",
+      "-parse-as-library",
+      "-D",
+      "RUST_PROBE",
+      "-target",
+      "arm64-apple-ios26.0-simulator",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk",
+      "-module-cache-path",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/swift-ios-cache",
+      "/Users/mojzisekjan/egui_native_look/tools/apple-parity/NativeReference.swift",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/aarch64-apple-ios-sim/debug/libapple_parity_ios_probe.a",
+      "-framework",
+      "CoreText",
+      "-framework",
+      "CoreFoundation",
+      "-o",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/NativeReference.app/NativeReference"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "codesign",
+      "--force",
+      "--sign",
+      "-",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/NativeReference.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/NativeReference.app: replacing existing signature\n"
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "terminate",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "install",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/NativeReference.app"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "get_app_container",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference",
+      "data"
+    ],
+    "status": 0,
+    "stdout": "/Users/mojzisekjan/Library/Developer/CoreSimulator/Devices/AF2FD633-7BF0-4E90-B2BA-48E57509478A/data/Containers/Data/Application/FA740171-A6A5-4321-B366-943DC4B4D85B\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "open",
+      "-n",
+      "-W",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/MacReference.app",
+      "--args",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-light-regular",
+      "--quit",
+      "--scheme",
+      "light",
+      "--size",
+      "regular"
+    ],
+    "status": 0,
+    "stdout": null,
+    "stderr": null
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-light-regular",
+      "--look",
+      "mac",
+      "--scheme",
+      "light",
+      "--size",
+      "regular"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "terminate",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference"
+    ],
+    "status": 3,
+    "stdout": "",
+    "stderr": "An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=3):\nSimulator device failed to terminate dev.egui.apple-parity-reference.\nfound nothing to terminate\nUnderlying error (domain=NSPOSIXErrorDomain, code=3):\n\tThe request to terminate \"dev.egui.apple-parity-reference\" failed. found nothing to terminate\n\tfound nothing to terminate\n"
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "launch",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference",
+      "--scheme",
+      "light",
+      "--size",
+      "regular"
+    ],
+    "status": 0,
+    "stdout": "dev.egui.apple-parity-reference: 19249\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/ios-light-regular",
+      "--look",
+      "ios",
+      "--scheme",
+      "light",
+      "--size",
+      "regular"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "open",
+      "-n",
+      "-W",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/MacReference.app",
+      "--args",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-dark-regular",
+      "--quit",
+      "--scheme",
+      "dark",
+      "--size",
+      "regular"
+    ],
+    "status": 0,
+    "stdout": null,
+    "stderr": null
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-dark-regular",
+      "--look",
+      "mac",
+      "--scheme",
+      "dark",
+      "--size",
+      "regular"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "terminate",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "launch",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference",
+      "--scheme",
+      "dark",
+      "--size",
+      "regular"
+    ],
+    "status": 0,
+    "stdout": "dev.egui.apple-parity-reference: 19529\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/ios-dark-regular",
+      "--look",
+      "ios",
+      "--scheme",
+      "dark",
+      "--size",
+      "regular"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "open",
+      "-n",
+      "-W",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/MacReference.app",
+      "--args",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-light-regular-disabled",
+      "--quit",
+      "--scheme",
+      "light",
+      "--size",
+      "regular",
+      "--disabled"
+    ],
+    "status": 0,
+    "stdout": null,
+    "stderr": null
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-light-regular-disabled",
+      "--look",
+      "mac",
+      "--scheme",
+      "light",
+      "--size",
+      "regular",
+      "--disabled"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "terminate",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "launch",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference",
+      "--scheme",
+      "light",
+      "--size",
+      "regular",
+      "--disabled"
+    ],
+    "status": 0,
+    "stdout": "dev.egui.apple-parity-reference: 19613\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/ios-light-regular-disabled",
+      "--look",
+      "ios",
+      "--scheme",
+      "light",
+      "--size",
+      "regular",
+      "--disabled"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "open",
+      "-n",
+      "-W",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/MacReference.app",
+      "--args",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-dark-regular-disabled",
+      "--quit",
+      "--scheme",
+      "dark",
+      "--size",
+      "regular",
+      "--disabled"
+    ],
+    "status": 0,
+    "stdout": null,
+    "stderr": null
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-dark-regular-disabled",
+      "--look",
+      "mac",
+      "--scheme",
+      "dark",
+      "--size",
+      "regular",
+      "--disabled"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "terminate",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "launch",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference",
+      "--scheme",
+      "dark",
+      "--size",
+      "regular",
+      "--disabled"
+    ],
+    "status": 0,
+    "stdout": "dev.egui.apple-parity-reference: 19675\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/ios-dark-regular-disabled",
+      "--look",
+      "ios",
+      "--scheme",
+      "dark",
+      "--size",
+      "regular",
+      "--disabled"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "open",
+      "-n",
+      "-W",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/MacReference.app",
+      "--args",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-light-small",
+      "--quit",
+      "--scheme",
+      "light",
+      "--size",
+      "small"
+    ],
+    "status": 0,
+    "stdout": null,
+    "stderr": null
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-light-small",
+      "--look",
+      "mac",
+      "--scheme",
+      "light",
+      "--size",
+      "small"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "terminate",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "launch",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference",
+      "--scheme",
+      "light",
+      "--size",
+      "small"
+    ],
+    "status": 0,
+    "stdout": "dev.egui.apple-parity-reference: 19704\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/ios-light-small",
+      "--look",
+      "ios",
+      "--scheme",
+      "light",
+      "--size",
+      "small"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "open",
+      "-n",
+      "-W",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/MacReference.app",
+      "--args",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-light-large",
+      "--quit",
+      "--scheme",
+      "light",
+      "--size",
+      "large"
+    ],
+    "status": 0,
+    "stdout": null,
+    "stderr": null
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-light-large",
+      "--look",
+      "mac",
+      "--scheme",
+      "light",
+      "--size",
+      "large"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "terminate",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "xcrun",
+      "simctl",
+      "launch",
+      "AF2FD633-7BF0-4E90-B2BA-48E57509478A",
+      "dev.egui.apple-parity-reference",
+      "--scheme",
+      "light",
+      "--size",
+      "large"
+    ],
+    "status": 0,
+    "stdout": "dev.egui.apple-parity-reference: 19728\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/apple-parity",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/ios-light-large",
+      "--look",
+      "ios",
+      "--scheme",
+      "light",
+      "--size",
+      "large"
+    ],
+    "status": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "open",
+      "-n",
+      "-W",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/build/MacReference.app",
+      "--args",
+      "--probe",
+      "--quit",
+      "--out",
+      "/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/apple-parity/final/mac-input"
+    ],
+    "status": 0,
+    "stdout": null,
+    "stderr": null
+  }
+]

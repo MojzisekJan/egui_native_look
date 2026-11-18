@@ -1,0 +1,21 @@
+{
+  "controls": {
+    "button": [
+      58.46875,
+      48.0
+    ],
+    "segments": [
+      216.0,
+      48.0
+    ],
+    "switch": [
+      61.0,
+      48.0
+    ]
+  },
+  "font_bytes": 7921268,
+  "installed": true,
+  "save_width": 38.46875,
+  "system_fonts": true,
+  "target": "ios"
+}

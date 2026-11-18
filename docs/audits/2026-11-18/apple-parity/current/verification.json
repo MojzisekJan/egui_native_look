@@ -1,0 +1,8 @@
+{
+  "mac_input_assertions": 8,
+  "mac_keyboard_assertions": 7,
+  "active_key_window_checked_per_stage": true,
+  "native_visual_cases": 12,
+  "native_visual_capture": "Existing captures retained; egui rerendered at matching native scale",
+  "ios_host_input_verified": false
+}

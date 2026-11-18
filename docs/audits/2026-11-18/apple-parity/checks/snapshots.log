@@ -1,0 +1,11 @@
+
+running 4 tests
+test every_looks_open_menu_in_both_schemes ... ok
+test every_looks_dialog_in_both_schemes ... ok
+test the_toolbar_and_form_in_every_look_and_scheme ... ok
+test every_look_and_scheme ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+
+    Finished `test` profile [unoptimized] target(s) in 0.10s
+     Running tests/snapshots.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/bd2cff2df0a92d15/out/snapshots-bd2cff2df0a92d15)

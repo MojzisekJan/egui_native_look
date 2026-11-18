@@ -1,0 +1,906 @@
+{
+  "geometry" : {
+    "alert" : [
+      120,
+      529,
+      89,
+      24
+    ],
+    "button" : [
+      120,
+      25,
+      54,
+      24
+    ],
+    "button-label" : [
+      132,
+      29,
+      30,
+      16
+    ],
+    "checkbox" : [
+      120,
+      154.9600830078125,
+      70,
+      16.079833984375
+    ],
+    "default" : [
+      120,
+      67,
+      79,
+      24
+    ],
+    "default-label" : [
+      132,
+      71,
+      55,
+      16
+    ],
+    "destructive" : [
+      120,
+      109,
+      64,
+      24
+    ],
+    "password" : [
+      120,
+      403,
+      216,
+      24
+    ],
+    "picker" : [
+      120,
+      277,
+      160,
+      24
+    ],
+    "progress" : [
+      120,
+      489,
+      216,
+      20
+    ],
+    "root" : [
+      0,
+      32,
+      360,
+      620
+    ],
+    "segmented" : [
+      120,
+      235,
+      216,
+      24
+    ],
+    "slider" : [
+      120,
+      323,
+      216,
+      16
+    ],
+    "stepper" : [
+      120,
+      445,
+      160,
+      24
+    ],
+    "switch" : [
+      120,
+      193,
+      54,
+      24
+    ],
+    "text" : [
+      120,
+      361,
+      216,
+      24
+    ]
+  },
+  "metadata" : {
+    "actual_app_active" : true,
+    "actual_key_window" : true,
+    "disabled" : false,
+    "full_keyboard_access" : false,
+    "native_controls" : [
+      {
+        "acceptsFocus" : true,
+        "frame" : "{{120, 193}, {54, 24}}",
+        "type" : "PlatformSwitch"
+      },
+      {
+        "acceptsFocus" : true,
+        "frame" : "{{138, 235}, {180, 24}}",
+        "type" : "SwiftUISegmentedControl"
+      },
+      {
+        "acceptsFocus" : true,
+        "frame" : "{{120, 361}, {216, 24}}",
+        "type" : "AppKitTextField"
+      },
+      {
+        "acceptsFocus" : true,
+        "frame" : "{{120, 403}, {216, 24}}",
+        "type" : "AppKitSecureTextField"
+      },
+      {
+        "acceptsFocus" : true,
+        "frame" : "{{199, 445}, {20, 24}}",
+        "type" : "EditTrackingStepper"
+      }
+    ],
+    "platform" : "macOS",
+    "scale" : 1,
+    "scheme" : "light",
+    "size" : "regular",
+    "version" : "Version 27.0.1 (Build 26A434)"
+  },
+  "state" : {
+    "checked" : false,
+    "choice" : 2,
+    "count" : 8,
+    "number" : 3,
+    "segment" : 1,
+    "slider" : 0.5,
+    "switched" : false,
+    "text" : "Hello"
+  },
+  "trace" : [
+    {
+      "after" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 1,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 0,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "return_default",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 1,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 1,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "command_return",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 2,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 1,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "shift_return",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 3,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 2,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "button_click",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 4,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 3,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "button_leave_return_release",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 4,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 4,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "button_leave_release",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 4,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : true,
+        "choice" : 1,
+        "count" : 4,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "checkbox_click",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 4,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "checkbox_return",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "checkbox_space",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "checkbox_command_space",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.40000000000000002,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "slider_click",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "slider_right",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "slider_shift_right",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "slider_option_right",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "slider_command_right",
+      "confirmed_control" : "",
+      "firstResponder" : "NSWindow",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "text_click",
+      "confirmed_control" : "",
+      "firstResponder" : "_SystemTextFieldFieldEditor",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 6,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 5,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "text_return",
+      "confirmed_control" : "",
+      "firstResponder" : "_SystemTextFieldFieldEditor",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 6,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 6,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "focus_switch",
+      "confirmed_control" : "switch",
+      "firstResponder" : "PlatformSwitch",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 6,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 6,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : true,
+        "text" : "Hello"
+      },
+      "case" : "focused_switch_space",
+      "confirmed_control" : "switch",
+      "firstResponder" : "PlatformSwitch",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 7,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 6,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "focused_switch_return",
+      "confirmed_control" : "switch",
+      "firstResponder" : "PlatformSwitch",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 7,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 7,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "focus_segments",
+      "confirmed_control" : "segmented",
+      "firstResponder" : "SwiftUISegmentedControl",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 7,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "focused_segments_return",
+      "confirmed_control" : "segmented",
+      "firstResponder" : "SwiftUISegmentedControl",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "picker_open",
+      "confirmed_control" : "segmented",
+      "firstResponder" : "SwiftUISegmentedControl",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "picker_down",
+      "confirmed_control" : "segmented",
+      "firstResponder" : "SwiftUISegmentedControl",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 2,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 1,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "picker_return",
+      "confirmed_control" : "segmented",
+      "firstResponder" : "SwiftUISegmentedControl",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 2,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 2,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "picker_reopen",
+      "confirmed_control" : "segmented",
+      "firstResponder" : "SwiftUISegmentedControl",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 2,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 2,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "picker_escape_down",
+      "confirmed_control" : "segmented",
+      "firstResponder" : "SwiftUISegmentedControl",
+      "key_window" : true
+    },
+    {
+      "after" : {
+        "checked" : false,
+        "choice" : 2,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "app_active" : true,
+      "before" : {
+        "checked" : false,
+        "choice" : 2,
+        "count" : 8,
+        "number" : 3,
+        "segment" : 1,
+        "slider" : 0.5,
+        "switched" : false,
+        "text" : "Hello"
+      },
+      "case" : "picker_escape",
+      "confirmed_control" : "segmented",
+      "firstResponder" : "SwiftUISegmentedControl",
+      "key_window" : true
+    }
+  ]
+}

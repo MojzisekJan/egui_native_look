@@ -1,0 +1,18 @@
+[package]
+name = "apple-parity-ios-probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+egui_native_look = { path = "../../.." }
+egui = "0.37.0"
+serde_json = "1"
+
+[workspace]
+
+[patch.crates-io]
+epaint = { path = "../../../vendor/epaint" }

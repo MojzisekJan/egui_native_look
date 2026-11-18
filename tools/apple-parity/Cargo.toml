@@ -1,0 +1,17 @@
+[package]
+name = "apple-parity"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+egui_native_look = { path = "../.." }
+egui = "0.37.0"
+eframe = { version = "0.37.0", default-features = false, features = ["accesskit", "default_fonts", "glow"] }
+egui_kittest = { version = "0.37.0", features = ["wgpu"] }
+serde_json = "1"
+
+[workspace]
+
+[patch.crates-io]
+epaint = { path = "../../vendor/epaint" }

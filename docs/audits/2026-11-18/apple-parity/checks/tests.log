@@ -1,0 +1,417 @@
+
+running 48 tests
+test paint::tests::mac_focus_colour_matches_appkit_for_the_blue_accent ... ok
+test colors::tests::gtk_palette_accent_is_used_unless_explicitly_overridden ... ok
+test numeric::tests::integer_parsing_and_steps_never_round_large_values ... ok
+test numeric::tests::builtin_integer_conversions_round_trip_extremes ... ok
+test tests::theme_configuration_builders_preserve_the_base_configuration ... ok
+test widgets::choice::choice_navigation_tests::choice_keys_leave_application_shortcuts_unclaimed ... ok
+test widgets::choice::choice_navigation_tests::windows_keys_distinguish_focus_from_selection ... ok
+test widgets::choice::dropdown_search_tests::prefixes_cycle_expire_and_match_unicode ... ok
+test widgets::choice::tests::accessibility_steps_start_at_the_visible_knob_for_out_of_range_models ... ok
+test regression_tests::direct_style_application_is_independent_of_previous_look ... ok
+test widgets::choice::tests::accessible_values_are_finite_and_leave_the_model_unchanged ... ok
+test widgets::choice::tests::dragging_past_an_endpoint_keeps_the_pointer_offset_on_return ... ok
+test widgets::choice::tests::equal_slider_endpoints_are_constant ... ok
+test widgets::choice::tests::fine_drag_sensitivity_stays_positive_across_extreme_finite_ranges ... ok
+test widgets::choice::tests::extreme_finite_ranges_keep_values_and_fractions_finite ... ok
+test widgets::choice::tests::invalid_logarithmic_ranges_fall_back_to_linear_values ... ok
+test widgets::choice::tests::keyboard_nudges_distinguish_visual_and_numeric_directions ... ok
+test widgets::choice::tests::keyboard_nudges_handle_nan_and_overflow_without_producing_nan ... ok
+test widgets::choice::tests::linear_slider_values_round_trip_in_both_directions ... ok
+test tests::an_accent_the_app_chose_stays ... ok
+test widgets::choice::tests::reversed_stepped_sliders_reach_both_endpoints ... ok
+test widgets::choice::tests::logarithmic_sliders_round_trip_across_orders_of_magnitude ... ok
+test widgets::choice::tests::shortcut_translation_preserves_unrelated_modifier_combinations ... ok
+test regression_tests::copying_a_theme_preserves_system_accent_updates ... ok
+test widgets::choice::tests::stepped_values_stay_in_range_including_partial_final_steps ... ok
+test widgets::choice::tests::steps_smaller_than_numeric_precision_do_not_overflow ... ok
+test widgets::choice::tests::unrounded_drag_positions_accumulate_small_integer_moves ... ok
+test widgets::entry::tests::composition_cancellation_waits_for_the_backend_end_event ... ok
+test widgets::entry::tests::composition_confirmation_is_independent_of_commit_event_order ... ok
+test widgets::entry::tests::composition_keeps_modified_shortcuts_and_key_releases ... ok
+test widgets::entry::tests::numeric_shortcuts_leave_caret_and_application_commands_untouched ... ok
+test widgets::entry::tests::numeric_steps_saturate_even_when_the_increment_overflows ... ok
+test widgets::form::tests::truncated_labels_remain_available_with_their_help_text ... ok
+test widgets::status::tests::progress_handles_non_finite_values_and_clamps_to_its_range ... ok
+test widgets::tests::numeric_change_detection_treats_unchanged_nan_as_unchanged ... ok
+test widgets::tests::dimensions_reject_invalid_values_and_bound_positive_values ... ok
+test widgets::window::tests::invalid_positions_restore_automatic_positioning ... ok
+test widgets::window::tests::invalid_window_axes_preserve_previous_sizes ... ok
+test widgets::window::tests::a_gtk_dialog_is_an_alert ... ok
+test widgets::tests::gtk_focus_policy_restores_the_application_setting_after_unwinding ... ok
+test system::tests::an_idle_system_follower_does_not_request_more_frames ... ok
+test widgets::window::tests::material_dialogs_do_not_inherit_window_shadows_or_outlines ... ok
+test system::process::tests::inherited_stdout_does_not_extend_the_deadline ... ok
+test system::process::tests::captures_success_and_rejects_failed_commands ... ok
+test tests::a_new_system_accent_reaches_the_colours_and_the_style ... ok
+test regression_tests::changing_looks_restores_app_style_and_accepts_later_overrides ... ok
+test widgets::window::tests::other_dialog_looks_keep_their_window_frames ... ok
+test system::process::tests::bounds_output_and_reaps_a_timed_out_child ... ok
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 5 tests
+test disabled_ios_slider_preserves_its_tint_and_fades_its_thumb ... ok
+test ios_preview_on_mac_uses_the_system_font_instead_of_the_fallback ... ok
+test ios_regular_control_geometry_matches_swiftui_26_5 ... ok
+test ios_segment_capsule_keeps_native_height_inside_its_touch_target ... ok
+test mac_button_tracks_a_pointer_excursion_until_release_like_swiftui ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 147 tests
+test a_long_dropdown_stays_in_the_viewport_and_reaches_the_last_item ... ok
+test a_mac_list_greys_its_selection_without_the_focus ... ok
+test a_menu_item_is_as_wide_as_it_needs ... ok
+test a_dialog_blocks_clicks_and_keyboard_focus_behind_it ... ok
+test a_palette_changes_a_few_colours_and_install_keeps_the_apps_style ... ok
+test a_number_field_keeps_to_its_type_and_any_step ... ok
+test a_form_row_names_its_switch_for_a_screen_reader ... ok
+test a_number_field_without_steppers_is_the_field_alone_and_need_not_have_a_range ... ok
+test a_pressed_mac_default_button_darkens_on_light_and_lightens_on_dark ... ok
+test a_short_logarithmic_slider_does_not_lose_rounded_keyboard_steps ... ok
+test a_slider_takes_any_number_logarithmic_and_in_steps ... ok
+test a_section_answers_and_opens_from_code ... ok
+test a_sliders_number_takes_a_suffix_and_a_formatter ... ok
+test a_stepped_mac_slider_marks_its_steps ... ok
+test a_switch_and_a_segment_name_themselves_to_a_screen_reader ... ok
+test a_submenu_item_keeps_its_icon ... ok
+test a_search_field_clears_from_its_button_and_keeps_the_focus ... ok
+test a_text_field_can_select_all_on_focus ... ok
+test a_toast_goes_after_a_while ... ok
+test a_toast_waits_under_the_pointer_and_is_announced ... ok
+test a_dropdown_picks_from_its_list ... ok
+test a_form_lines_its_controls_up ... ok
+test a_dialog_grows_with_content_added_after_it_opened ... ok
+test an_inactive_mac_window_greys_its_accent ... ok
+test a_popup_button_shows_the_apps_own_list ... ok
+test a_text_field_offers_cut_copy_paste_and_select_all ... ok
+test a_dropdown_can_be_chosen_and_cancelled_with_the_keyboard ... ok
+test changing_fine_drag_mode_keeps_the_thumb_stationary_until_the_pointer_moves ... ok
+test a_menu_is_wide_enough_for_its_items_from_the_first_frame_it_shows ... ok
+test an_open_dropdown_exposes_named_items_and_expanded_state ... ok
+test a_tool_window_shows_its_contents ... ok
+test an_opened_dialog_focuses_its_first_field_except_on_a_touch_screen ... ok
+test checkbox_accessibility_reports_the_new_state_on_the_click_frame ... ok
+test clearing_an_open_dropdown_closes_its_popup_without_changing_selection ... ok
+test buttons_and_switches_cancel_a_press_released_outside ... ok
+test an_icon_button_and_a_colour_well_take_clicks ... ok
+test choices_support_home_and_end_and_keep_keyboard_focus_after_clicking ... ok
+test committed_unicode_text_survives_focus_changes_and_normal_escape ... ok
+test destructive_button_activates_once_and_disabled_button_stays_inert ... ok
+test dialog_does_not_restore_focus_to_disabled_opener ... ok
+test a_default_dialog_fits_a_phone_and_a_short_viewport ... ok
+test dialog_default_action_respects_focused_buttons_ime_and_disabled_state ... ok
+test dialog_escape_can_be_disabled_and_ui_close_still_restores_focus ... ok
+test closing_dropdown_outside_preserves_clicked_field_focus ... ok
+test dialog_escape_leaves_text_editing_before_closing ... ok
+test disabled_mac_controls_are_drawn_in_their_own_colours_not_faded ... ok
+test dialog_focus_return_is_independent_of_background_draw_order ... ok
+test disabled_sliders_and_their_number_editors_ignore_accessibility_edits ... ok
+test dialog_actions_scroll_into_view_with_phone_keyboard_open ... ok
+test each_look_opens_in_its_systems_window_colours ... ok
+test dialog_default_does_not_override_standard_egui_controls_or_opening_enter ... ok
+test disabled_text_fields_ignore_accessibility_edits ... ok
+test equal_slider_bounds_only_normalize_with_always_clamping ... ok
+test controls_take_clicks_in_every_look ... ok
+test dialog_popup_uses_enter_and_escape_before_default_action_or_dialog ... ok
+test escape_interrupts_composition_before_leaving_the_text_field ... ok
+test empty_choices_disable_interaction_and_preserve_the_model ... ok
+test fractional_integer_slider_steps_are_symmetric ... ok
+test escape_closes_the_top_dialog_alone_and_not_while_a_field_has_the_focus ... ok
+test grabbing_the_edge_of_a_gtk_or_ios_thumb_keeps_the_value ... ok
+test gtk_joins_its_spin_buttons_to_the_field ... ok
+test gtk_number_field_shortcuts_do_not_restore_stale_edit_text ... ok
+test dialog_actions_sit_side_by_side_and_stack_only_when_they_do_not_fit ... ok
+test gtk_slider_leaves_application_shortcuts_and_other_widgets_alone ... ok
+test gtk_slider_pages_respect_steps_boundaries_and_logarithmic_ranges ... ok
+test gtk_slider_takes_focus_when_pressed_and_ignores_keys_while_disabled ... ok
+test gtk_number_field_keys_normalize_nan_and_leave_boundary_values_unchanged ... ok
+test gtk_toggle_groups_move_the_focus_and_choose_with_space_or_enter ... ok
+test focus_rings_accept_large_and_asymmetric_corner_radii ... ok
+test dropdown_typing_moves_focus_without_committing_and_resets_on_reopen ... ok
+test dialog_restores_opener_focus_after_escape_and_application_close ... ok
+test focused_text_field_stays_visible_when_keyboard_reduces_viewport ... ok
+test ime_enter_before_commit_keeps_focus_and_does_not_leak_a_submit_key ... ok
+test ime_confirmation_does_not_submit_a_text_field ... ok
+test installed_metrics_and_direct_styles_normalize_invalid_sizes ... ok
+test hidden_controls_do_not_resume_a_previous_pointer_sequence ... ok
+test ime_state_follows_a_named_field_when_rows_reorder ... ok
+test integer_sliders_move_by_default_and_reversed_sliders_follow_the_rail ... ok
+test invalid_number_range_keeps_the_previous_range ... ok
+test interrupted_switch_drags_do_not_commit ... ok
+test interrupted_slider_drags_stop_at_the_last_value ... ok
+test invalid_slider_steps_do_not_produce_non_finite_values ... ok
+test logarithmic_slider_accessibility_steps_keep_the_numeric_direction ... ok
+test looks_have_names ... ok
+test logarithmic_slider_nodes_do_not_advertise_a_constant_numeric_step ... ok
+test invalid_and_constant_slider_ranges_reject_all_accessibility_edits ... ok
+test gtk_number_field_keyboard_steps_are_independent_of_drag_speed ... ok
+test mac_number_fields_stand_as_tall_as_text_fields ... ok
+test mac_number_fields_step_with_a_stepper_after_the_field ... ok
+test holding_a_step_button_repeats_after_a_delay ... ok
+test mac_control_sizes_follow_swiftui ... ok
+test material_sizes_its_buttons_and_fields_as_material_3 ... ok
+test dialog_tab_navigation_stays_inside_in_both_directions ... ok
+test metrics_scale_and_a_touch_look_is_finger_sized ... ok
+test native_window_focus_loss_clears_stale_composition_confirmation_state ... ok
+test invalid_fields_expose_validation_and_remain_editable ... ok
+test nonsense_sizes_and_values_are_held_in_bounds ... ok
+test more_contrast_outlines_controls_and_darkens_secondary_text ... ok
+test keyboard_input_recovers_a_nan_slider_model ... ok
+test number_field_step_buttons_have_translatable_names ... ok
+test numeric_accessibility_uses_the_step_and_ignores_changes_to_disabled_fields ... ok
+test password_composition_keeps_password_ime_purpose_and_masked_accessibility ... ok
+test password_fields_mask_accessibility_and_do_not_copy_the_secret ... ok
+test maximum_corner_radius_does_not_overflow_in_choice_tracks ... ok
+test malformed_dimensions_keep_widget_geometry_finite ... ok
+test releasing_a_switch_drag_does_not_rewind_the_thumb_animation ... ok
+test nan_numeric_models_change_only_when_normalization_is_requested ... ok
+test nested_dialog_escape_restores_parent_focus_and_respects_locked_child ... ok
+test pop_up_buttons_of_the_same_id_in_a_loop_open_one_list ... ok
+test shortcuts_read_as_each_system_writes_them ... ok
+test slider_accessibility_actions_follow_numeric_direction_and_bounds ... ok
+test select_all_applies_to_focus_requests_made_between_frames ... ok
+test slider_accessibility_metadata_refreshes_after_its_number_field_changes ... ok
+test segmented_choices_accept_extreme_indices_and_leave_empty_choices_unchanged ... ok
+test slider_nodes_keep_unclamped_nonfinite_models_out_of_accessibility_data ... ok
+test slider_nodes_expose_numeric_bounds_steps_and_boundary_actions ... ok
+test small_slider_moves_accumulate_across_integer_steps ... ok
+test slider_touch_taps_commit_on_release_and_horizontal_drags_still_work ... ok
+test stepping_an_existing_out_of_range_value_returns_it_to_the_range ... ok
+test switch_does_not_start_a_drag_from_the_empty_half ... ok
+test switch_width_is_the_width_a_switch_takes ... ok
+test gtk_slider_shortcuts_move_values_without_moving_focus ... ok
+test switch_keyboard_activation_and_single_frame_clicks_keep_working ... ok
+test switch_drag_commits_only_on_release_and_uses_the_nearest_state ... ok
+test shared_dialog_actions_are_equal_from_the_first_frame ... ok
+test select_all_happens_before_input_when_focus_is_requested_during_drawing ... ok
+test switches_and_mixed_checkboxes_expose_their_actual_accessible_states ... ok
+test text_field_ids_keep_focus_attached_when_rows_reorder ... ok
+test text_fields_have_form_names_and_explicit_names_override_them ... ok
+test text_on_a_light_accent_is_dark ... ok
+test text_fields_keep_their_edge_where_buttons_have_none ... ok
+test themes_live_in_their_context ... ok
+test tabbing_into_a_text_field_selects_its_text ... ok
+test tabs_one_by_one ... ok
+test toasts_show_in_the_viewport_they_were_asked_for_in ... ok
+test unicode_selection_replaces_characters_instead_of_utf8_bytes ... ok
+test vertical_touch_drags_over_a_gtk_switch_scroll_its_container ... ok
+test the_arrow_keys_move_a_slider_and_a_segmented_choice_more_than_once ... ok
+test tabs_support_home_and_end_in_every_look ... ok
+test select_all_focus_replaces_text_on_the_first_keyboard_input_frame ... ok
+test vertical_touch_drags_over_sliders_scroll_without_changing_the_value ... ok
+test system_dialogs_close_on_their_actions_without_a_close_button ... ok
+test visible_spinners_request_animation_and_progress_bars_stay_sized ... ok
+test title_bar_buttons_report_the_expected_window_actions ... ok
+test nonfinite_slider_ranges_disable_without_changing_the_model ... ok
+test number_field_integer_steps_and_reversed_bounds_stay_usable ... ok
+test always_clamped_sliders_preserve_wide_integers_and_exact_bounds ... ok
+
+test result: ok. 147 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
+
+
+running 24 tests
+test gtk_scrollbar_can_be_dragged_without_changing_wheel_policy ... ok
+test gtk_scrollable_child_retains_orthogonal_wheel_events ... ok
+test gtk_ime_surrounding_delete_uses_characters_and_keeps_editor_focus ... ok
+test gtk_sibling_scroll_areas_do_not_scale_each_others_wheel_input ... ok
+test empty_and_disabled_lists_never_activate_or_change_selection ... ok
+test gtk_shift_delete_cuts_selection_and_undo_restores_it ... ok
+test gtk_wheel_uses_resized_viewport_on_first_changed_frame ... ok
+test gtk_undo_restores_replaced_selection_and_redo_restores_caret ... ok
+test gtk_insert_clipboard_shortcuts_use_backend_commands_and_preserve_passwords ... ok
+test list_filtering_keeps_item_identity_and_selection ... ok
+test list_accessibility_click_and_focus_preserve_single_keyboard_stop ... ok
+test gtk_wheel_uses_viewport_size_and_point_input_keeps_distance ... ok
+test list_uses_current_enabled_state_when_key_arrives_during_update ... ok
+test list_keyboard_skips_disabled_rows_and_ctrl_moves_only_focus ... ok
+test nested_gtk_scroll_does_not_bubble_at_either_boundary ... ok
+test scroll_area_with_wheel_disabled_leaves_input_to_parent ... ok
+test overwrite_commits_ime_once_without_overwriting_during_preedit ... ok
+test gtk_overwrite_handles_navigation_selection_paste_unicode_and_undo ... ok
+test other_looks_keep_egui_wheel_distance ... ok
+test overwrite_mode_is_local_to_field_and_other_looks_keep_insertion ... ok
+test gtk_dialog_keeps_actions_visible_with_long_content_and_large_text ... ok
+test gtk_wheel_distance_survives_native_frame_timing_and_unknown_source ... ok
+test list_pages_match_native_160_point_viewport_sequence ... ok
+test list_page_navigation_moves_focus_without_activation_at_fractional_scales ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+
+running 30 tests
+test gtk_disabled_slider_keeps_its_accent_and_white_thumb_under_opacity ... ok
+test gtk_keyboard_focus_survives_a_pointer_click_then_times_out ... ok
+test gtk_compact_controls_match_native_allocation ... ok
+test gtk_invalid_entry_paints_error_background_in_both_schemes ... ok
+test gtk_form_number_edits_text_commits_and_skips_step_buttons ... ok
+test gtk_mouse_can_return_to_a_pressed_button ... ok
+test gtk_number_pointer_step_commits_the_draft_and_keeps_the_editor_focused ... ok
+test gtk_number_external_updates_replace_a_draft_and_paste_commits_once ... ok
+test gtk_number_focus_transfer_commits_and_skips_step_buttons ... ok
+test gtk_live_theme_and_zoom_changes_preserve_numeric_draft_and_focus ... ok
+test gtk_numeric_custom_formatting_and_parsing_survive_text_editing ... ok
+test gtk_numeric_drag_selects_text_without_scrubbing_value ... ok
+test gtk_list_box_uses_the_native_view_background_even_when_disabled ... ok
+test gtk_keyboard_focus_outlines_use_native_control_bounds ... ok
+test gtk_form_label_focuses_its_editor_without_adding_a_tab_stop ... ok
+test gtk_numeric_ime_confirmation_does_not_commit_the_model ... ok
+test gtk_numeric_wheel_does_not_scroll_its_parent ... ok
+test gtk_spin_button_focus_outline_includes_both_linked_steppers ... ok
+test gtk_horizontal_radio_navigation_follows_layout_without_wrapping ... ok
+test gtk_numbers_commit_on_enter_keep_focus_and_reject_invalid_text ... ok
+test gtk_switch_row_label_toggles_once_and_respects_disabled_state ... ok
+test gtk_pointer_focus_hides_button_outlines_until_keyboard_navigation ... ok
+test gtk_wheel_changes_only_focused_controls_and_consumes_parent_scroll ... ok
+test gtk_text_selection_uses_the_native_tint_in_both_schemes ... ok
+test gtk_unselected_check_and_radio_marks_fill_while_held_without_committing ... ok
+test gtk_pointer_focus_transfers_on_press_but_switches_preserve_the_editor ... ok
+test gtk_modified_activation_keys_do_not_click_controls ... ok
+test transparent_color_wells_finish_with_tiny_metrics ... ok
+test gtk_numeric_ime_navigation_preserves_model_and_draft ... ok
+test gtk_long_dialog_headings_wrap_and_responses_use_full_stacked_width ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+
+running 19 tests
+test a_radio_group_names_itself_to_assistive_technology ... ok
+test gtk_submenu_sizes_to_its_items_in_a_wide_viewport ... ok
+test a_mac_menu_opens_with_its_ticked_row_over_the_button ... ok
+test invalid_choice_stays_unselected_until_space_selects_first_option ... ok
+test application_modifiers_are_not_consumed_by_choice_groups ... ok
+test tab_reentry_and_external_model_edits_reset_temporary_choice_focus ... ok
+test menu_arrows_wrap_round_at_the_ends ... ok
+test a_radio_group_is_one_tab_stop_moved_through_by_the_arrows ... ok
+test a_menu_opened_from_the_keyboard_starts_on_its_ticked_row ... ok
+test windows_ctrl_arrows_move_focus_without_selecting_until_space ... ok
+test windows_vertical_keys_stay_in_group_even_immediately_after_tab ... ok
+test escape_from_nested_menu_returns_to_launcher_without_activation ... ok
+test nested_menu_home_end_left_and_activation_keep_the_correct_focus ... ok
+test popup_home_and_end_skip_disabled_rows_and_do_not_activate_them ... ok
+test the_menu_row_the_keyboard_is_on_is_lit ... ok
+test typing_in_a_menu_moves_to_the_matching_item ... ok
+test phone_submenus_remain_within_viewport_edges ... ok
+test phone_menu_touch_scroll_and_outside_tap_do_not_activate_rows ... ok
+test long_phone_menus_fit_and_scroll_keyboard_focus_to_last_item ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+
+
+running 9 tests
+test wide_slider_accessibility_advertises_exact_value_and_unit_increment ... ok
+test wide_logarithmic_integer_sliders_keep_exact_keyboard_steps ... ok
+test wide_slider_arrows_change_one_exact_unit_even_with_collapsed_f64_bounds ... ok
+test unclamped_wide_slider_editor_advertises_its_full_integer_range ... ok
+test wide_slider_pointer_positions_use_offsets_and_preserve_exact_endpoints ... ok
+test wide_editors_preserve_other_looks_wheel_policy ... ok
+test signed_extremes_step_without_overflow_or_rounding ... ok
+test wide_slider_value_editor_accepts_exact_text ... ok
+test wide_number_fields_preserve_exact_text_and_step_after_commit ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+
+running 4 tests
+test every_look_and_scheme ... ignored, renders with wgpu: cargo test --test snapshots -- --include-ignored
+test every_looks_dialog_in_both_schemes ... ignored, renders with wgpu: cargo test --test snapshots -- --include-ignored
+test every_looks_open_menu_in_both_schemes ... ignored, renders with wgpu: cargo test --test snapshots -- --include-ignored
+test the_toolbar_and_form_in_every_look_and_scheme ... ignored, renders with wgpu: cargo test --test snapshots -- --include-ignored
+
+test result: ok. 0 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 20 tests
+test disabled_editors_remove_actions_that_they_cannot_apply ... ok
+test dropdown_name_is_separate_from_value_and_icon_toggle_state_is_explicit ... ok
+test icon_glyphs_keep_their_size_when_touch_targets_grow ... ok
+test hidden_controls_and_second_fingers_do_not_resume_cancelled_taps ... ok
+test first_touch_keeps_existing_geometry_until_the_pointer_sequence_finishes ... ok
+test disabled_colour_picker_closes_without_changing_value ... ok
+test empty_button_icons_preserve_size_and_narrow_buttons_clip_their_content ... ok
+test progress_and_busy_indicators_report_values_without_fake_completion ... ok
+test scrolling_over_touch_buttons_keeps_parent_scroll_and_cancels_tap ... ok
+test disabled_controls_do_not_advertise_click_or_focus_actions ... ok
+test keyboard_focus_follows_visible_order_and_skips_disabled_controls ... ok
+test text_buttons_with_icons_keep_one_accessible_name_and_separate_glyphs ... ok
+test touch_cancel_does_not_disable_later_keyboard_or_accessibility_activation ... ok
+test tabs_expose_tab_roles_and_update_selection_on_keyboard_frame ... ok
+test text_number_slider_section_and_tabs_keep_touch_sized_targets ... ok
+test window_close_buttons_reserve_touch_targets_without_larger_glyphs ... ok
+test accessibility_exposes_names_selection_values_and_disabled_states ... ok
+test button_icon_colours_follow_the_label_in_accent_and_disabled_states ... ok
+test touch_targets_reserve_space_and_accept_padding_taps_in_every_look ... ok
+test cancelled_touch_never_activates_on_a_late_release ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+
+running 49 tests
+test src/lib.rs - Look (line 90) - compile fail ... ok
+test src/colors.rs - colors::Colors (line 14) - compile fail ... ok
+test src/lib.rs - (line 9) - compile ... ok
+test src/lib.rs - Schemes (line 254) - compile fail ... ok
+test src/lib.rs - Palette (line 210) - compile fail ... ok
+test src/lib.rs - Metrics (line 433) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::Button (line 12) - compile fail ... ok
+test src/lib.rs - Theme (line 583) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::Button::icon (line 42) - compile ... ok
+test src/widgets/basic.rs - widgets::basic::Radio (line 1009) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::Switch (line 370) - compile fail ... ok
+test src/widgets/basic.rs - widgets::basic::RadioGroup (line 1180) - compile ... ok
+test src/widgets/basic.rs - widgets::basic::Checkbox (line 848) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::PopupButton (line 1293) - compile ... ok
+test src/widgets/basic.rs - widgets::basic::RadioGroup (line 1191) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Dropdown (line 793) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Segmented (line 16) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Slider (line 1613) - compile ... ok
+test src/widgets/choice.rs - widgets::choice::PopupButton (line 1306) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Tab (line 2846) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Slider (line 1623) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::TabBar (line 2887) - compile fail ... ok
+test src/widgets/containers.rs - widgets::containers::MenuItem (line 349) - compile fail ... ok
+test src/widgets/choice.rs - widgets::choice::Tab (line 2832) - compile ... ok
+test src/widgets/containers.rs - widgets::containers::Section (line 38) - compile fail ... ok
+test src/widgets/containers.rs - widgets::containers::ListRow (line 186) - compile fail ... ok
+test src/widgets/containers.rs - widgets::containers::Section (line 29) - compile ... ok
+test src/widgets/choice.rs - widgets::choice::Tabs (line 2681) - compile fail ... ok
+test src/widgets/containers.rs - widgets::containers::submenu (line 658) - compile ... ok
+test src/widgets/entry.rs - widgets::entry::TextField (line 13) - compile ... ok
+test src/widgets/entry.rs - widgets::entry::NumberField (line 1009) - compile fail ... ok
+test src/widgets/entry.rs - widgets::entry::NumberField (line 989) - compile ... ok
+test src/widgets/extra.rs - widgets::extra::IconButton (line 12) - compile ... ok
+test src/widgets/extra.rs - widgets::extra::ColorWell (line 184) - compile ... ok
+test src/widgets/entry.rs - widgets::entry::TextField (line 23) - compile fail ... ok
+test src/widgets/extra.rs - widgets::extra::ColorWell (line 191) - compile fail ... ok
+test src/widgets/extra.rs - widgets::extra::IconButton (line 22) - compile fail ... ok
+test src/widgets/form.rs - widgets::form::Form (line 13) - compile ... ok
+test src/widgets/form.rs - widgets::form::Form (line 26) - compile fail ... ok
+test src/widgets/status.rs - widgets::status::Spinner (line 137) - compile fail ... ok
+test src/widgets/status.rs - widgets::status::ProgressBar (line 12) - compile fail ... ok
+test src/widgets/window.rs - widgets::window::TitleBar (line 1163) - compile fail ... ok
+test src/widgets/window.rs - widgets::window::Dialog (line 14) - compile ... ok
+test src/widgets/window.rs - widgets::window::Dialog (line 26) - compile fail ... ok
+test src/widgets/window.rs - widgets::window::ToolWindow (line 702) - compile ... ok
+test src/widgets/window.rs - widgets::window::ToolWindow (line 710) - compile fail ... ok
+test src/lib.rs - Look::touch (line 143) ... ok
+test src/widgets/list.rs - widgets::list::ListBox (line 8) ... ok
+test src/widgets/scroll.rs - widgets::scroll::ScrollArea (line 8) ... ok
+
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+
+   Compiling egui_native_look v0.3.0 (/Users/mojzisekjan/egui_native_look)
+    Finished `test` profile [unoptimized] target(s) in 4.53s
+     Running unittests src/lib.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/8d4a55f5375dbcd7/out/egui_native_look-8d4a55f5375dbcd7)
+     Running tests/apple_reference.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/aa07cf8617769110/out/apple_reference-aa07cf8617769110)
+     Running tests/controls.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/fe33ad8e682ab8af/out/controls-fe33ad8e682ab8af)
+     Running tests/gtk_containers.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/978a29a96a37a87d/out/gtk_containers-978a29a96a37a87d)
+     Running tests/gtk_reference.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/b50e06d254519784/out/gtk_reference-b50e06d254519784)
+     Running tests/navigation.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/2edede3bd7271331/out/navigation-2edede3bd7271331)
+     Running tests/precision.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/8e01acef60e05e4f/out/precision-8e01acef60e05e4f)
+     Running tests/snapshots.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/bd2cff2df0a92d15/out/snapshots-bd2cff2df0a92d15)
+     Running tests/touch.rs (/Users/mojzisekjan/Documents/Codex/2026-11-18/naj/work/target/debug/build/egui_native_look/a3e427c96bbf074e/out/touch-a3e427c96bbf074e)
+   Doc-tests egui_native_look
