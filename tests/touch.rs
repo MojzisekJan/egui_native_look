@@ -10,6 +10,14 @@ const LOOKS: [look::Look; 6] = [
     look::Look::Material,
 ];
 
+fn minimum(chosen: look::Look) -> f32 {
+    if chosen == look::Look::Ios {
+        44.0
+    } else {
+        48.0
+    }
+}
+
 fn context(chosen: look::Look) -> egui::Context {
     let ctx = egui::Context::default();
     look::install(&ctx, look::Theme::new(chosen));
@@ -139,7 +147,8 @@ fn touch_targets_reserve_space_and_accept_padding_taps_in_every_look() {
             let mut model = Model::default();
             let (response, _) = frame(&ctx, vec![], |ui| control(ui, kind, &mut model));
             assert!(
-                response.rect.width() >= 48.0 && response.rect.height() >= 48.0,
+                response.rect.width() >= minimum(chosen)
+                    && response.rect.height() >= minimum(chosen),
                 "{chosen} {kind:?}: {:?}",
                 response.rect
             );
@@ -596,7 +605,7 @@ fn text_number_slider_section_and_tabs_keep_touch_sized_targets() {
             ]
         });
         for rect in rects {
-            assert!(rect.height() >= 48.0, "{chosen}: {rect:?}");
+            assert!(rect.height() >= minimum(chosen), "{chosen}: {rect:?}");
         }
     }
 }
@@ -698,7 +707,7 @@ fn first_touch_keeps_existing_geometry_until_the_pointer_sequence_finishes() {
         assert!(checked && released.changed(), "{chosen}: first touch lost");
         let (after, _) = frame(&ctx, vec![], |ui| draw(ui, &mut checked));
         assert_eq!(before.id, after.id);
-        assert!(after.rect.height() >= 48.0);
+        assert!(after.rect.height() >= minimum(chosen));
     }
 }
 
@@ -805,7 +814,8 @@ fn window_close_buttons_reserve_touch_targets_without_larger_glyphs() {
             .1;
         let bounds = node.bounds().unwrap();
         assert!(
-            bounds.width() >= 48.0 && bounds.height() >= 48.0,
+            bounds.width() >= f64::from(minimum(chosen))
+                && bounds.height() >= f64::from(minimum(chosen)),
             "{chosen}: {bounds:?}"
         );
         let point = egui::pos2(
@@ -1034,7 +1044,7 @@ fn ios_field_keeps_native_bezel_and_accepts_touch_padding() {
             ui.add(if search { field.search() } else { field })
         };
         let (response, output) = frame(&ctx, vec![], |ui| draw(ui, &mut text));
-        assert_eq!(response.rect.height(), 48.0);
+        assert_eq!(response.rect.height(), 44.0);
         assert!(
             output.shapes.iter().any(|shape| matches!(&shape.shape,
             egui::Shape::Rect(rect) if (rect.rect.height()-34.0).abs()<0.1

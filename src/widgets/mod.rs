@@ -1,6 +1,6 @@
 //! The controls, each an [`egui::Widget`] built like egui's own: `ui.add(Switch::new(&mut on))`.
 //! They take the height of `ui.spacing().interact_size.y`, which [`crate::install`] sets to
-//! the theme's control height. Touch targets reserve at least 48 points per axis
+//! the theme's control height. Touch targets reserve at least 44 points per axis on iOS and 48 on other looks
 //! while the painted controls retain their visual dimensions.
 
 mod basic;
@@ -119,9 +119,14 @@ pub(crate) fn truncated(
 
 /// Reserve separate touch slots rather than overlapping neighboring controls.
 pub(crate) fn minimum_target(ui: &egui::Ui) -> f32 {
+    let minimum = if crate::look(ui.ctx()) == Look::Ios {
+        44.0
+    } else {
+        48.0
+    };
     let key = egui::Id::unique("egui_native_look::TouchTargets");
     if crate::touch_screen() || ui.data(|data| data.get_temp::<bool>(key)).unwrap_or(false) {
-        return 48.0;
+        return minimum;
     }
     // A newly discovered touch device must not move targets during its first gesture.
     let ready = ui.input(|input| {
@@ -135,7 +140,7 @@ pub(crate) fn minimum_target(ui: &egui::Ui) -> f32 {
         ui.data_mut(|data| data.insert_temp(key, true));
     }
     if ready {
-        48.0
+        minimum
     } else {
         0.0
     }

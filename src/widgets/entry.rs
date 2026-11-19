@@ -7,7 +7,8 @@ use crate::numeric;
 use crate::{entry_margin, underline, Look};
 
 /// A one-line text entry, as tall as the controls around it, its text centred on its
-/// capitals; WinUI's underline on Windows, the look's focus ring elsewhere. A search entry
+/// capitals; WinUI's underline on Windows, a hairline on iOS, and the look's focus ring
+/// on macOS and GTK. A search entry
 /// carries a magnifier.
 ///
 /// ```no_run
@@ -365,12 +366,27 @@ impl TextField<'_> {
         }
         super::disabled_actions(ui, &response);
         underline(ui.painter(), response.rect, response.has_focus());
-        if response.has_focus() && matches!(x.look, Look::Mac | Look::Gtk | Look::Ios) {
+        if response.has_focus() && matches!(x.look, Look::Mac | Look::Gtk) {
             crate::paint::ring(
                 ui.painter(),
                 &x.paint(),
                 response.rect,
                 capsule.unwrap_or_else(|| x.radius()),
+            );
+        }
+        if response.has_focus() && x.look == Look::Ios && !self.search {
+            ui.painter().rect_stroke(
+                response.rect,
+                5,
+                Stroke::new(
+                    if x.c.high_contrast {
+                        1.0
+                    } else {
+                        1.0 / ui.pixels_per_point()
+                    },
+                    x.c.control_border,
+                ),
+                egui::StrokeKind::Inside,
             );
         }
         if let Some(padding) = touch_response {

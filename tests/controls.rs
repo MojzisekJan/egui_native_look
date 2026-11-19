@@ -577,7 +577,7 @@ fn metrics_scale_and_a_touch_look_is_finger_sized() {
         |_| {},
     );
     let target = frame(&ctx, vec![], |ui| ui.add(look::Button::new("Save")).rect);
-    assert!(target.height() >= 48.0, "{target:?}");
+    assert!(target.height() >= 44.0, "{target:?}");
 }
 
 #[test]
