@@ -336,7 +336,7 @@ impl Daybook {
                 .size(10.)
                 .strong()
                 .family(look::bold_family())
-                .weak(),
+                .color(ui.visuals().weak_text_color()),
         );
         ui.add_space(8.);
         ui.scope(|ui| {
@@ -355,7 +355,7 @@ impl Daybook {
                 .size(10.)
                 .strong()
                 .family(look::bold_family())
-                .weak(),
+                .color(ui.visuals().weak_text_color()),
         );
         ui.add_space(8.);
         ui.scope(|ui| {
@@ -411,7 +411,7 @@ impl Daybook {
                     .size(10.)
                     .strong()
                     .family(look::bold_family())
-                    .weak(),
+                    .color(ui.visuals().weak_text_color()),
             );
             ui.add_space(12.);
             ui.label(
@@ -531,7 +531,7 @@ impl Daybook {
                 .size(10.)
                 .strong()
                 .family(look::bold_family())
-                .weak(),
+                .color(ui.visuals().weak_text_color()),
         );
         ui.add_space(8.);
         ui.label(
@@ -594,29 +594,32 @@ impl Daybook {
             });
         });
         ui.add_space(12.);
-        ui.horizontal_wrapped(|ui| {
-            ui.allocate_ui_with_layout(
-                egui::vec2(210.0, ui.spacing().interact_size.y),
-                egui::Layout::top_down(egui::Align::Center),
-                |ui| {
-                    let picker = look::Segmented::new(
-                        "filter",
-                        &mut self.filter,
-                        &["All", "Active", "Done"],
-                    );
-                    ui.add(if look::look(ui.ctx()) == look::Look::Mac {
-                        picker
-                    } else {
-                        picker.width(210.0)
-                    });
-                },
-            );
-            ui.add(
-                look::TextField::new(&mut self.search)
-                    .hint("Search tasks")
-                    .accessible_label("Search tasks")
-                    .width(180.),
-            );
+        ui.scope(|ui| {
+            ui.spacing_mut().item_spacing = egui::vec2(12.0, 12.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.allocate_ui_with_layout(
+                    egui::vec2(210.0, ui.spacing().interact_size.y),
+                    egui::Layout::top_down(egui::Align::Center),
+                    |ui| {
+                        let picker = look::Segmented::new(
+                            "filter",
+                            &mut self.filter,
+                            &["All", "Active", "Done"],
+                        );
+                        ui.add(if look::look(ui.ctx()) == look::Look::Mac {
+                            picker
+                        } else {
+                            picker.width(210.0)
+                        });
+                    },
+                );
+                ui.add(
+                    look::TextField::new(&mut self.search)
+                        .hint("Search tasks")
+                        .accessible_label("Search tasks")
+                        .width(180.),
+                );
+            });
         });
         ui.add_space(14.);
         let query = self.search.to_lowercase();
@@ -816,16 +819,25 @@ impl Daybook {
                 look::ScrollArea::vertical().show(ui, |ui| {
                     egui::Frame::new().inner_margin(28).show(ui, |ui| {
                         if !sidebar {
-                            ui.horizontal_wrapped(|ui| {
-                                for (i, name) in ["My day", "All tasks", "Notes"].iter().enumerate()
-                                {
-                                    if ui
-                                        .add(look::Button::new(*name).selected(self.page == i))
-                                        .clicked()
-                                    {
-                                        self.page = i;
-                                    }
-                                }
+                            ui.horizontal(|ui| {
+                                ui.add(
+                                    look::Dropdown::new(
+                                        "workspace",
+                                        &mut self.page,
+                                        &[
+                                            "My day",
+                                            "All tasks",
+                                            "Notes",
+                                            PROJECTS[0],
+                                            PROJECTS[1],
+                                            PROJECTS[2],
+                                        ],
+                                    )
+                                    .accessible_label("Workspace")
+                                    .width(96.),
+                                );
+                                ui.label("Dark");
+                                ui.add_space((ui.available_width() - 61.0).max(0.0));
                                 if ui
                                     .add(
                                         look::Switch::new(&mut self.data.dark)
@@ -836,7 +848,7 @@ impl Daybook {
                                     self.apply_theme(&ctx);
                                 }
                             });
-                            ui.add_space(16.);
+                            ui.add_space(24.);
                         }
                         self.content(ui);
                         if !wide {
@@ -888,6 +900,22 @@ fn main() -> eframe::Result {
             egui::vec2(390., 800.)
         } else {
             egui::vec2(1180., 800.)
+        };
+        let size = if let Some(index) = args.iter().position(|s| s == "--size") {
+            let value = args
+                .get(index + 1)
+                .expect("--size requires WIDTHxHEIGHT in points");
+            let (w, h) = value.split_once('x').expect("--size requires WIDTHxHEIGHT");
+            let (w, h): (f32, f32) = (w.parse().unwrap(), h.parse().unwrap());
+            assert!(
+                w.is_finite()
+                    && h.is_finite()
+                    && (320.0..=4096.0).contains(&w)
+                    && (320.0..=4096.0).contains(&h)
+            );
+            egui::vec2(w, h)
+        } else {
+            size
         };
         let (look_index, dark) = (app.data.look_index, app.data.dark);
         let mut harness = egui_kittest::Harness::builder()

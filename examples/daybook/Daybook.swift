@@ -118,10 +118,9 @@ struct FocusCard: View {
                         Button(model.started == nil ? "Start focus" : "Pause") { model.toggleTimer() }.buttonStyle(.borderedProminent)
                         Button("Reset") { model.resetTimer() }.buttonStyle(.bordered)
                     }.padding(.vertical,4)
-                    HStack(spacing:8) {
-                        Text("Minutes")
-                        TextField("Minutes",value:$model.data.minutes,format:.number).textFieldStyle(.roundedBorder).frame(width:64).multilineTextAlignment(.center).accessibilityLabel("Focus minutes")
-                        Stepper("Minutes",value:$model.data.minutes,in:5...60).labelsHidden()
+                    ViewThatFits(in:.horizontal) {
+                        HStack(spacing:8) { Text("Minutes").fixedSize(); minuteControls }
+                        VStack(alignment:.leading,spacing:8) { Text("Minutes"); minuteControls }
                     }.disabled(model.started != nil)
                         .onChange(of:model.data.minutes) { _,_ in if model.started == nil { model.data.minutes = min(60,max(5,model.data.minutes)); model.resetTimer() } }
                 }
@@ -130,6 +129,13 @@ struct FocusCard: View {
             }
         }
     }
+    var minuteControls: some View {
+        HStack(spacing:8) {
+            TextField("Minutes",value:$model.data.minutes,format:.number).textFieldStyle(.roundedBorder).frame(width:64).multilineTextAlignment(.center).accessibilityLabel("Focus minutes")
+            Stepper("Minutes",value:$model.data.minutes,in:5...60).labelsHidden().fixedSize()
+        }
+    }
+
 }
 struct NotesCard: View {
     @ObservedObject var model: Workspace
@@ -158,12 +164,8 @@ struct TaskRow: View {
                 #endif
                 VStack(alignment:.leading,spacing:5) {
                     Text(task.title).font(.system(size:14)).strikethrough(task.done).foregroundStyle(task.done ? .secondary : .primary)
-                    HStack(spacing:4) {
-                        Text(projects[task.project]).foregroundStyle(.secondary)
-                        Text("· \(priorities[task.priority]) priority").foregroundStyle(task.priority == 0 ? color(192,103,52) : .secondary)
-                    }.font(.system(size:11))
-                }
-                Spacer(minLength:8)
+                    Text("\(Text(projects[task.project]).foregroundColor(.secondary))  · \(Text("\(priorities[task.priority]) priority").foregroundColor(task.priority == 0 ? color(192,103,52) : .secondary))").font(.system(size:11))
+                }.frame(maxWidth:.infinity,alignment:.leading)
                 Button("Remove",action:remove).buttonStyle(.bordered)
             }
         }
@@ -232,7 +234,7 @@ struct DaybookView: View {
                 ScrollView {
                     VStack(alignment:.leading,spacing:24) {
                         if !sidebar { HStack { Picker("Workspace",selection:$model.page) { Text("My day").tag(0);Text("All tasks").tag(1);Text("Notes").tag(2);ForEach(0..<3){Text(projects[$0]).tag($0+3)} };Toggle("Dark",isOn:$model.data.dark).toggleStyle(.switch) } }
-                        Content(model:model,compact:geometry.size.width < 720)
+                        Content(model:model,compact:geometry.size.width - (sidebar ? 210 : 0) - (wide ? 300 : 0) - 56 < 480)
                         if !wide { FocusCard(model:model);if model.page != 2 { NotesCard(model:model) } }
                         if let error = model.saveError { Text(error).foregroundStyle(.red) }
                     }.padding(28)
@@ -264,6 +266,24 @@ struct DaybookView: View {
             view.cacheDisplay(in:bounds,to:bitmap)
             try! bitmap.representation(using:.png,properties:[:])!.write(to:URL(fileURLWithPath:path))
             NSApp.terminate(nil)
+        }
+        #else
+        guard ProcessInfo.processInfo.arguments.contains("--capture-ios") else { return }
+        DispatchQueue.main.asyncAfter(deadline:.now()+3) {
+            guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = scene.windows.first(where: { $0.isKeyWindow }) else { return }
+            let bounds = window.bounds.inset(by:window.safeAreaInsets)
+            let format = UIGraphicsImageRendererFormat(); format.scale = 1
+            let image = UIGraphicsImageRenderer(size:bounds.size,format:format).image { context in
+                context.cgContext.translateBy(x:-bounds.minX,y:-bounds.minY)
+                window.drawHierarchy(in:window.bounds,afterScreenUpdates:true)
+            }
+            let folder = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+            try! image.pngData()!.write(to:folder.appendingPathComponent("daybook.png"))
+            let metadata: [String:Any] = ["width":bounds.width,"height":bounds.height,
+                "safeTop":bounds.minY,"safeBottom":window.safeAreaInsets.bottom,
+                "device":UIDevice.current.model,"system":UIDevice.current.systemVersion]
+            try! JSONSerialization.data(withJSONObject:metadata,options:.prettyPrinted).write(to:folder.appendingPathComponent("daybook.json"))
         }
         #endif
     }

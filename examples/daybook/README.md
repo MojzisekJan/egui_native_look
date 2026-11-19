@@ -15,7 +15,17 @@ open examples/daybook/build/Daybook-SwiftUI.app
 
 The packaging script requires macOS 26+, full Xcode and Rust. Use `--target-dir /path/to/build-cache` to share or isolate Cargo and Swift caches. It builds locally and uses an ad-hoc signature, not a distribution certificate. No Apple fonts are bundled. The root workspace's epaint patch applies to the egui build; see `vendor/README.md`.
 
-`Daybook.swift` also type-checks for the iOS 26 simulator. For an iOS app target, include `Daybook.swift` and `seed.json` as a bundle resource. The supplied packaging script builds macOS apps only; this demo does not establish an egui iOS host integration or physical-device validation.
+Build and run the SwiftUI app on an existing iPhone or iPad simulator (full Xcode required):
+
+```sh
+python3 examples/daybook/build.py --only swiftui --platform ios-simulator --out examples/daybook/build
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl install DEVICE_ID examples/daybook/build/Daybook-SwiftUI-iOS.app
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl launch DEVICE_ID dev.egui.daybook.swiftui.ios --demo --capture-ios
+```
+
+`--capture-ios` writes `Documents/daybook.png` and `daybook.json` in the simulator app container after layout settles. The PNG is at one pixel per point, excludes window safe areas, and the JSON records its dimensions. Use `simctl get_app_container DEVICE_ID dev.egui.daybook.swiftui.ios data` to find them. Render the egui comparison with `--demo --ios --size WIDTHxHEIGHT --render path.png`. This is a macOS egui rendering at measured mobile dimensions, not an egui iOS host or proof of native touch/keyboard parity.
+
+Validated with iOS 26.5 on iPhone 17 and iPad Pro 13-inch (M5). The iPhone create-task flow was exercised; iPad navigation/layout and sheet presentation were inspected. Hardware-keyboard input worked; software-keyboard selection, IME, rotation and multitasking still need a dedicated interaction pass. No physical-device validation is claimed.
 
 ## Local data
 
@@ -56,3 +66,6 @@ The follow-up also centers checkbox/Remove against the measured height of the co
 Regression coverage includes short/wrapped titles at narrow/wide widths for both Apple looks, center alignment, right-edge containment and checkbox activation. A library regression checks that scrollbar styling cannot recolour content or sibling widgets.
 
 Remaining differences include sidebar selection styling, native editing/selection and application menus, detailed scroll physics, minor font rasterization and window/dialog behaviour. The egui sidebar uses the library ListBox; the SwiftUI sidebar uses application navigation buttons. The multiline notes editor is egui TextEdit versus SwiftUI TextEditor. This is a useful real-app comparison, not a claim of full SwiftUI equivalence.
+
+
+The simulator comparison additionally fixes compact project navigation in egui, filter/search spacing, secondary heading colours, SwiftUI metric sizing based on actual column width, task text flex/wrapping, and the focus minutes layout when the native iOS stepper does not fit beside its label. Remaining visual differences include accent colour, text-editor insets, sidebar row sizing and the precise allocation of narrow task rows.
