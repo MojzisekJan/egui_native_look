@@ -308,12 +308,12 @@ impl Button {
             }
         } else if ios_alert && icon.is_none() && ui.is_rect_visible(rect) {
             // Grey capsules in the text colour, the default one too: black at an eighth or
-            // white at a twelfth over the alert, darker pressed.
+            // white at roughly a ninth over the alert, darker pressed.
             let round = egui::CornerRadius::same((rect.height() / 2.0) as u8);
             let share = match (x.c.dark, response.is_pointer_button_down_on() && enabled) {
                 (false, false) => 0.126,
                 (false, true) => 0.2,
-                (true, false) => 0.084,
+                (true, false) => 0.11,
                 (true, true) => 0.16,
             };
             let ink = if x.c.dark {

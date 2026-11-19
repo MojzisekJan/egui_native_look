@@ -5629,7 +5629,7 @@ fn ios_alert_dims_safe_areas_and_emphasizes_both_action_labels() {
             );
             output.textures_delta.clear();
         }
-        assert!(output.shapes.iter().any(|shape|matches!(&shape.shape,egui::epaint::Shape::Rect(rect) if rect.rect==viewport && rect.fill==egui::Color32::from_black_alpha(51))&&shape.clip_rect.contains_rect(viewport)));
+        assert!(output.shapes.iter().any(|shape|matches!(&shape.shape,egui::epaint::Shape::Rect(rect) if rect.rect==viewport && rect.fill==egui::Color32::from_black_alpha(if dark {128} else {51}))&&shape.clip_rect.contains_rect(viewport)));
         for label in ["Remove", "Keep task"] {
             let galley = output
                 .shapes
@@ -5650,6 +5650,73 @@ fn ios_alert_dims_safe_areas_and_emphasizes_both_action_labels() {
                         == look::theme(&ctx).metrics.bold.family),
                 "iOS alert action should use semibold: {label}"
             );
+        }
+    }
+}
+
+#[test]
+fn ios_alert_wraps_long_titles_without_overlapping_message_or_actions() {
+    let title = "Remove this task from your shared workspace?";
+    let message = "This task and its notes will be removed from your workspace. Other tasks will stay exactly as they are.";
+    for width in [320.0, 402.0, 1032.0] {
+        for dark in [false, true] {
+            let ctx = context(look::Look::Ios, dark);
+            let mut open = true;
+            let mut output = egui::FullOutput::default();
+            for _ in 0..4 {
+                output = ctx.run_ui(
+                    egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(
+                            egui::Pos2::ZERO,
+                            egui::vec2(width, 874.0),
+                        )),
+                        ..Default::default()
+                    },
+                    |_| {
+                        look::Dialog::new("long-alert", title)
+                            .message(message)
+                            .show(
+                                &ctx,
+                                &mut open,
+                                |_| {},
+                                |ui| {
+                                    ui.add(look::Button::new("Remove").destructive());
+                                    ui.add(look::Button::new("Keep task"));
+                                },
+                            );
+                    },
+                );
+                output.textures_delta.clear();
+            }
+            let text = |label: &str| {
+                output
+                    .shapes
+                    .iter()
+                    .find_map(|shape| match &shape.shape {
+                        egui::Shape::Text(text)
+                            if text
+                                .galley
+                                .job
+                                .text
+                                .split_whitespace()
+                                .eq(label.split_whitespace()) =>
+                        {
+                            Some(text)
+                        }
+                        _ => None,
+                    })
+                    .expect("complete text should be painted")
+            };
+            let heading = text(title);
+            let body = text(message);
+            let action = text("Remove");
+            assert!(heading.galley.rows.len() > 1);
+            assert!(!heading.galley.elided);
+            assert!(heading.pos.y + heading.galley.size().y <= body.pos.y);
+            assert!(body.pos.y + body.galley.size().y <= action.pos.y);
+            for t in [heading, body, action] {
+                assert!(t.pos.x >= 0.0 && t.pos.x + t.galley.size().x <= width);
+            }
         }
     }
 }

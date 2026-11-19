@@ -264,10 +264,10 @@ struct DaybookView: View {
             }.background(model.data.dark ? color(22,24,28) : color(248,249,251))
         }.preferredColorScheme(model.data.dark ? .dark : .light)
             .sheet(isPresented:$model.adding) { AddTask(model:model) }
-            .alert("Remove this task?",isPresented:Binding(get:{model.removing != nil},set:{if !$0 {model.removing = nil}})) {
+            .alert(ProcessInfo.processInfo.arguments.contains("--long-alert") ? "Remove this task from your shared workspace?" : "Remove this task?",isPresented:Binding(get:{model.removing != nil},set:{if !$0 {model.removing = nil}})) {
                 Button("Keep task",role:.cancel) { model.removing = nil }
                 Button("Remove",role:.destructive) { let id=model.removing;model.data.tasks.removeAll{$0.id==id};model.removing=nil }
-            } message: { Text("This task will be removed from your workspace.") }
+            } message: { Text(ProcessInfo.processInfo.arguments.contains("--long-alert") ? "This task and its notes will be removed from your workspace. Other tasks will stay exactly as they are." : "This task will be removed from your workspace.") }
             .onAppear { captureIfRequested() }
     }
     func captureIfRequested() {

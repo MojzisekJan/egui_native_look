@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-19",
+  "simulators": [
+    "iPhone 17 iOS 26.5",
+    "iPad Pro 13-inch M5 iOS 26.5"
+  ],
+  "captures": [
+    "short light",
+    "long light",
+    "short dark"
+  ],
+  "library_doc_tests": 367,
+  "demo_tests": 8,
+  "opt_in_gpu_snapshot_groups": 4,
+  "clippy": [
+    "desktop all-targets all-features",
+    "iOS aarch64-apple-ios-sim"
+  ],
+  "new_api": "Dialog::message; custom body ui.label retains egui wrapping",
+  "known_limits": [
+    "static glass approximation without backdrop blur",
+    "continuous corner shape",
+    "font and action weight details",
+    "Dynamic Type not verified",
+    "physical devices not tested"
+  ],
+  "reference": "https://developer.apple.com/documentation/uikit/nsparagraphstyle/linebreakstrategy-swift.struct"
+}

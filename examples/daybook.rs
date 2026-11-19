@@ -987,24 +987,29 @@ impl Daybook {
         if let Some(id) = self.deleting {
             let mut open = true;
             let mut remove = false;
-            look::Dialog::new("remove-task", "Remove this task?").show(
-                ctx,
-                &mut open,
-                |ui| {
-                    ui.label("This task will be removed from your workspace.");
-                },
-                |ui| {
-                    // Dialog actions are declared right-to-left: destructive on the right,
-                    // cancellation on the left, matching the native two-action alert.
-                    if ui.add(look::Button::new("Remove").destructive()).clicked() {
-                        remove = true;
-                        ui.close();
-                    }
-                    if ui.add(look::Button::new("Keep task")).clicked() {
-                        ui.close();
-                    }
-                },
-            );
+            let long_alert = std::env::args().any(|arg| arg == "--long-alert");
+            look::Dialog::new("remove-task", if long_alert {
+                "Remove this task from your shared workspace?"
+            } else { "Remove this task?" })
+                .message(if long_alert {
+                    "This task and its notes will be removed from your workspace. Other tasks will stay exactly as they are."
+                } else { "This task will be removed from your workspace." })
+                .show(
+                    ctx,
+                    &mut open,
+                    |_| {},
+                    |ui| {
+                        // Dialog actions are declared right-to-left: destructive on the right,
+                        // cancellation on the left, matching the native two-action alert.
+                        if ui.add(look::Button::new("Remove").destructive()).clicked() {
+                            remove = true;
+                            ui.close();
+                        }
+                        if ui.add(look::Button::new("Keep task")).clicked() {
+                            ui.close();
+                        }
+                    },
+                );
             if remove {
                 self.data.tasks.retain(|t| t.id != id);
             }

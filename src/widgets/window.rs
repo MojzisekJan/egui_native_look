@@ -32,6 +32,7 @@ use crate::Look;
 pub struct Dialog {
     id: egui::Id,
     title: String,
+    message: Option<String>,
     /// The size asked for; by default the look's.
     size: Option<egui::Vec2>,
     close_label: String,
@@ -60,11 +61,21 @@ impl Dialog {
         Dialog {
             id: egui::Id::unique(id),
             title: title.into(),
+            message: None,
             size: None,
             close_label: "Close".into(),
             close_on_escape: true,
         }
     }
+    /// A plain-text message before the custom body. On iOS, short orphan words
+    /// are kept with the preceding word where both fit on the final line.
+    /// Explicit paragraph breaks are preserved. Custom body labels retain egui's
+    /// normal wrapping behavior.
+    pub fn message(mut self, message: impl Into<String>) -> Self {
+        self.message = Some(message.into());
+        self
+    }
+
     /// The close button's name, under the pointer and for a screen reader; "Close" by
     /// default, for an app to translate.
     pub fn close_label(mut self, label: impl Into<String>) -> Self {
@@ -203,7 +214,11 @@ impl Dialog {
             Look::Ios => {
                 // UIKit dims behind status and home-indicator safe areas as well.
                 egui::Painter::new(ctx.clone(), modal.area.layer(), ctx.viewport_rect())
-                    .rect_filled(ctx.viewport_rect(), 0.0, Color32::from_black_alpha(51));
+                    .rect_filled(
+                        ctx.viewport_rect(),
+                        0.0,
+                        Color32::from_black_alpha(if x.c.dark { 128 } else { 51 }),
+                    );
                 modal = modal.backdrop_color(Color32::TRANSPARENT);
             }
             // libadwaita dims it with twice its shade colour.
@@ -234,15 +249,32 @@ impl Dialog {
                 bottom: 24,
             }
         } else if x.look == Look::Ios {
-            // An iOS alert's buttons run 14 points from its sides and 16 from its foot.
+            // Content is inset inside the two-point material rim.
             egui::Margin {
                 left: 14,
                 right: 14,
                 top: 0,
-                bottom: 16,
+                bottom: 14,
             }
         } else {
             egui::Margin::same(16)
+        };
+        let body = |ui: &mut Ui| {
+            if let Some(message) = &self.message {
+                if x.look == Look::Ios {
+                    let font = egui::FontId::new(15.0, x.m.body.family.clone());
+                    ui.label(ios_alert_text(
+                        ui,
+                        message,
+                        font,
+                        ios_alert_message_color(ui.ctx()),
+                        ui.available_width(),
+                    ));
+                } else {
+                    ui.label(message);
+                }
+            }
+            body(ui);
         };
         let modal = modal.show(ctx, |ui| {
             ui.set_width(size.x);
@@ -285,7 +317,8 @@ impl Dialog {
                                 .show(ui, |ui| {
                                     ui.style_mut().override_font_id =
                                         Some(egui::FontId::new(15.0, x.m.body.family.clone()));
-                                    ui.visuals_mut().override_text_color = Some(x.c.dim);
+                                    ui.visuals_mut().override_text_color =
+                                        Some(ios_alert_message_color(ui.ctx()));
                                     body(ui);
                                 });
                         } else {
@@ -294,7 +327,7 @@ impl Dialog {
                         ui.add_space(match x.look {
                             Look::Material | Look::Windows => 24.0,
                             Look::Gtk => 24.0,
-                            Look::Ios => 18.0,
+                            Look::Ios => 17.0,
                             _ => 12.0,
                         });
                         // WinUI sets its buttons apart on the window's own colour, under a
@@ -940,28 +973,86 @@ fn escape_closes(ctx: &egui::Context, id: egui::Id) -> bool {
     topmost && ctx.input(|input| input.focused && input.key_pressed(egui::Key::Escape))
 }
 
+fn ios_alert_message_color(ctx: &egui::Context) -> Color32 {
+    let dark = crate::colors(ctx).dark;
+    crate::lerp_color(
+        dialog_frame(ctx).fill,
+        if dark { Color32::WHITE } else { Color32::BLACK },
+        if dark { 0.6 } else { 0.55 },
+    )
+}
+
+// A conservative approximation of UIKit's push-out line breaking: move one
+// preceding word to a single-word last line without adding a line. This keeps
+// the full container width, explicit newlines and long unbreakable words intact.
+fn ios_alert_text(
+    ui: &Ui,
+    text: &str,
+    font: egui::FontId,
+    color: Color32,
+    width: f32,
+) -> egui::text::LayoutJob {
+    let line_height = if font.size >= 17.0 { 22.0 } else { 20.0 };
+    let job = |text: String| {
+        let mut job = egui::text::LayoutJob::simple(text, font.clone(), color, width);
+        job.sections[0].format.line_height = Some(line_height);
+        job
+    };
+    let mut paragraphs = Vec::new();
+    for paragraph in text.split('\n') {
+        let layout = |text: &str| ui.fonts_mut(|fonts| fonts.layout_job(job(text.to_owned())));
+        let original = layout(paragraph);
+        let mut adjusted = paragraph.to_owned();
+        if original.rows.len() > 1 {
+            let last = original.rows.last().unwrap().row.text();
+            let words: Vec<_> = paragraph.split_whitespace().collect();
+            if last.split_whitespace().count() == 1 && words.len() >= 3 {
+                let tail = words[words.len() - 2..].join(" ");
+                // Only change a real word boundary, never a fragment of a long word.
+                if last.trim() == words[words.len() - 1] {
+                    if let Some(start) = paragraph.rfind(&tail) {
+                        let prefix = paragraph[..start].trim_end();
+                        let candidate = format!("{prefix}\n{tail}");
+                        let candidate_layout = layout(&candidate);
+                        if candidate_layout.rows.len() == original.rows.len()
+                            && candidate_layout.rows.last().unwrap().row.text().trim() == tail
+                        {
+                            adjusted = candidate;
+                        }
+                    }
+                }
+            }
+        }
+        paragraphs.push(adjusted);
+    }
+    job(paragraphs.join("\n"))
+}
+
 /// Material modal surfaces use the backdrop instead of a window outline or shadow; a macOS
 /// sheet is rounder than a window.
 fn dialog_frame(ctx: &egui::Context) -> egui::Frame {
     let frame = window_frame(ctx).inner_margin(0);
     match crate::look(ctx) {
         Look::Material => frame.stroke(Stroke::NONE).shadow(egui::Shadow::NONE),
-        // iOS 26's alert: a light glass, 30-point corners, a soft shadow.
+        // iOS 26 alert silhouette. The rim approximates the native glass edge;
+        // backdrop blur still requires renderer support.
         Look::Ios => {
             let c = crate::colors(ctx);
-            let ink = if c.dark {
-                Color32::WHITE
-            } else {
-                Color32::BLACK
-            };
             frame
-                .corner_radius(CornerRadius::same(30))
-                .stroke(Stroke::NONE)
-                .fill(crate::lerp_color(
-                    c.bg,
-                    ink,
-                    if c.dark { 0.07 } else { 0.067 },
+                .corner_radius(CornerRadius::same(40))
+                .stroke(Stroke::new(
+                    2.0,
+                    if c.dark {
+                        Color32::from_rgb(35, 37, 39)
+                    } else {
+                        Color32::from_rgb(249, 249, 250)
+                    },
                 ))
+                .fill(if c.dark {
+                    Color32::from_rgb(24, 26, 28)
+                } else {
+                    Color32::from_rgb(237, 237, 239)
+                })
         }
         // WinUI lays a white layer over the window's colour for the dialog's content (a
         // twentieth of white on the dark scheme); its buttons keep the window's colour.
@@ -1050,7 +1141,7 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
         // Material's title sits 24 points in, its 32-point line 16 points above the body.
         Look::Material => 72.0,
         _ if alert => 66.0,
-        _ if ios_alert => 48.0,
+        _ if ios_alert => 44.0,
         _ if content_dialog => 64.0,
         Look::Ios => 52.0,
         _ if sheet => 48.0,
@@ -1058,6 +1149,26 @@ fn header(ui: &mut Ui, x: &Ctx, title: &str, close_label: &str, closable: bool) 
         Look::Mac => 32.0,
         _ => 40.0,
     };
+    if ios_alert {
+        let job = ios_alert_text(
+            ui,
+            title,
+            x.m.bold.clone(),
+            c.fg,
+            (ui.available_width() - 56.0).max(1.0),
+        );
+        let galley = ui.fonts_mut(|fonts| fonts.layout_job(job));
+        let first_height = galley.rows.first().map_or(0.0, |row| row.row.size.y);
+        let extra = (galley.size().y - first_height).max(0.0);
+        let (bar, _) = ui.allocate_exact_size(
+            egui::vec2(ui.available_width(), height + extra),
+            Sense::hover(),
+        );
+        let top = crate::galley_top(ui.ctx(), &galley, bar.top() + 29.0);
+        ui.painter()
+            .galley(egui::pos2(bar.left() + 28.0, top), galley, c.fg);
+        return false;
+    }
     if alert {
         let font = egui::FontId::new(x.m.body.size * 1.36, x.m.bold.family.clone());
         let mut job = egui::text::LayoutJob::simple(
@@ -1451,6 +1562,47 @@ impl TitleBar {
 #[cfg(test)]
 mod tests {
     use super::{Dialog, ToolWindow};
+
+    #[test]
+    fn ios_alert_push_out_preserves_paragraphs_and_unbreakable_words() {
+        let ctx = egui::Context::default();
+        crate::install(&ctx, crate::Theme::new(crate::Look::Ios));
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let font = egui::FontId::proportional(15.0);
+            let text = "This task will be removed from your workspace.";
+            // Find a width at which ordinary greedy wrapping orphans the last word.
+            let width = (160..350)
+                .map(|n| n as f32)
+                .find(|width| {
+                    let g = ui.fonts_mut(|f| {
+                        f.layout(text.into(), font.clone(), egui::Color32::BLACK, *width)
+                    });
+                    g.rows.len() == 2 && g.rows.last().unwrap().row.text().trim() == "workspace."
+                })
+                .expect("a two-line orphan fixture");
+            let job = super::ios_alert_text(ui, text, font.clone(), egui::Color32::BLACK, width);
+            let g = ui.fonts_mut(|f| f.layout_job(job));
+            assert_eq!(g.rows.len(), 2);
+            assert_eq!(g.rows.last().unwrap().row.text().trim(), "your workspace.");
+            for text in [
+                "Short message.",
+                "One paragraph.\n\nAnother paragraph.",
+                "averylongunbreakablewordwithmanycharacters",
+                "Příliš žluťoučký kůň úpěl ďábelské ódy.",
+            ] {
+                let job =
+                    super::ios_alert_text(ui, text, font.clone(), egui::Color32::BLACK, 140.0);
+                assert_eq!(
+                    job.text.split_whitespace().collect::<Vec<_>>(),
+                    text.split_whitespace().collect::<Vec<_>>()
+                );
+                if text.contains("\n\n") {
+                    assert!(job.text.contains("\n\n"));
+                }
+            }
+        });
+        output.textures_delta.clear();
+    }
 
     #[test]
     fn material_dialogs_do_not_inherit_window_shadows_or_outlines() {
