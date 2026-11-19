@@ -179,14 +179,33 @@ struct AddTask: View {
     @State var project = 0
     @State var priority = 1
     @FocusState var editing: Bool
-    var body: some View {
+    private var fields: some View {
         VStack(alignment:.leading,spacing:16) {
             Text("Create a task").font(.title2.bold())
             Text("What would you like to move forward?").foregroundStyle(.secondary)
             TextField("Task title",text:$title).textFieldStyle(.roundedBorder).focused($editing)
             Picker("Project",selection:$project) { ForEach(0..<3) { Text(projects[$0]).tag($0) } }
             Picker("Priority",selection:$priority) { ForEach(0..<3) { Text(priorities[$0]).tag($0) } }.pickerStyle(.segmented)
-            HStack { Spacer(); Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction).buttonStyle(.bordered); Button("Add task") { if model.add(title,project:project,priority:priority) { dismiss() } }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent).disabled(title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty) }
+        }
+    }
+    private var actions: some View {
+        HStack { Spacer(); Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction).buttonStyle(.bordered); Button("Add task") { if model.add(title,project:project,priority:priority) { dismiss() } }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent).disabled(title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty) }
+    }
+    var body: some View {
+        Group {
+#if os(iOS)
+            // A single editor stays mounted while keyboard avoidance changes its height.
+            GeometryReader { available in
+                VStack(alignment:.leading,spacing:16) {
+                    ScrollView { fields.frame(maxWidth:.infinity,alignment:.leading) }
+                        .scrollBounceBehavior(.basedOnSize)
+                        .frame(height:min(210,max(0,available.size.height-50)))
+                    actions
+                }.frame(maxWidth:.infinity,maxHeight:.infinity)
+            }
+#else
+            VStack(alignment:.leading,spacing:16) { fields; actions }
+#endif
         }.padding(28).frame(idealWidth:420).onAppear { editing = true; project = min(2,max(0,model.page-3)) }
     }
 }

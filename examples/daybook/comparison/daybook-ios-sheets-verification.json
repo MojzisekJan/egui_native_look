@@ -5,25 +5,24 @@
     "iPad Pro 13-inch M5 iOS 26.5"
   ],
   "library_and_doc_tests_passed": 364,
-  "demo_tests_passed": 5,
+  "demo_tests_passed": 7,
   "gpu_snapshots_ignored": 4,
   "clippy": [
     "root all targets all features",
     "iOS simulator"
   ],
   "live_verified": [
-    "iPad typing",
-    "iPad Return adds seventh task and dismisses sheet",
-    "sheet moves when docked keyboard appears and disappears"
+    "egui software keyboard Return adds seventh task on landscape iPhone",
+    "SwiftUI Add task button adds seventh task above landscape keyboard",
+    "phone portrait/landscape and tablet screenshots inspected"
   ],
   "harness_verified": [
-    "phone header swipe dismissal",
-    "tablet outside click",
-    "Escape",
-    "Cancel",
-    "fresh draft after cancel",
-    "IME Enter suppression",
-    "keyboard action visibility"
+    "compact keyboard keeps actions visible and clickable",
+    "landscape phone uses full-width presentation",
+    "backdrop clip includes safe areas",
+    "short blank-area drag returns sheet",
+    "long blank-area drag dismisses sheet",
+    "previous cancellation, IME and submission regressions"
   ],
   "not_verified": [
     "physical device",
@@ -31,5 +30,9 @@
     "multitasking",
     "full native text selection",
     "full accessibility parity"
-  ]
+  ],
+  "iteration": "compact sheets and safe areas",
+  "library_tests_run_this_iteration": false,
+  "swiftui_mac_model_checks": "passed",
+  "automation_limit": "CUA coordinate click on egui Add task failed with windowNotFoundAtPosition; not counted as manual activation"
 }

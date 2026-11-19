@@ -730,20 +730,21 @@ impl Daybook {
         if let Some(top) = self.keyboard_top {
             safe.max.y = safe.max.y.min(top);
         }
-        let phone = safe.width() < 720.0;
+        // Compact-height windows (including a landscape iPhone) also use a full-width sheet.
+        let phone = safe.width() < 720.0 || ctx.viewport_rect().height() < 600.0;
         if !phone && self.keyboard_top.is_some() {
             safe.min.y = ctx.viewport_rect().top();
         }
         let size = if phone {
             egui::vec2(
-                safe.width(),
-                (safe.bottom() - safe.top() - 2.0
+                ctx.viewport_rect().width(),
+                (safe.bottom() - safe.top()
                     + if self.keyboard_top.is_none() {
                         ctx.viewport_rect().bottom() - safe.bottom()
                     } else {
                         0.0
                     })
-                .max(300.0),
+                .max(0.0),
             )
         } else {
             egui::vec2(
@@ -752,15 +753,32 @@ impl Daybook {
             )
         };
         let position = if phone {
-            egui::pos2(safe.left(), safe.top() + 2.0)
+            egui::pos2(ctx.viewport_rect().left(), safe.top())
         } else {
             safe.center() - size * 0.5
         };
+        let horizontal_insets = if phone {
+            egui::vec2(
+                safe.left() - ctx.viewport_rect().left(),
+                ctx.viewport_rect().right() - safe.right(),
+            )
+        } else {
+            egui::Vec2::ZERO
+        };
+        let content_width = (size.x - 56.0 - horizontal_insets.x - horizontal_insets.y).max(0.0);
         let position = position + egui::vec2(0.0, self.sheet_drag);
         let id = egui::Id::unique("daybook-task-sheet");
         let popup_was_open = egui::Popup::is_any_open(ctx);
         let mut add = false;
         let mut cancel = false;
+        // Modal's built-in backdrop only covers content_rect, leaving status/home
+        // safe areas undimmed. Paint once over the complete viewport on its layer.
+        egui::Painter::new(
+            ctx.clone(),
+            egui::LayerId::new(egui::Order::Foreground, id),
+            ctx.viewport_rect(),
+        )
+        .rect_filled(ctx.viewport_rect(), 0.0, Color32::from_black_alpha(60));
         let modal = egui::Modal::new(id)
             .area(
                 egui::Area::new(id)
@@ -781,16 +799,25 @@ impl Daybook {
                         rgb(242, 243, 242)
                     })
                     .corner_radius(if phone { 60 } else { 32 })
-                    .inner_margin(28),
+                    .inner_margin(egui::Margin {
+                        left: (28.0 + horizontal_insets.x) as i8,
+                        right: (28.0 + horizontal_insets.y) as i8,
+                        top: 28,
+                        bottom: 28,
+                    }),
             )
-            .backdrop_color(Color32::from_black_alpha(60))
+            .backdrop_color(Color32::TRANSPARENT)
             .show(ctx, |ui| {
                 let clip = ui.clip_rect();
                 ui.set_clip_rect(ctx.viewport_rect());
                 let drag = ui.interact(
-                    egui::Rect::from_min_size(position, egui::vec2(size.x, 28.0)),
+                    egui::Rect::from_min_size(position, size),
                     id.with("dismiss-drag"),
-                    egui::Sense::drag(),
+                    if popup_was_open {
+                        egui::Sense::hover()
+                    } else {
+                        egui::Sense::drag()
+                    },
                 );
                 ui.set_clip_rect(clip);
                 if drag.dragged() {
@@ -801,19 +828,23 @@ impl Daybook {
                     cancel |= self.sheet_drag > 80.0;
                     self.sheet_drag = 0.0;
                 }
-                ui.set_min_size(size - egui::vec2(56.0, 56.0));
-                ui.set_max_width(size.x - 56.0);
+                ui.set_min_size(egui::vec2(content_width, (size.y - 56.0).max(0.0)));
+                ui.set_max_width(content_width);
                 ui.spacing_mut().item_spacing = egui::vec2(8.0, 0.0);
                 // Native SwiftUI centers the form within the presentation.
-                let form_height = 256.0;
+                let form_height = 266.0;
                 let bottom_inset = if phone && self.keyboard_top.is_none() {
                     (ctx.viewport_rect().bottom() - safe.bottom()).max(0.0)
                 } else {
                     0.0
                 };
                 ui.add_space(((size.y - bottom_inset - 56.0 - form_height) * 0.5).max(0.0));
-                look::ScrollArea::vertical()
-                    .max_height((size.y - 56.0).min(form_height + 20.0))
+                // Keep actions reachable even with a compact landscape keyboard.
+                // Later child controls win hit testing over the sheet's blank-area drag.
+                let field_id = look::ScrollArea::vertical()
+                    .id_salt("sheet-form-scroll")
+                    .min_scrolled_height(0.0)
+                    .max_height((size.y - 56.0 - 49.0).clamp(0.0, form_height - 49.0))
                     .show(ui, |ui| {
                         ui.label(
                             RichText::new("Create a task")
@@ -844,22 +875,27 @@ impl Daybook {
                             look::Segmented::new("sheet-priority", &mut self.priority, &PRIORITIES)
                                 .width(ui.available_width()),
                         );
-                        ui.add_space(-5.0);
-                        let valid = !self.draft.trim().is_empty();
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            add = ui
-                                .add_enabled(
-                                    valid,
-                                    look::Button::new("Add task").accent().default_action(),
-                                )
-                                .clicked();
-                            cancel |= ui.add(look::Button::new("Cancel")).clicked();
-                        });
-                        if valid && focused_before == Some(field.id) && !popup_was_open && !opening
-                        {
-                            add |= submit_key;
-                        }
-                    });
+                        field.id
+                    })
+                    .inner;
+                ui.add_space(5.0);
+                let valid = !self.draft.trim().is_empty();
+                ui.allocate_ui_with_layout(
+                    egui::vec2(ui.available_width(), 44.0),
+                    egui::Layout::right_to_left(egui::Align::Center),
+                    |ui| {
+                        add = ui
+                            .add_enabled(
+                                valid,
+                                look::Button::new("Add task").accent().default_action(),
+                            )
+                            .clicked();
+                        cancel |= ui.add(look::Button::new("Cancel")).clicked();
+                    },
+                );
+                if valid && focused_before == Some(field_id) && !popup_was_open && !opening {
+                    add |= submit_key;
+                }
             });
         if add || cancel || modal.should_close() {
             self.adding = false;
@@ -1482,6 +1518,99 @@ mod tests {
                 "phone pull-down or tablet backdrop should dismiss at width {width}"
             );
             assert_eq!(h.state().data.tasks.len(), 7);
+        }
+    }
+    #[test]
+    fn compact_sheet_keeps_actions_above_keyboard_and_dims_safe_areas() {
+        use egui_kittest::kittest::Queryable;
+        for (width, height, keyboard) in [
+            (874.0, 402.0, Some(220.0)),
+            (402.0, 874.0, Some(250.0)),
+            (1032.0, 900.0, Some(500.0)),
+        ] {
+            let mut app = Daybook::new(&egui::Context::default());
+            app.path = None;
+            app.shot = None;
+            app.adding = true;
+            app.keyboard_top = keyboard;
+            app.data = Document::seed();
+            app.data.look_index = 1;
+            let mut h = egui_kittest::Harness::builder()
+                .with_context_setup(|ctx| Daybook::configure_theme(ctx, 1, false))
+                .with_size(egui::vec2(width, height))
+                .with_step_dt(1.0 / 60.0)
+                .build_ui_state(|ui, app: &mut Daybook| app.dialogs(ui.ctx()), app);
+            h.input_mut().safe_area_insets = Some(egui::SafeAreaInsets(egui::epaint::MarginF32 {
+                left: 24.0,
+                right: 24.0,
+                top: 20.0,
+                bottom: 20.0,
+            }));
+            for phase in [egui::TouchPhase::Start, egui::TouchPhase::End] {
+                h.event(egui::Event::Touch {
+                    device_id: egui::TouchDeviceId(1),
+                    id: egui::TouchId(1),
+                    phase,
+                    pos: egui::pos2(-100.0, -100.0),
+                    force: None,
+                });
+            }
+            h.run_steps(4);
+            let cancel = h.get_by_label("Cancel").rect();
+            assert!(
+                cancel.bottom() <= keyboard.unwrap(),
+                "hidden actions: {cancel:?}"
+            );
+            let field = h.get_by_label("Task title").rect();
+            if height < 600.0 {
+                assert!(
+                    field.width() > 700.0,
+                    "landscape phone must not use tablet width: {field:?}"
+                );
+            }
+            let viewport = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, height));
+            assert!(h.output().shapes.iter().any(|shape| matches!(&shape.shape,egui::epaint::Shape::Rect(rect) if rect.rect==viewport && rect.fill==egui::Color32::from_black_alpha(60)) && shape.clip_rect.contains_rect(viewport)),"backdrop must include safe areas");
+            h.event(egui::Event::Text("Compact keyboard task".into()));
+            h.run_steps(3);
+            h.get_by_label("Add task").click();
+            h.run_steps(3);
+            assert!(!h.state().adding, "visible action must remain clickable");
+            assert_eq!(
+                h.state().data.tasks.last().unwrap().title,
+                "Compact keyboard task"
+            );
+        }
+    }
+    #[test]
+    fn sheet_blank_area_drag_cancels_short_pull_and_dismisses_long_pull() {
+        let mut app = Daybook::new(&egui::Context::default());
+        app.path = None;
+        app.shot = None;
+        app.adding = true;
+        app.data.look_index = 1;
+        let mut h = egui_kittest::Harness::builder()
+            .with_context_setup(|ctx| Daybook::configure_theme(ctx, 1, false))
+            .with_size(egui::vec2(402.0, 900.0))
+            .with_step_dt(1.0 / 60.0)
+            .build_ui_state(|ui, app: &mut Daybook| app.dialogs(ui.ctx()), app);
+        h.run_steps(4);
+        for distance in [30.0, 120.0] {
+            let start = egui::pos2(201.0, 150.0);
+            h.hover_at(start);
+            h.run_steps(2);
+            h.drag_at(start);
+            h.run_steps(2);
+            let end = start + egui::vec2(0.0, distance);
+            h.hover_at(end);
+            h.run_steps(2);
+            assert!(
+                h.state().sheet_drag > 0.0,
+                "blank sheet area must track the gesture"
+            );
+            h.drop_at(end);
+            h.run_steps(3);
+            assert_eq!(h.state().adding, distance < 80.0);
+            assert_eq!(h.state().sheet_drag, 0.0);
         }
     }
 }
