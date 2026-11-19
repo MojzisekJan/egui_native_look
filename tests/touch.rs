@@ -1022,3 +1022,52 @@ fn button_icon_colours_follow_the_label_in_accent_and_disabled_states() {
         }
     }
 }
+
+#[test]
+fn ios_field_keeps_native_bezel_and_accepts_touch_padding() {
+    for search in [false, true] {
+        let ctx = context(look::Look::Ios);
+        prime(&ctx);
+        let mut text = String::new();
+        let draw = |ui: &mut egui::Ui, text: &mut String| {
+            let field = look::TextField::new(text).width(180.0);
+            ui.add(if search { field.search() } else { field })
+        };
+        let (response, output) = frame(&ctx, vec![], |ui| draw(ui, &mut text));
+        assert_eq!(response.rect.height(), 48.0);
+        assert!(
+            output.shapes.iter().any(|shape| matches!(&shape.shape,
+            egui::Shape::Rect(rect) if (rect.rect.height()-34.0).abs()<0.1
+                && (rect.rect.width()-180.0).abs()<0.1)),
+            "field bezel must stay 34 points high"
+        );
+        let point = egui::pos2(response.rect.center().x, response.rect.top() + 2.0);
+        frame(
+            &ctx,
+            vec![
+                touch(egui::TouchPhase::Start, point),
+                egui::Event::PointerMoved(point),
+                button(point, true),
+            ],
+            |ui| draw(ui, &mut text),
+        );
+        let (response, _) = frame(
+            &ctx,
+            vec![
+                touch(egui::TouchPhase::End, point),
+                button(point, false),
+                egui::Event::PointerGone,
+            ],
+            |ui| draw(ui, &mut text),
+        );
+        assert!(response.has_focus(), "padding tap must focus the field");
+        assert!(
+            response.clicked(),
+            "padding tap must preserve the public click response"
+        );
+        frame(&ctx, vec![egui::Event::Text("hello".into())], |ui| {
+            draw(ui, &mut text)
+        });
+        assert_eq!(text, "hello");
+    }
+}

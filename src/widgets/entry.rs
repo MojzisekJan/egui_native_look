@@ -176,6 +176,9 @@ impl TextField<'_> {
         } else {
             left.min(16)
         };
+        // iOS keeps its 34-point field inside a larger touch slot. Expanding
+        // TextEdit's min_size also expands its visible bezel and changes the layout.
+        let separate_touch_slot = x.look == Look::Ios && super::minimum_target(ui) > height;
         let margin = entry_margin(ui, &font, height, left, right);
         let id = self.id.map_or_else(
             || ui.next_auto_id(),
@@ -223,7 +226,11 @@ impl TextField<'_> {
             .font(font)
             .desired_width(width - f32::from(margin.left) - f32::from(margin.right))
             .margin(margin)
-            .min_size(super::target_size(ui, egui::vec2(width, height)));
+            .min_size(if separate_touch_slot {
+                egui::vec2(width, height)
+            } else {
+                super::target_size(ui, egui::vec2(width, height))
+            });
         if self.invalid && x.look == Look::Gtk {
             edit = edit.background_color(x.c.entry);
         }
@@ -261,7 +268,27 @@ impl TextField<'_> {
         // egui grows a text edit to the controls' height; a large macOS field stays lower.
         let controls = ui.spacing().interact_size.y;
         ui.spacing_mut().interact_size.y = height.min(controls);
-        let mut response = show_text_editor(ui, edit, id, composing);
+        let mut touch_slot = None;
+        let mut touch_response = None;
+        let mut response = if separate_touch_slot {
+            let (_, slot) = ui.allocate_space(super::target_size(ui, egui::vec2(width, height)));
+            let padding = ui.interact(slot, id.with("touch-slot"), egui::Sense::click());
+            let visual = Rect::from_center_size(slot.center(), egui::vec2(width, height));
+            let mut child = ui.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(visual)
+                    .layout(egui::Layout::top_down(egui::Align::Min)),
+            );
+            let response = show_text_editor(&mut child, edit.id(id), id, composing);
+            if padding.clicked() && response.enabled() {
+                response.request_focus();
+            }
+            touch_slot = Some(slot);
+            touch_response = Some(padding);
+            response
+        } else {
+            show_text_editor(ui, edit, id, composing)
+        };
         if history_changed {
             response.mark_changed();
         }
@@ -308,9 +335,10 @@ impl TextField<'_> {
             ui.painter()
                 .line_segment([m + egui::vec2(2.4, 2.4), m + egui::vec2(5.5, 5.5)], stroke);
             if !self.text.is_empty() && response.enabled() {
+                let target = touch_slot.unwrap_or(response.rect);
                 let slot = Rect::from_min_max(
-                    egui::pos2(response.rect.right() - clear_width, response.rect.top()),
-                    response.rect.max,
+                    egui::pos2(response.rect.right() - clear_width, target.top()),
+                    egui::pos2(response.rect.right(), target.bottom()),
                 );
                 if clear_button(ui, &x, slot, response.id.with("clear"), &self.clear_label) {
                     self.text.clear();
@@ -344,6 +372,9 @@ impl TextField<'_> {
                 response.rect,
                 capsule.unwrap_or_else(|| x.radius()),
             );
+        }
+        if let Some(padding) = touch_response {
+            response = response.union(padding);
         }
         response
     }

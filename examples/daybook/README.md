@@ -75,3 +75,6 @@ Remaining differences include sidebar selection styling, native editing/selectio
 
 
 The simulator comparison additionally fixes compact project navigation in egui, filter/search spacing, secondary heading colours, SwiftUI metric sizing based on actual column width, task text flex/wrapping, and the focus minutes layout when the native iOS stepper does not fit beside its label. Remaining visual differences include accent colour, text-editor insets, sidebar row sizing and the precise allocation of narrow task rows.
+
+
+The iOS touch-field follow-up keeps the visible TextField bezel at 34 points inside a 48-point interaction slot. Padding taps focus the editor and preserve the public clicked response; search-field clear buttons retain the full-height target. A regression checks geometry, padding activation and typing for both plain and search fields. Full library tests: 364 passed (4 GPU snapshot tests remain opt-in). The iPhone simulator screenshot confirms the smaller bezel; the attempted CUA coordinate tap failed at the automation layer, so that particular padding interaction is backed by the regression test rather than claimed as a manual simulator verification.

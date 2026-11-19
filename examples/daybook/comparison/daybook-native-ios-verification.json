@@ -22,5 +22,16 @@
     "software keyboard / selection / IME not fully verified",
     "iPad pointer automation failed in CUA; no full interaction claim"
   ],
-  "patch": "vendor/eframe-ios-surface.patch"
+  "patch": "vendor/eframe-ios-surface.patch",
+  "touch_field_followup": {
+    "visual_height": 34,
+    "touch_height": 48,
+    "regression": "ios_field_keeps_native_bezel_and_accepts_touch_padding",
+    "library_tests_passed": 364,
+    "opt_in_gpu_snapshot_tests_ignored": 4,
+    "clippy": "all-targets all-features and iOS passed",
+    "simulator_visual": "iPhone observed; iPhone and iPad portrait recaptured",
+    "manual_padding_tap": "CUA windowNotFoundAtPosition; not counted as verified",
+    "landscape_capture": "previous revision"
+  }
 }
