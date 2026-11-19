@@ -42,6 +42,7 @@ struct Document: Codable { var tasks: [TaskItem]; var notes: String; var minutes
         location = preview || failure != nil ? nil : file
         saveError = failure
         adding = args.contains("--show-add-task")
+        removing = args.contains("--show-remove-task") ? data.tasks.first?.id : nil
     }
     func save() {
         guard let url = location else { return }

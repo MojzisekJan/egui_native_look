@@ -17,7 +17,9 @@ log = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 raw-window-handle = "0.6.2"
-objc2-ui-kit = { version = "0.3.2", default-features = false, features = ["std", "UIView", "UIResponder", "UIKeyboardLayoutGuide", "UILayoutGuide", "UITrackingLayoutGuide", "objc2-core-foundation"] }
+objc2 = { version = "0.6.2", default-features = false, features = ["std"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSArray", "NSObject", "NSString"] }
+objc2-ui-kit = { version = "0.3.2", default-features = false, features = ["std", "UIKeyCommand", "UICommand", "UIMenuElement", "UIWindow", "UITextField", "UIInterface", "UIView", "UIResponder", "UIKeyboardLayoutGuide", "UILayoutGuide", "UITrackingLayoutGuide", "objc2-core-foundation"] }
 
 [workspace]
 

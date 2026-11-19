@@ -141,9 +141,10 @@ impl Button {
                 icon.size().x
             }
         });
+        let in_actions = super::window::in_dialog_actions(ui.ctx());
         // Material sets its button labels in the medium weight, libadwaita in bold.
         let mut font = if matches!(x.look, Look::Material | Look::Gtk)
-            || (x.look == Look::Ios && self.default_action)
+            || (x.look == Look::Ios && (self.default_action || in_actions))
         {
             x.m.bold.clone()
         } else {
@@ -205,7 +206,6 @@ impl Button {
         };
         // A libadwaita alert's responses: 44 points high, sharing the row equally, as a
         // WinUI dialog's buttons do.
-        let in_actions = super::window::in_dialog_actions(ui.ctx());
         let gtk_response = x.look == Look::Gtk && in_actions;
         let response_width = (in_actions
             && matches!(x.look, Look::Gtk | Look::Windows | Look::Ios))

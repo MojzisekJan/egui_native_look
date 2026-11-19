@@ -5593,3 +5593,63 @@ fn focus_rings_accept_large_and_asymmetric_corner_radii() {
         egui::Shape::Rect(shape) if shape.rect == rect.expand(1.0)
             && shape.corner_radius == egui::CornerRadius::same(255))));
 }
+
+#[test]
+fn ios_alert_dims_safe_areas_and_emphasizes_both_action_labels() {
+    for dark in [false, true] {
+        let ctx = context(look::Look::Ios, dark);
+        let viewport = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(402.0, 874.0));
+        let mut open = true;
+        let mut output = egui::FullOutput::default();
+        for _ in 0..4 {
+            output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(viewport),
+                    safe_area_insets: Some(egui::SafeAreaInsets(egui::epaint::MarginF32 {
+                        top: 62.0,
+                        bottom: 34.0,
+                        left: 0.0,
+                        right: 0.0,
+                    })),
+                    ..Default::default()
+                },
+                |_| {
+                    look::Dialog::new("ios-alert-emphasis", "Remove this task?").show(
+                        &ctx,
+                        &mut open,
+                        |ui| {
+                            ui.label("This task will be removed from your workspace.");
+                        },
+                        |ui| {
+                            ui.add(look::Button::new("Remove").destructive());
+                            ui.add(look::Button::new("Keep task"));
+                        },
+                    );
+                },
+            );
+            output.textures_delta.clear();
+        }
+        assert!(output.shapes.iter().any(|shape|matches!(&shape.shape,egui::epaint::Shape::Rect(rect) if rect.rect==viewport && rect.fill==egui::Color32::from_black_alpha(51))&&shape.clip_rect.contains_rect(viewport)));
+        for label in ["Remove", "Keep task"] {
+            let galley = output
+                .shapes
+                .iter()
+                .find_map(|shape| match &shape.shape {
+                    egui::epaint::Shape::Text(text) if text.galley.job.text == label => {
+                        Some(&text.galley)
+                    }
+                    _ => None,
+                })
+                .expect("action label must be painted");
+            assert!(
+                galley
+                    .job
+                    .sections
+                    .iter()
+                    .all(|section| section.format.font_id.family
+                        == look::theme(&ctx).metrics.bold.family),
+                "iOS alert action should use semibold: {label}"
+            );
+        }
+    }
+}

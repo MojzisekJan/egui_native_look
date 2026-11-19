@@ -200,7 +200,12 @@ impl Dialog {
             Look::Material => modal = modal.backdrop_color(Color32::from_black_alpha(138)),
             // WinUI's smoke: black at 30 %; iOS dims to a fifth.
             Look::Windows => modal = modal.backdrop_color(Color32::from_black_alpha(77)),
-            Look::Ios => modal = modal.backdrop_color(Color32::from_black_alpha(51)),
+            Look::Ios => {
+                // UIKit dims behind status and home-indicator safe areas as well.
+                egui::Painter::new(ctx.clone(), modal.area.layer(), ctx.viewport_rect())
+                    .rect_filled(ctx.viewport_rect(), 0.0, Color32::from_black_alpha(51));
+                modal = modal.backdrop_color(Color32::TRANSPARENT);
+            }
             // libadwaita dims it with twice its shade colour.
             Look::Gtk => {
                 modal = modal.backdrop_color(Color32::from_rgba_unmultiplied(

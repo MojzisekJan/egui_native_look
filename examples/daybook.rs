@@ -1,4 +1,8 @@
 //! A working task, notes and focus demo. Run `cargo run --example daybook`.
+#[cfg(target_os = "ios")]
+#[path = "daybook/ios_alert_keys.rs"]
+mod ios_alert_keys;
+
 use eframe::egui::{self, Color32, RichText};
 use egui_native_look as look;
 use serde::{Deserialize, Serialize};
@@ -70,6 +74,8 @@ struct Daybook {
     adding: bool,
     sheet_open: bool,
     keyboard_top: Option<f32>,
+    #[cfg(target_os = "ios")]
+    alert_keys: Option<ios_alert_keys::AlertKeys>,
     sheet_composing: bool,
     sheet_drag: f32,
     sheet_opener: Option<egui::Id>,
@@ -242,6 +248,10 @@ impl Daybook {
             data.dark = true;
         }
         let serialized = serde_json::to_string(&data).unwrap();
+        let deleting = std::env::args()
+            .any(|arg| arg == "--show-remove-task")
+            .then(|| data.tasks.first().map(|task| task.id))
+            .flatten();
         let app = Self {
             remaining: Duration::from_secs(u64::from(data.minutes) * 60),
             data,
@@ -254,10 +264,12 @@ impl Daybook {
             adding: std::env::args().any(|arg| arg == "--show-add-task"),
             sheet_open: false,
             keyboard_top: None,
+            #[cfg(target_os = "ios")]
+            alert_keys: None,
             sheet_composing: false,
             sheet_drag: 0.0,
             sheet_opener: None,
-            deleting: None,
+            deleting,
             started: None,
             message: "One thing at a time.".into(),
             path: if save_error.is_none() { path } else { None },
@@ -982,11 +994,13 @@ impl Daybook {
                     ui.label("This task will be removed from your workspace.");
                 },
                 |ui| {
-                    if ui.add(look::Button::new("Keep task")).clicked() {
-                        ui.close();
-                    }
+                    // Dialog actions are declared right-to-left: destructive on the right,
+                    // cancellation on the left, matching the native two-action alert.
                     if ui.add(look::Button::new("Remove").destructive()).clicked() {
                         remove = true;
+                        ui.close();
+                    }
+                    if ui.add(look::Button::new("Keep task")).clicked() {
                         ui.close();
                     }
                 },
@@ -1144,6 +1158,25 @@ impl Daybook {
     }
 }
 impl eframe::App for Daybook {
+    #[cfg(target_os = "ios")]
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, input: &mut egui::RawInput) {
+        if self
+            .alert_keys
+            .as_ref()
+            .is_some_and(|keys| keys.take_escape())
+            && self.deleting.is_some()
+        {
+            for pressed in [true, false] {
+                input.events.push(egui::Event::Key {
+                    key: egui::Key::Escape,
+                    physical_key: None,
+                    pressed,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+            }
+        }
+    }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         #[cfg(target_os = "ios")]
         {
@@ -1154,6 +1187,28 @@ impl eframe::App for Daybook {
                 };
                 // SAFETY: eframe owns the live UIKit view; App::ui runs on the main thread.
                 let view = unsafe { &*handle.ui_view.as_ptr().cast::<objc2_ui_kit::UIView>() };
+                if self.deleting.is_some() && self.alert_keys.is_none() {
+                    self.alert_keys =
+                        Some(ios_alert_keys::AlertKeys::attach(view, ui.ctx().clone()));
+                }
+                if let Some(keys) = &self.alert_keys {
+                    keys.set_active(self.deleting.is_some());
+                }
+                // winit 0.30 ignores Window::set_theme on iOS. Keep UIKit's
+                // keyboard, selection UI and system chrome in the app's scheme.
+                let style = if self.data.dark {
+                    objc2_ui_kit::UIUserInterfaceStyle::Dark
+                } else {
+                    objc2_ui_kit::UIUserInterfaceStyle::Light
+                };
+                if let Some(window) = view.window() {
+                    if window.overrideUserInterfaceStyle() != style {
+                        window.setOverrideUserInterfaceStyle(style);
+                        if view.isFirstResponder() {
+                            view.reloadInputViews();
+                        }
+                    }
+                }
                 let keyboard = view.keyboardLayoutGuide().layoutFrame();
                 let top = keyboard.origin.y as f32;
                 (keyboard.size.height > 60.0 && top < ui.ctx().content_rect().bottom())
@@ -1611,6 +1666,63 @@ mod tests {
             h.run_steps(3);
             assert_eq!(h.state().adding, distance < 80.0);
             assert_eq!(h.state().sheet_drag, 0.0);
+        }
+    }
+    #[test]
+    fn ios_removal_alert_keeps_cancel_left_and_never_deletes_implicitly() {
+        use egui_kittest::kittest::Queryable;
+        for width in [402.0, 1032.0] {
+            let mut app = Daybook::new(&egui::Context::default());
+            app.path = None;
+            app.shot = None;
+            app.data = Document::seed();
+            app.data.look_index = 1;
+            let id = app.data.tasks[0].id;
+            app.deleting = Some(id);
+            let mut h = egui_kittest::Harness::builder()
+                .with_context_setup(|ctx| Daybook::configure_theme(ctx, 1, false))
+                .with_size(egui::vec2(width, 874.0))
+                .with_step_dt(1.0 / 60.0)
+                .build_ui_state(|ui, app: &mut Daybook| app.dialogs(ui.ctx()), app);
+            h.run_steps(4);
+            assert!(
+                h.get_by_label("Keep task").rect().right() < h.get_by_label("Remove").rect().left()
+            );
+            h.hover_at(egui::pos2(3.0, 3.0));
+            h.run_steps(2);
+            h.drag_at(egui::pos2(3.0, 3.0));
+            h.run_steps(1);
+            h.drop_at(egui::pos2(3.0, 3.0));
+            h.run_steps(2);
+            assert_eq!(
+                h.state().deleting,
+                Some(id),
+                "alert backdrop must not dismiss"
+            );
+            h.key_press(egui::Key::Enter);
+            h.run_steps(3);
+            assert_eq!(
+                h.state().data.tasks.len(),
+                6,
+                "unfocused Enter must never confirm deletion"
+            );
+            h.get_by_label("Keep task").click();
+            h.run_steps(3);
+            assert!(h.state().deleting.is_none());
+            assert_eq!(h.state().data.tasks.len(), 6);
+            h.state_mut().deleting = Some(id);
+            h.run_steps(3);
+            h.key_press(egui::Key::Escape);
+            h.run_steps(3);
+            assert!(h.state().deleting.is_none());
+            assert_eq!(h.state().data.tasks.len(), 6);
+            h.state_mut().deleting = Some(id);
+            h.run_steps(3);
+            h.get_by_label("Remove").click();
+            h.run_steps(3);
+            assert!(h.state().deleting.is_none());
+            assert_eq!(h.state().data.tasks.len(), 5);
+            assert!(h.state().data.tasks.iter().all(|task| task.id != id));
         }
     }
 }

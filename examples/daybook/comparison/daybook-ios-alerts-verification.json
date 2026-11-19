@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-19",
+  "simulator_os": "iOS 26.5",
+  "library_and_doc_tests": 365,
+  "demo_tests": 8,
+  "opt_in_gpu_snapshot_groups": 4,
+  "clippy": [
+    "root all targets/all features",
+    "aarch64-apple-ios-sim"
+  ],
+  "live_checks": [
+    "iPhone: Escape cancels egui alert, six tasks preserved",
+    "iPad: Escape cancels egui alert, six tasks preserved, keyboard remains hidden after focus fix",
+    "SwiftUI: Return does not delete; Escape cancels",
+    "egui UIKit keyboard: light and dark appearance"
+  ],
+  "remaining": [
+    "native glass and blur",
+    "description wrapping",
+    "predictive/accessory keyboard bar",
+    "full native text editing/selection",
+    "general hardware keyboard shortcuts",
+    "physical device verification"
+  ],
+  "scope": "UIKit key responder is demo host integration, not a general Bevy backend"
+}
