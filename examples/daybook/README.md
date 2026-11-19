@@ -1,6 +1,6 @@
 # Daybook: egui_native_look and SwiftUI
 
-Two working task, notes and focus-timer applications with the same initial data and responsive three-column design. Features include task creation with project/priority, completion, confirmed removal, project/status filters, search, persistent notes, a pausable focus timer and light/dark appearance. The egui app also previews the iOS look.
+Two working task, notes and focus-timer applications with the same initial data and responsive three-column design. Features include task creation with project/priority, completion, confirmed removal, project/status filters, search, persistent notes, a pausable focus timer and light/dark appearance. The egui app also runs on iOS simulators through eframe/WGPU, using the same application source.
 
 ## Run
 
@@ -15,17 +15,23 @@ open examples/daybook/build/Daybook-SwiftUI.app
 
 The packaging script requires macOS 26+, full Xcode and Rust. Use `--target-dir /path/to/build-cache` to share or isolate Cargo and Swift caches. It builds locally and uses an ad-hoc signature, not a distribution certificate. No Apple fonts are bundled. The root workspace's epaint patch applies to the egui build; see `vendor/README.md`.
 
-Build and run the SwiftUI app on an existing iPhone or iPad simulator (full Xcode required):
+Build both apps for an existing iPhone or iPad simulator (full Xcode and the matching Rust iOS simulator target required):
 
 ```sh
-python3 examples/daybook/build.py --only swiftui --platform ios-simulator --out examples/daybook/build
+python3 examples/daybook/build.py --platform ios-simulator --out examples/daybook/build
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl install DEVICE_ID examples/daybook/build/Daybook-egui-iOS.app
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl launch DEVICE_ID dev.egui.daybook.egui.ios --demo
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl install DEVICE_ID examples/daybook/build/Daybook-SwiftUI-iOS.app
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun simctl launch DEVICE_ID dev.egui.daybook.swiftui.ios --demo --capture-ios
 ```
 
-`--capture-ios` writes `Documents/daybook.png` and `daybook.json` in the simulator app container after layout settles. The PNG is at one pixel per point, excludes window safe areas, and the JSON records its dimensions. Use `simctl get_app_container DEVICE_ID dev.egui.daybook.swiftui.ios data` to find them. Render the egui comparison with `--demo --ios --size WIDTHxHEIGHT --render path.png`. This is a macOS egui rendering at measured mobile dimensions, not an egui iOS host or proof of native touch/keyboard parity.
+`--capture-ios` writes `Documents/daybook.png` and `daybook.json` in the simulator app container after layout settles. The PNG is at one pixel per point, excludes window safe areas, and the JSON records its dimensions. Use `simctl get_app_container DEVICE_ID dev.egui.daybook.swiftui.ios data` to find them. Render the egui comparison with `--demo --ios --size WIDTHxHEIGHT --render path.png`. That `--render` command is a macOS rendering; use `simctl io DEVICE_ID screenshot path.png` to capture the actual running iOS egui app, including system bars. Do not confuse these two evidence types.
 
-Validated with iOS 26.5 on iPhone 17 and iPad Pro 13-inch (M5). The iPhone create-task flow was exercised; iPad navigation/layout and sheet presentation were inspected. Hardware-keyboard input worked; software-keyboard selection, IME, rotation and multitasking still need a dedicated interaction pass. No physical-device validation is claimed.
+Validated with iOS 26.5 on iPhone 17 and iPad Pro 13-inch (M5). Both implementations run in the simulators. The egui iPhone flow opened New task at its visible position, typed and added a task, then found it through Search. The SwiftUI iPhone create-task flow was also exercised. iPad egui portrait/landscape rendering and SwiftUI sheet presentation were inspected.
+
+The iOS workspace uses WGPU/Metal instead of the desktop Glow backend. It requests no more inter-stage shader variables than the adapter supports (the simulator exposes 15, below WGPU's default 16). It opts into a local eframe surface-size correction, documented in `vendor/README.md`; without this, the framebuffer stretches vertically and touch targets do not match the image. The application respects `Context::content_rect()` for safe-area layout. Backend diagnostics are saved in the app container's `Documents/backend.log`.
+
+Known gaps: no iOS AccessKit accessibility tree in this configuration; Command-A did not select all during the simulator check; complete software-keyboard, selection/IME and iPad multitasking parity remains unverified. Native touch targets also expose layout differences hidden by mouse-only desktop previews. This is a working simulator host, not certification of SwiftUI parity, a Bevy adapter, or physical-device validation.
 
 ## Local data
 

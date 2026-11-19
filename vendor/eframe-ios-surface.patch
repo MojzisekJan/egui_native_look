@@ -1,0 +1,13 @@
+--- a/src/native/wgpu_integration.rs
++++ b/src/native/wgpu_integration.rs
+@@ -997,6 +997,10 @@
+             winit::event::WindowEvent::Resized(physical_size) => {
+                 // The event can be stale: winit buffers events emitted while we create and set up
+                 // the window (e.g. maximize it), so it can arrive after the window has changed size again.
++                // On iOS winit 0.30 inner_size excludes safe areas, but its
++                // Resized event and Metal UIView cover the whole window. Using
++                // inner_size stretches the framebuffer and misaligns touch input.
++                #[cfg(not(target_os = "ios"))]
+                 let physical_size = viewport_id
+                     .and_then(|id| shared.viewports.get(&id))
+                     .and_then(|viewport| viewport.window.as_ref())

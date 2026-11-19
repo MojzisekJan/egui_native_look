@@ -1,4 +1,4 @@
-"""Build the matching Daybook macOS applications or SwiftUI iOS simulator app without installing anything."""
+"""Build the matching Daybook macOS applications or iOS simulator applications without installing anything."""
 import argparse
 import os
 from pathlib import Path
@@ -17,8 +17,6 @@ def main():
     parser.add_argument('--only', choices=['all', 'egui', 'swiftui'], default='all')
     parser.add_argument('--platform', choices=['macos', 'ios-simulator'], default='macos')
     args = parser.parse_args()
-    if args.platform == 'ios-simulator' and args.only != 'swiftui':
-        parser.error('iOS simulator currently requires --only swiftui; egui has no iOS host yet')
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, CARGO_PROFILE_DEV_DEBUG='0', CARGO_INCREMENTAL='0')
@@ -28,15 +26,17 @@ def main():
 
     def bundle(kind):
         if args.platform == 'ios-simulator':
-            app = out/'Daybook-SwiftUI-iOS.app'
+            app = out/f'Daybook-{kind}-iOS.app'
             app.mkdir(parents=True, exist_ok=True)
-            info = {'CFBundleIdentifier': 'dev.egui.daybook.swiftui.ios',
-                    'CFBundleExecutable': 'Daybook', 'CFBundleName': 'Daybook',
+            info = {'CFBundleIdentifier': f'dev.egui.daybook.{kind.lower()}.ios',
+                    'CFBundleExecutable': 'Daybook', 'CFBundleName': f'Daybook {kind}',
                     'CFBundlePackageType': 'APPL', 'CFBundleVersion': '1',
                     'CFBundleShortVersionString': '1.0', 'MinimumOSVersion': '26.0',
                     'LSRequiresIPhoneOS': True, 'UIDeviceFamily': [1, 2],
                     'UILaunchScreen': {}, 'UIApplicationSceneManifest':
                     {'UIApplicationSupportsMultipleScenes': False}}
+            if kind == 'egui':
+                info.pop('UIApplicationSceneManifest')  # winit owns UIApplicationDelegate
             (app/'Info.plist').write_bytes(plistlib.dumps(info))
             shutil.copy2(HERE/'seed.json', app/'seed.json')
             return app, app/'Daybook'
@@ -54,10 +54,17 @@ def main():
         return app, executable
 
     if args.only in ['all','egui']:
-        subprocess.run(['cargo','build','--locked','--example','daybook'],cwd=REPO,env=env,check=True)
+        if args.platform == 'ios-simulator':
+            rust_target = 'aarch64-apple-ios-sim' if platform.machine() == 'arm64' else 'x86_64-apple-ios'
+            subprocess.run(['cargo','build','--locked','--manifest-path',str(HERE/'ios/Cargo.toml'),
+                            '--target',rust_target],cwd=REPO,env=env,check=True)
+            binary = target/rust_target/'debug/Daybook'
+        else:
+            subprocess.run(['cargo','build','--locked','--example','daybook'],cwd=REPO,env=env,check=True)
+            binary = target/'debug/examples/daybook'
         app, executable = bundle('egui')
         temporary = executable.with_suffix('.new')
-        shutil.copy2(target/'debug/examples/daybook',temporary)
+        shutil.copy2(binary,temporary)
         os.replace(temporary, executable)
         subprocess.run(['codesign','--force','--sign','-',str(app)],check=True,capture_output=True)
         print(app,flush=True)

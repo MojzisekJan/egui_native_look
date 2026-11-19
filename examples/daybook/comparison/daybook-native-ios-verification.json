@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-19",
+  "runtime": "iOS 26.5",
+  "egui_backend": "eframe 0.37.0 / WGPU 30.0.2 / Metal",
+  "devices": [
+    "iPhone 17",
+    "iPad Pro 13-inch (M5)"
+  ],
+  "verified": [
+    "iPhone egui New task visible target activation",
+    "iPhone egui text entry and add",
+    "iPhone egui search finds added task",
+    "iPad egui portrait and landscape rendering"
+  ],
+  "checks": {
+    "desktop_demo_tests": 4,
+    "ios_clippy": "passed"
+  },
+  "limitations": [
+    "no iOS accessibility tree",
+    "Command-A did not select all",
+    "software keyboard / selection / IME not fully verified",
+    "iPad pointer automation failed in CUA; no full interaction claim"
+  ],
+  "patch": "vendor/eframe-ios-surface.patch"
+}

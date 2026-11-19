@@ -83,7 +83,7 @@ fn data_path() -> PathBuf {
         return path.into();
     }
     let home = PathBuf::from(std::env::var_os("HOME").unwrap_or_else(|| ".".into()));
-    if cfg!(target_os = "macos") {
+    if cfg!(any(target_os = "macos", target_os = "ios")) {
         home.join("Library/Application Support/Daybook/egui.json")
     } else {
         std::env::var_os("XDG_DATA_HOME")
@@ -224,7 +224,7 @@ impl Daybook {
             _ => Document::seed(),
         };
         data.normalize();
-        if std::env::args().any(|a| a == "--ios") {
+        if cfg!(target_os = "ios") || std::env::args().any(|a| a == "--ios") {
             data.look_index = 1;
         }
         if std::env::args().any(|a| a == "--dark") {
@@ -587,7 +587,8 @@ impl Daybook {
                     .family(look::bold_family()),
             );
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.add(look::Button::new("+ New task").accent()).clicked() {
+                let response = ui.add(look::Button::new("+ New task").accent());
+                if response.clicked() {
                     self.adding = true;
                     self.project = self.page.saturating_sub(3).min(2);
                 }
@@ -820,6 +821,25 @@ impl Daybook {
                     egui::Frame::new().inner_margin(28).show(ui, |ui| {
                         if !sidebar {
                             ui.horizontal(|ui| {
+                                let labels = [
+                                    "My day",
+                                    "All tasks",
+                                    "Notes",
+                                    PROJECTS[0],
+                                    PROJECTS[1],
+                                    PROJECTS[2],
+                                ];
+                                let font = look::theme(ui.ctx()).metrics.body;
+                                let width = ui.fonts_mut(|fonts| {
+                                    fonts
+                                        .layout_no_wrap(
+                                            labels[self.page.min(5)].into(),
+                                            font,
+                                            ui.visuals().text_color(),
+                                        )
+                                        .size()
+                                        .x
+                                }) + 48.0;
                                 ui.add(
                                     look::Dropdown::new(
                                         "workspace",
@@ -834,7 +854,7 @@ impl Daybook {
                                         ],
                                     )
                                     .accessible_label("Workspace")
-                                    .width(96.),
+                                    .width(width),
                                 );
                                 ui.label("Dark");
                                 ui.add_space((ui.available_width() - 61.0).max(0.0));
@@ -886,11 +906,65 @@ impl Daybook {
 }
 impl eframe::App for Daybook {
     fn ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
+        #[cfg(target_os = "ios")]
+        {
+            let bounds = ui.ctx().content_rect();
+            let background = if self.data.dark {
+                rgb(22, 24, 28)
+            } else {
+                rgb(248, 249, 251)
+            };
+            ui.painter()
+                .rect_filled(ui.ctx().viewport_rect(), 0.0, background);
+            ui.scope_builder(egui::UiBuilder::new().max_rect(bounds), |ui| {
+                self.render(ui)
+            });
+        }
+        #[cfg(not(target_os = "ios"))]
         self.render(ui);
     }
 }
+// Retain backend errors in the app sandbox: iOS event-loop failures may exit
+// before a console debugger is attached.
+#[cfg(target_os = "ios")]
+fn install_ios_log() {
+    struct FileLog;
+    impl log::Log for FileLog {
+        fn enabled(&self, metadata: &log::Metadata<'_>) -> bool {
+            metadata.level() <= log::Level::Info
+        }
+        fn log(&self, record: &log::Record<'_>) {
+            use std::io::Write;
+            if self.enabled(record.metadata()) {
+                let path =
+                    PathBuf::from(std::env::var_os("HOME").unwrap()).join("Documents/backend.log");
+                if let Ok(mut file) = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                {
+                    let _ = writeln!(
+                        file,
+                        "{} {}: {}",
+                        record.level(),
+                        record.target(),
+                        record.args()
+                    );
+                }
+            }
+        }
+        fn flush(&self) {}
+    }
+    static LOGGER: FileLog = FileLog;
+    let _ = log::set_logger(&LOGGER);
+    log::set_max_level(log::LevelFilter::Info);
+}
 fn main() -> eframe::Result {
+    #[cfg(target_os = "ios")]
+    install_ios_log();
+    #[cfg(not(target_os = "ios"))]
     let args: Vec<String> = std::env::args().collect();
+    #[cfg(not(target_os = "ios"))]
     if let Some(index) = args.iter().position(|s| s == "--render") {
         let output = args.get(index + 1).expect("--render requires a PNG path");
         let mut app = Daybook::new(&egui::Context::default());
@@ -937,6 +1011,24 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Daybook · egui_native_look",
         eframe::NativeOptions {
+            #[cfg(target_os = "ios")]
+            wgpu_options: {
+                let mut config = eframe::egui_wgpu::WgpuConfiguration::default();
+                if let eframe::egui_wgpu::WgpuSetup::CreateNew(setup) = &mut config.wgpu_setup {
+                    let default_descriptor = setup.device_descriptor.clone();
+                    setup.device_descriptor = std::sync::Arc::new(move |adapter| {
+                        let mut descriptor = default_descriptor(adapter);
+                        // The iOS simulator exposes 15 inter-stage variables rather
+                        // than WebGPU's default 16; egui's shader only needs two.
+                        descriptor.required_limits.max_inter_stage_shader_variables = descriptor
+                            .required_limits
+                            .max_inter_stage_shader_variables
+                            .min(adapter.limits().max_inter_stage_shader_variables);
+                        descriptor
+                    });
+                }
+                config
+            },
             viewport: egui::ViewportBuilder::default()
                 .with_inner_size([1180., 800.])
                 .with_min_inner_size([390., 620.]),
@@ -945,7 +1037,7 @@ fn main() -> eframe::Result {
         Box::new(|cc| Ok(Box::new(Daybook::new(&cc.egui_ctx)))),
     )
 }
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "ios")))]
 mod tests {
     use super::*;
     #[test]
