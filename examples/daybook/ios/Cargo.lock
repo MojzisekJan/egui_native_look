@@ -331,6 +331,8 @@ dependencies = [
  "egui_native_look",
  "image",
  "log",
+ "objc2-ui-kit 0.3.2",
+ "raw-window-handle",
  "serde",
  "serde_json",
 ]

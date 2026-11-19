@@ -16,6 +16,9 @@ serde_json = "1"
 log = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+raw-window-handle = "0.6.2"
+objc2-ui-kit = { version = "0.3.2", default-features = false, features = ["std", "UIView", "UIResponder", "UIKeyboardLayoutGuide", "UILayoutGuide", "UITrackingLayoutGuide", "objc2-core-foundation"] }
+
 [workspace]
 
 [patch.crates-io]

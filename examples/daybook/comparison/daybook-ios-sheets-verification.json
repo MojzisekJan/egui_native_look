@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-19",
+  "simulators": [
+    "iPhone 17 iOS 26.5",
+    "iPad Pro 13-inch M5 iOS 26.5"
+  ],
+  "library_and_doc_tests_passed": 364,
+  "demo_tests_passed": 5,
+  "gpu_snapshots_ignored": 4,
+  "clippy": [
+    "root all targets all features",
+    "iOS simulator"
+  ],
+  "live_verified": [
+    "iPad typing",
+    "iPad Return adds seventh task and dismisses sheet",
+    "sheet moves when docked keyboard appears and disappears"
+  ],
+  "harness_verified": [
+    "phone header swipe dismissal",
+    "tablet outside click",
+    "Escape",
+    "Cancel",
+    "fresh draft after cancel",
+    "IME Enter suppression",
+    "keyboard action visibility"
+  ],
+  "not_verified": [
+    "physical device",
+    "floating keyboard",
+    "multitasking",
+    "full native text selection",
+    "full accessibility parity"
+  ]
+}

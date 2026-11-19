@@ -542,6 +542,21 @@ impl WinitApp for WgpuWinitApp<'_> {
     ) -> crate::Result<EventResult> {
         self.initialized_all_windows(event_loop);
 
+        // Winit 0.30's UIKit UIKeyInput sends Return as a Character newline.
+        // egui-winit filters control characters, so normalize it before conversion.
+        #[cfg(target_os = "ios")]
+        let event = {
+            let mut event = event;
+            if let winit::event::WindowEvent::KeyboardInput { event: key, .. } = &mut event {
+                if matches!(&key.logical_key, winit::keyboard::Key::Character(text) if text == "\n" || text == "\r") {
+                    key.logical_key = winit::keyboard::Key::Named(winit::keyboard::NamedKey::Enter);
+                    key.physical_key = winit::keyboard::PhysicalKey::Code(winit::keyboard::KeyCode::Enter);
+                    key.text = None;
+                }
+            }
+            event
+        };
+
         if let Some(running) = &mut self.running {
             Ok(running.on_window_event(window_id, &event))
         } else {

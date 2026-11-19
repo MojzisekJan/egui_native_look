@@ -68,6 +68,11 @@ struct Daybook {
     project: usize,
     priority: usize,
     adding: bool,
+    sheet_open: bool,
+    keyboard_top: Option<f32>,
+    sheet_composing: bool,
+    sheet_drag: f32,
+    sheet_opener: Option<egui::Id>,
     deleting: Option<u64>,
     remaining: Duration,
     started: Option<Instant>,
@@ -129,7 +134,11 @@ fn task_row(ui: &mut egui::Ui, task: &mut Task) -> bool {
         })
         .ceil()
         + 24.0;
-    let checkbox_width = if look::look(ui.ctx()) == look::Look::Ios {
+    let ios_touch = look::look(ui.ctx()) == look::Look::Ios
+        && (look::touch_screen() || ui.input(|i| i.has_touch_screen()));
+    let checkbox_width = if ios_touch {
+        44.0
+    } else if look::look(ui.ctx()) == look::Look::Ios {
         28.0
     } else {
         21.0
@@ -174,7 +183,9 @@ fn task_row(ui: &mut egui::Ui, task: &mut Task) -> bool {
     );
     let metadata = ui.fonts_mut(|f| f.layout_job(metadata));
     let text_height = title.size().y + 5.0 + metadata.size().y;
-    let height = text_height.max(ui.spacing().interact_size.y);
+    let height = text_height
+        .max(ui.spacing().interact_size.y)
+        .max(if ios_touch { 44.0 } else { 0.0 });
     ui.allocate_ui_with_layout(
         egui::vec2(ui.available_width(), height),
         egui::Layout::left_to_right(egui::Align::Center),
@@ -240,7 +251,12 @@ impl Daybook {
             draft: String::new(),
             project: 0,
             priority: 1,
-            adding: false,
+            adding: std::env::args().any(|arg| arg == "--show-add-task"),
+            sheet_open: false,
+            keyboard_top: None,
+            sheet_composing: false,
+            sheet_drag: 0.0,
+            sheet_opener: None,
             deleting: None,
             started: None,
             message: "One thing at a time.".into(),
@@ -574,7 +590,9 @@ impl Daybook {
                     });
             }
         });
-        ui.add_space(24.);
+        let ios_touch = look::look(ui.ctx()) == look::Look::Ios
+            && (look::touch_screen() || ui.input(|i| i.has_touch_screen()));
+        ui.add_space(if ios_touch { 19.0 } else { 24.0 });
         if self.page == 2 {
             self.notes(ui, true);
             return;
@@ -594,9 +612,11 @@ impl Daybook {
                 }
             });
         });
-        ui.add_space(12.);
+        ui.add_space(if ios_touch { 7.0 } else { 12.0 });
         ui.scope(|ui| {
-            ui.spacing_mut().item_spacing = egui::vec2(12.0, 12.0);
+            // Touch slots already supply the vertical padding around the visible
+            // picker and field; don't add that padding a second time on wrapping.
+            ui.spacing_mut().item_spacing = egui::vec2(12.0, if ios_touch { 0.0 } else { 12.0 });
             ui.horizontal_wrapped(|ui| {
                 ui.allocate_ui_with_layout(
                     egui::vec2(210.0, ui.spacing().interact_size.y),
@@ -622,7 +642,7 @@ impl Daybook {
                 );
             });
         });
-        ui.add_space(14.);
+        ui.add_space(if ios_touch { 9.0 } else { 14.0 });
         let query = self.search.to_lowercase();
         let mut visible = 0;
         let filtered: Vec<usize> = self
@@ -677,57 +697,238 @@ impl Daybook {
             );
         }
     }
+    fn ios_task_sheet(&mut self, ctx: &egui::Context) -> bool {
+        if !self.adding {
+            self.sheet_open = false;
+            return false;
+        }
+        let opening = !self.sheet_open;
+        if opening {
+            self.sheet_opener = ctx.memory(|m| m.focused());
+            self.draft.clear();
+            self.priority = 1;
+            self.sheet_open = true;
+            self.sheet_composing = false;
+            self.sheet_drag = 0.0;
+        }
+        let ime_event = ctx.input(|i| i.events.iter().any(|e| matches!(e, egui::Event::Ime(_))));
+        ctx.input(|i| {
+            for event in &i.events {
+                match event {
+                    egui::Event::Ime(egui::ImeEvent::Preedit { text, .. }) => {
+                        self.sheet_composing = !text.is_empty()
+                    }
+                    egui::Event::Ime(egui::ImeEvent::Commit(_)) => self.sheet_composing = false,
+                    _ => {}
+                }
+            }
+        });
+        let submit_key = !self.sheet_composing && !ime_event && ctx.input(|i| i.events.iter().any(|e|
+            matches!(e,egui::Event::Key { key:egui::Key::Enter,pressed:true,repeat:false,modifiers,.. } if modifiers.is_none())));
+        let focused_before = ctx.memory(|m| m.focused());
+        let mut safe = ctx.content_rect();
+        if let Some(top) = self.keyboard_top {
+            safe.max.y = safe.max.y.min(top);
+        }
+        let phone = safe.width() < 720.0;
+        if !phone && self.keyboard_top.is_some() {
+            safe.min.y = ctx.viewport_rect().top();
+        }
+        let size = if phone {
+            egui::vec2(
+                safe.width(),
+                (safe.bottom() - safe.top() - 2.0
+                    + if self.keyboard_top.is_none() {
+                        ctx.viewport_rect().bottom() - safe.bottom()
+                    } else {
+                        0.0
+                    })
+                .max(300.0),
+            )
+        } else {
+            egui::vec2(
+                580.0_f32.min(safe.width() - 40.0),
+                650.0_f32.min(safe.height() - 40.0),
+            )
+        };
+        let position = if phone {
+            egui::pos2(safe.left(), safe.top() + 2.0)
+        } else {
+            safe.center() - size * 0.5
+        };
+        let position = position + egui::vec2(0.0, self.sheet_drag);
+        let id = egui::Id::unique("daybook-task-sheet");
+        let popup_was_open = egui::Popup::is_any_open(ctx);
+        let mut add = false;
+        let mut cancel = false;
+        let modal = egui::Modal::new(id)
+            .area(
+                egui::Area::new(id)
+                    .kind(egui::UiKind::Modal)
+                    .order(egui::Order::Foreground)
+                    .fixed_pos(position)
+                    .constrain_to(ctx.viewport_rect())
+                    .constrain(false)
+                    .sense(egui::Sense::hover()),
+            )
+            .frame(
+                egui::Frame::new()
+                    .fill(if self.data.dark {
+                        rgb(28, 28, 30)
+                    } else if phone {
+                        Color32::WHITE
+                    } else {
+                        rgb(242, 243, 242)
+                    })
+                    .corner_radius(if phone { 60 } else { 32 })
+                    .inner_margin(28),
+            )
+            .backdrop_color(Color32::from_black_alpha(60))
+            .show(ctx, |ui| {
+                let clip = ui.clip_rect();
+                ui.set_clip_rect(ctx.viewport_rect());
+                let drag = ui.interact(
+                    egui::Rect::from_min_size(position, egui::vec2(size.x, 28.0)),
+                    id.with("dismiss-drag"),
+                    egui::Sense::drag(),
+                );
+                ui.set_clip_rect(clip);
+                if drag.dragged() {
+                    self.sheet_drag = (self.sheet_drag + drag.drag_delta().y).max(0.0);
+                    ctx.request_repaint();
+                }
+                if drag.drag_stopped() {
+                    cancel |= self.sheet_drag > 80.0;
+                    self.sheet_drag = 0.0;
+                }
+                ui.set_min_size(size - egui::vec2(56.0, 56.0));
+                ui.set_max_width(size.x - 56.0);
+                ui.spacing_mut().item_spacing = egui::vec2(8.0, 0.0);
+                // Native SwiftUI centers the form within the presentation.
+                let form_height = 256.0;
+                let bottom_inset = if phone && self.keyboard_top.is_none() {
+                    (ctx.viewport_rect().bottom() - safe.bottom()).max(0.0)
+                } else {
+                    0.0
+                };
+                ui.add_space(((size.y - bottom_inset - 56.0 - form_height) * 0.5).max(0.0));
+                look::ScrollArea::vertical()
+                    .max_height((size.y - 56.0).min(form_height + 20.0))
+                    .show(ui, |ui| {
+                        ui.label(
+                            RichText::new("Create a task")
+                                .size(22.0)
+                                .family(look::bold_family()),
+                        );
+                        ui.add_space(16.0);
+                        ui.label(RichText::new("What would you like to move forward?").weak());
+                        ui.add_space(11.0);
+                        let field = ui.add(
+                            look::TextField::new(&mut self.draft)
+                                .id_salt("sheet-title")
+                                .hint("Task title")
+                                .accessible_label("Task title")
+                                .width(ui.available_width()),
+                        );
+                        if opening {
+                            field.request_focus();
+                        }
+                        ui.add_space(6.0);
+                        ui.add(
+                            look::Dropdown::new("sheet-project", &mut self.project, &PROJECTS)
+                                .accessible_label("Project")
+                                .width(190.0),
+                        );
+                        ui.add_space(5.0);
+                        ui.add(
+                            look::Segmented::new("sheet-priority", &mut self.priority, &PRIORITIES)
+                                .width(ui.available_width()),
+                        );
+                        ui.add_space(-5.0);
+                        let valid = !self.draft.trim().is_empty();
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            add = ui
+                                .add_enabled(
+                                    valid,
+                                    look::Button::new("Add task").accent().default_action(),
+                                )
+                                .clicked();
+                            cancel |= ui.add(look::Button::new("Cancel")).clicked();
+                        });
+                        if valid && focused_before == Some(field.id) && !popup_was_open && !opening
+                        {
+                            add |= submit_key;
+                        }
+                    });
+            });
+        if add || cancel || modal.should_close() {
+            self.adding = false;
+            self.sheet_open = false;
+            ctx.memory_mut(|m| m.stop_text_input());
+            if let Some(opener) = self.sheet_opener.take() {
+                if ctx.read_response(opener).is_some_and(|r| r.enabled()) {
+                    ctx.memory_mut(|m| m.request_focus(opener));
+                }
+            }
+        }
+        add
+    }
     fn dialogs(&mut self, ctx: &egui::Context) {
         let mut open = self.adding;
         let mut add = false;
         let can_add = std::cell::Cell::new(!self.draft.trim().is_empty());
-        look::Dialog::new("new-task", "Create a task")
-            .size(egui::vec2(420., 230.))
-            .show(
-                ctx,
-                &mut open,
-                |ui| {
-                    ui.label("What would you like to move forward?");
-                    ui.add_space(10.);
-                    ui.add(
-                        look::TextField::new(&mut self.draft)
-                            .hint("Task title")
-                            .accessible_label("Task title")
-                            .width(ui.available_width()),
-                    );
-                    can_add.set(!self.draft.trim().is_empty());
-                    ui.add_space(12.);
-                    ui.horizontal(|ui| {
-                        ui.label("Project");
+        if look::look(ctx) == look::Look::Ios {
+            add = self.ios_task_sheet(ctx);
+            open = self.adding;
+        } else {
+            look::Dialog::new("new-task", "Create a task")
+                .size(egui::vec2(420., 230.))
+                .show(
+                    ctx,
+                    &mut open,
+                    |ui| {
+                        ui.label("What would you like to move forward?");
+                        ui.add_space(10.);
                         ui.add(
-                            look::Dropdown::new("project", &mut self.project, &PROJECTS)
-                                .width(180.),
+                            look::TextField::new(&mut self.draft)
+                                .hint("Task title")
+                                .accessible_label("Task title")
+                                .width(ui.available_width()),
                         );
-                    });
-                    ui.horizontal(|ui| {
-                        ui.label("Priority");
-                        ui.add(
-                            look::Segmented::new("priority", &mut self.priority, &PRIORITIES)
-                                .width(220.),
-                        );
-                    });
-                },
-                |ui| {
-                    if ui.add(look::Button::new("Cancel")).clicked() {
-                        ui.close();
-                    }
-                    if ui
-                        .add_enabled(
-                            can_add.get(),
-                            look::Button::new("Add task").accent().default_action(),
-                        )
-                        .clicked()
-                    {
-                        add = true;
-                        ui.close();
-                    }
-                },
-            );
+                        can_add.set(!self.draft.trim().is_empty());
+                        ui.add_space(12.);
+                        ui.horizontal(|ui| {
+                            ui.label("Project");
+                            ui.add(
+                                look::Dropdown::new("project", &mut self.project, &PROJECTS)
+                                    .width(180.),
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Priority");
+                            ui.add(
+                                look::Segmented::new("priority", &mut self.priority, &PRIORITIES)
+                                    .width(220.),
+                            );
+                        });
+                    },
+                    |ui| {
+                        if ui.add(look::Button::new("Cancel")).clicked() {
+                            ui.close();
+                        }
+                        if ui
+                            .add_enabled(
+                                can_add.get(),
+                                look::Button::new("Add task").accent().default_action(),
+                            )
+                            .clicked()
+                        {
+                            add = true;
+                            ui.close();
+                        }
+                    },
+                );
+        }
         self.adding = open;
         if add && self.data.add(&self.draft, self.project, self.priority) {
             self.draft.clear();
@@ -868,7 +1069,9 @@ impl Daybook {
                                     self.apply_theme(&ctx);
                                 }
                             });
-                            ui.add_space(24.);
+                            let ios_touch = look::look(ui.ctx()) == look::Look::Ios
+                                && (look::touch_screen() || ui.input(|i| i.has_touch_screen()));
+                            ui.add_space(if ios_touch { 16.0 } else { 24.0 });
                         }
                         self.content(ui);
                         if !wide {
@@ -905,9 +1108,24 @@ impl Daybook {
     }
 }
 impl eframe::App for Daybook {
-    fn ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         #[cfg(target_os = "ios")]
         {
+            use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            self.keyboard_top = _frame.window_handle().ok().and_then(|handle| {
+                let RawWindowHandle::UiKit(handle) = handle.as_raw() else {
+                    return None;
+                };
+                // SAFETY: eframe owns the live UIKit view; App::ui runs on the main thread.
+                let view = unsafe { &*handle.ui_view.as_ptr().cast::<objc2_ui_kit::UIView>() };
+                let keyboard = view.keyboardLayoutGuide().layoutFrame();
+                let top = keyboard.origin.y as f32;
+                (keyboard.size.height > 60.0 && top < ui.ctx().content_rect().bottom())
+                    .then_some(top)
+            });
+            if self.adding {
+                ui.ctx().request_repaint_after(Duration::from_millis(100));
+            }
             let bounds = ui.ctx().content_rect();
             let background = if self.data.dark {
                 rgb(22, 24, 28)
@@ -1110,6 +1328,10 @@ mod tests {
                         .with_size(egui::vec2(width+16.0,400.0))
                         .build_ui_state(|ui,task:&mut Task| {ui.spacing_mut().item_spacing.y=0.0;task_row(ui,task);},task);
                     h.run_steps(3);
+                    for phase in [egui::TouchPhase::Start, egui::TouchPhase::End] {
+                        h.event(egui::Event::Touch { device_id:egui::TouchDeviceId(1), id:egui::TouchId(1), phase, pos:egui::pos2(300.0,380.0), force:None });
+                    }
+                    h.run_steps(3);
                     let checkbox=h.get_by_role_and_label(egui::accesskit::Role::CheckBox,title).rect();
                     let remove=h.get_by_label("Remove").rect();
                     assert!((checkbox.center().y-remove.center().y).abs()<0.5,"misaligned: {checkbox:?} / {remove:?}");
@@ -1118,6 +1340,148 @@ mod tests {
                     assert!(h.state().done,"centered checkbox must remain clickable");
                 }
             }
+        }
+    }
+    #[test]
+    fn ios_sheet_supports_cancel_reopen_and_default_submit_on_phone_and_tablet() {
+        use egui_kittest::kittest::Queryable;
+        for width in [402.0, 1032.0] {
+            let mut app = Daybook::new(&egui::Context::default());
+            app.path = None;
+            app.shot = None;
+            app.data = Document::seed();
+            app.data.look_index = 1;
+            let mut h = egui_kittest::Harness::builder()
+                .with_theme(egui::Theme::Light)
+                .with_context_setup(|ctx| Daybook::configure_theme(ctx, 1, false))
+                .with_size(egui::vec2(width, 900.0))
+                .with_step_dt(1.0 / 60.0)
+                .build_ui_state(|ui, state: &mut Daybook| state.render(ui), app);
+            h.run_steps(3);
+            for phase in [egui::TouchPhase::Start, egui::TouchPhase::End] {
+                h.event(egui::Event::Touch {
+                    device_id: egui::TouchDeviceId(1),
+                    id: egui::TouchId(1),
+                    phase,
+                    pos: egui::pos2(380.0, 880.0),
+                    force: None,
+                });
+            }
+            h.run_steps(3);
+            h.get_by_label("+ New task").click();
+            h.run_steps(3);
+            let field = h.get_by_label("Task title").rect();
+            assert!(
+                field.left() >= 0.0 && field.right() <= width,
+                "sheet escaped viewport: {field:?}"
+            );
+            h.event(egui::Event::Text("Discard this".into()));
+            h.run_steps(3);
+            assert_eq!(
+                h.state().draft,
+                "Discard this",
+                "sheet must focus title on opening"
+            );
+            h.get_by_label("Cancel").click();
+            h.run_steps(3);
+            assert!(!h.state().adding);
+            assert_eq!(h.state().data.tasks.len(), 6);
+            h.get_by_label("+ New task").click();
+            h.run_steps(3);
+            assert!(
+                h.state().draft.is_empty(),
+                "cancelled form must start fresh"
+            );
+            h.event(egui::Event::Text("A native-sized sheet".into()));
+            h.run_steps(3);
+            h.event(egui::Event::Key {
+                key: egui::Key::Enter,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            });
+            h.run_steps(3);
+            assert!(!h.state().adding);
+            assert_eq!(h.state().data.tasks.len(), 7);
+            assert_eq!(
+                h.state().data.tasks.last().unwrap().title,
+                "A native-sized sheet"
+            );
+            h.get_by_label("+ New task").click();
+            h.run_steps(3);
+            h.event(egui::Event::Ime(egui::ImeEvent::Preedit {
+                text: "draft".into(),
+                active_range_chars: None,
+            }));
+            h.run_steps(3);
+            h.event(egui::Event::Key {
+                key: egui::Key::Enter,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            });
+            h.run_steps(3);
+            assert!(h.state().adding, "IME Enter must not submit the form");
+            h.get_by_label("Cancel").click();
+            h.run_steps(3);
+            h.get_by_label("+ New task").click();
+            h.run_steps(3);
+            h.event(egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            });
+            h.run_steps(3);
+            assert!(!h.state().adding, "Escape should cancel the fresh sheet");
+            h.state_mut().keyboard_top = Some(500.0);
+            h.get_by_label("+ New task").click();
+            h.run_steps(3);
+            assert!(
+                h.get_by_label("Add task").rect().bottom() <= 500.0,
+                "keyboard must not cover form actions"
+            );
+            h.get_by_label("Cancel").click();
+            h.run_steps(3);
+            h.state_mut().keyboard_top = None;
+            h.get_by_label("+ New task").click();
+            h.run_steps(3);
+            let start = if width < 720.0 {
+                egui::pos2(width * 0.5, 15.0)
+            } else {
+                egui::pos2(width - 10.0, 880.0)
+            };
+            h.event(egui::Event::PointerMoved(start));
+            h.run_steps(2);
+            h.event(egui::Event::PointerButton {
+                pos: start,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+            });
+            h.run_steps(2);
+            let end = if width < 720.0 {
+                start + egui::vec2(0.0, 120.0)
+            } else {
+                start
+            };
+            h.event(egui::Event::PointerMoved(end));
+            h.run_steps(2);
+            h.event(egui::Event::PointerButton {
+                pos: end,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            });
+            h.run_steps(3);
+            assert!(
+                !h.state().adding,
+                "phone pull-down or tablet backdrop should dismiss at width {width}"
+            );
+            assert_eq!(h.state().data.tasks.len(), 7);
         }
     }
 }

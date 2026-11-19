@@ -41,6 +41,7 @@ struct Document: Codable { var tasks: [TaskItem]; var notes: String; var minutes
         data = value; remaining = TimeInterval(value.minutes * 60)
         location = preview || failure != nil ? nil : file
         saveError = failure
+        adding = args.contains("--show-add-task")
     }
     func save() {
         guard let url = location else { return }
